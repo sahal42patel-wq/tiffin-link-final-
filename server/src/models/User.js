@@ -1,0 +1,106 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    password: {
+      type: String,
+      select: false
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'provider', 'customer', 'delivery'],
+      default: 'customer'
+    },
+    image: {
+      type: String,
+      default: ''
+    },
+    kitchenPhoto: {
+      type: String,
+      default: ''
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    refreshToken: {
+      type: String,
+      default: null,
+      select: false
+    },
+    lastLogin: {
+      type: Date,
+      default: Date.now
+    },
+    savedAddresses: [
+      {
+        label: { type: String, default: 'Home' },
+        fullName: { type: String, default: '' },
+        phone: { type: String, default: '' },
+        street: { type: String, default: '' },
+        area: { type: String, default: '' },
+        city: { type: String, default: 'Ahmedabad' },
+        state: { type: String, default: 'Gujarat' },
+        pincode: { type: String, default: '' },
+        lat: { type: Number, default: 23.0300 },
+        lng: { type: Number, default: 72.5178 },
+        landmark: { type: String, default: '' },
+        isDefault: { type: Boolean, default: false }
+      }
+    ],
+    currentLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      accuracy: { type: Number },
+      address: { type: String, default: '' },
+      city: { type: String, default: '' },
+      state: { type: String, default: '' },
+      country: { type: String, default: '' },
+      timestamp: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+// Encrypt password before saving
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) {
+    return next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Match user entered password to hashed password in database
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports = mongoose.model('User', userSchema);

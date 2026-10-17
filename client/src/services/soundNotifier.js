@@ -1,0 +1,178 @@
+/**
+ * TiffinLink Real-Time Audio Notification Synthesizer
+ * High-gain Web Audio API alerts for Kitchen Orders & Courier Requests
+ * Zero external mp3 dependencies, 100% reliable, auto-unlocked on user gesture.
+ */
+
+let audioCtx = null;
+let deliveryTimer = null;
+let isDeliveryAlertActive = false;
+
+const STORAGE_KEY = 'tiffinlink_sound_enabled';
+
+export const isSoundEnabled = () => {
+  if (typeof window === 'undefined') return true;
+  const val = localStorage.getItem(STORAGE_KEY);
+  return val === null ? true : val !== 'false';
+};
+
+export const setSoundEnabled = (enabled) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, enabled ? 'true' : 'false');
+  if (!enabled) {
+    stopDeliveryRequestSound();
+  }
+};
+
+const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  } catch (e) {
+    console.warn('AudioContext init warning:', e);
+    return null;
+  }
+};
+
+// Automatic user interaction unlock for browser autoplay policies
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    try {
+      const ctx = getAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+    } catch (e) {}
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+}
+
+/**
+ * Play pleasant multi-tone chime for Kitchen Providers when a new customer order arrives
+ */
+export const playKitchenOrderSound = () => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+
+    // Commercial kitchen POS double-bell chime:
+    // Ding-Ding-Dong!
+    const tones = [
+      { freq: 587.33, start: 0, dur: 0.35, gain: 0.25 },
+      { freq: 880.00, start: 0.12, dur: 0.45, gain: 0.3 },
+      { freq: 1174.66, start: 0.26, dur: 0.6, gain: 0.35 },
+      // Second bell for clear presence
+      { freq: 880.00, start: 0.65, dur: 0.35, gain: 0.28 },
+      { freq: 1174.66, start: 0.78, dur: 0.7, gain: 0.35 }
+    ];
+
+    tones.forEach(({ freq, start, dur, gain: vol }) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = 'triangle'; // Warm, resonant bell tone
+      osc.frequency.setValueAtTime(freq, now + start);
+
+      gainNode.gain.setValueAtTime(vol, now + start);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc.start(now + start);
+      osc.stop(now + start + dur);
+    });
+  } catch (err) {
+    console.warn('Kitchen chime error:', err);
+  }
+};
+
+/**
+ * Play repeating urgent alert chime for Delivery Drivers when a new delivery request is broadcast
+ */
+export const playDeliveryRequestSound = (durationSeconds = 10, onComplete) => {
+  if (!isSoundEnabled()) return;
+  stopDeliveryRequestSound();
+
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    isDeliveryAlertActive = true;
+    let iteration = 0;
+    const maxIterations = Math.max(1, Math.round(durationSeconds / 1.1));
+
+    const playPulse = () => {
+      if (!isDeliveryAlertActive || iteration >= maxIterations) {
+        stopDeliveryRequestSound();
+        if (onComplete) onComplete();
+        return;
+      }
+
+      iteration++;
+      const now = ctx.currentTime;
+
+      // Urgent two-tone delivery alert (A5 -> C6)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, now);
+      gain1.gain.setValueAtTime(0.3, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.28);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1046.5, now + 0.14);
+      gain2.gain.setValueAtTime(0.35, now + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.14);
+      osc2.stop(now + 0.48);
+
+      deliveryTimer = setTimeout(playPulse, 1100);
+    };
+
+    playPulse();
+  } catch (err) {
+    console.warn('Delivery alert sound error:', err);
+  }
+};
+
+/**
+ * Stop delivery alert chime immediately (when driver accepts, declines, or navigates away)
+ */
+export const stopDeliveryRequestSound = () => {
+  isDeliveryAlertActive = false;
+  if (deliveryTimer) {
+    clearTimeout(deliveryTimer);
+    deliveryTimer = null;
+  }
+};

@@ -1,0 +1,15 @@
+{
+  "name": "tiffinlink-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "build": "npm run build --prefix client",
+    "start": "node server/server.js",
+    "db:import": "npm run db:import --prefix server",
+    "db:export": "npm run db:export --prefix server"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

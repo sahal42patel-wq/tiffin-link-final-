@@ -1,0 +1,278 @@
+const mongoose = require('mongoose');
+const Tiffin = require('../models/Tiffin');
+const { ensureConnected } = require('../config/db');
+
+const isDbConnected = async () => await ensureConnected();
+
+const Review = require('../models/Review');
+const TiffinItem = require('../models/TiffinItem');
+
+// @desc    Get tiffins from MongoDB (provider-scoped or public) with live ratings
+// @route   GET /api/tiffins
+const getTiffins = async (req, res) => {
+  try {
+    const providerId = req.providerId || req.query.providerId;
+    let query = {};
+    if (providerId) {
+      query.providerId = providerId;
+    } else {
+      query.status = 'Active';
+    }
+
+    if (await isDbConnected()) {
+      const tiffins = await Tiffin.find(query).sort({ createdAt: -1 }).lean();
+
+      // Batch fetch configured items for these tiffins
+      const tiffinIds = tiffins.map(t => t._id);
+      const itemsMap = {};
+      try {
+        const allItems = await TiffinItem.find({
+          tiffinId: { $in: tiffinIds },
+          isAvailable: { $ne: false }
+        }).sort({ sortOrder: 1, createdAt: 1 }).lean();
+
+        allItems.forEach(item => {
+          const tid = item.tiffinId.toString();
+          if (!itemsMap[tid]) itemsMap[tid] = [];
+          itemsMap[tid].push(item.name);
+        });
+      } catch (itemErr) {
+        console.warn('Could not batch fetch configured items:', itemErr.message);
+      }
+
+      // Batch fetch reviews in a single query to eliminate N+1 database queries
+      const allReviews = providerId
+        ? await Review.find({ providerId }).select('tiffinId tiffinName rating').lean()
+        : [];
+
+      const reviewMap = {};
+      allReviews.forEach(r => {
+        const key = r.tiffinId || r.tiffinName;
+        if (key) {
+          if (!reviewMap[key]) reviewMap[key] = { sum: 0, count: 0 };
+          reviewMap[key].sum += Number(r.rating) || 5;
+          reviewMap[key].count += 1;
+        }
+      });
+
+      const enrichedTiffins = tiffins.map(t => {
+        const keyId = t._id.toString();
+        const keyName = t.name;
+        const revData = reviewMap[keyId] || reviewMap[keyName];
+
+        const configuredList = itemsMap[keyId];
+        const finalItems = (configuredList && configuredList.length > 0)
+          ? configuredList
+          : (Array.isArray(t.items) && t.items.length > 0 ? t.items : []);
+
+        const base = {
+          ...t,
+          items: finalItems,
+          itemsCount: finalItems.length
+        };
+
+        if (revData && revData.count > 0) {
+          return {
+            ...base,
+            rating: Number((revData.sum / revData.count).toFixed(1)),
+            reviewCount: revData.count
+          };
+        }
+        return {
+          ...base,
+          rating: t.rating || 0,
+          reviewCount: t.reviewCount || 0
+        };
+      });
+
+      return res.json({ success: true, data: enrichedTiffins, source: 'database', databaseName: 'tiffinlink' });
+    } else {
+      return res.json({ success: true, data: [], source: 'in-memory' });
+    }
+  } catch (error) {
+    console.error('Error fetching tiffins:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Get single tiffin by ID with provider details and reviews
+// @route   GET /api/tiffins/:id
+const getTiffinById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (await isDbConnected()) {
+      let tiffin = null;
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        tiffin = await Tiffin.findById(id).lean();
+      }
+      if (!tiffin) {
+        tiffin = await Tiffin.findOne({ name: id }).lean();
+      }
+      if (!tiffin) {
+        return res.status(404).json({ success: false, message: 'Tiffin not found' });
+      }
+
+      // Fetch reviews if available
+      const reviews = await Review.find({
+        $or: [{ tiffinId: tiffin._id.toString() }, { tiffinName: tiffin.name }]
+      }).lean();
+
+      if (reviews.length > 0) {
+        const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+        tiffin.rating = Number((sum / reviews.length).toFixed(1));
+        tiffin.reviewCount = reviews.length;
+      }
+
+      // Fetch provider info
+      const Provider = require('../models/Provider');
+      const provider = await Provider.findById(tiffin.providerId).lean();
+      if (provider) {
+        tiffin.provider = {
+          _id: provider._id,
+          name: provider.name,
+          image: provider.image,
+          address: provider.address,
+          rating: provider.rating,
+          mobile: provider.mobile,
+          fssaiNumber: provider.fssaiNumber
+        };
+      }
+
+      // Fetch configured items
+      try {
+        const configuredItems = await TiffinItem.find({
+          tiffinId: tiffin._id,
+          isAvailable: { $ne: false }
+        }).sort({ sortOrder: 1, createdAt: 1 }).lean();
+
+        if (configuredItems.length > 0) {
+          tiffin.items = configuredItems.map(i => i.name);
+          tiffin.itemsCount = configuredItems.length;
+          tiffin.tiffinItems = configuredItems;
+        } else {
+          tiffin.itemsCount = Array.isArray(tiffin.items) ? tiffin.items.length : 0;
+        }
+      } catch (itemErr) {
+        console.warn('Could not fetch items for tiffin:', itemErr.message);
+      }
+
+      return res.json({ success: true, data: tiffin, source: 'database' });
+    }
+    return res.status(500).json({ success: false, message: 'Database connection error' });
+  } catch (error) {
+    console.error('Error fetching tiffin by ID:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Create a new tiffin in MongoDB
+// @route   POST /api/tiffins
+const createTiffin = async (req, res) => {
+  try {
+    const providerId = req.providerId;
+    if (!providerId) {
+      return res.status(403).json({ success: false, message: 'Provider authorization required' });
+    }
+
+    const { name, description, price, category, foodType, mealType, capacity, days, area, ingredients, items, image, status, startTime, endTime, orderCutoff, monthlyPrice, weeklyPrice, isSubscriptionOnly } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Please provide tiffin name' });
+    }
+
+    const tiffinData = {
+      providerId,
+      name: name.trim(),
+      description: description || '',
+      price: price !== undefined && price !== '' ? Number(price) : (monthlyPrice ? Math.round(Number(monthlyPrice) / 26) : 0),
+      monthlyPrice: monthlyPrice ? Number(monthlyPrice) : 0,
+      weeklyPrice: weeklyPrice ? Number(weeklyPrice) : 0,
+      isSubscriptionOnly: isSubscriptionOnly !== undefined ? Boolean(isSubscriptionOnly) : false,
+      category: category || '',
+      foodType: foodType || 'Veg',
+      mealType: mealType || 'Lunch',
+      startTime: startTime || '12:00 PM',
+      endTime: endTime || '02:00 PM',
+      orderCutoff: orderCutoff || '10:00 AM',
+      capacity: Number(capacity) || 0,
+      available: Number(capacity) || 0,
+      days: Array.isArray(days) ? days : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      area: area || '',
+      ingredients: ingredients || '',
+      items: Array.isArray(items) ? items : [],
+      ordersToday: 0,
+      rating: 0,
+      status: status || 'Active',
+      image: image || ''
+    };
+
+    if (await isDbConnected()) {
+      const newTiffin = new Tiffin(tiffinData);
+      await newTiffin.save();
+      return res.status(201).json({ 
+        success: true, 
+        message: 'Tiffin stored successfully in MongoDB', 
+        data: newTiffin, 
+        source: 'database' 
+      });
+    } else {
+      return res.status(201).json({ 
+        success: true, 
+        message: 'Tiffin created (in-memory)', 
+        data: { _id: 'tif_' + Date.now(), ...tiffinData }, 
+        source: 'in-memory' 
+      });
+    }
+  } catch (error) {
+    console.error('Error creating tiffin:', error);
+    res.status(500).json({ success: false, message: 'Failed to save tiffin to MongoDB: ' + error.message });
+  }
+};
+
+// @desc    Update a tiffin in MongoDB
+// @route   PUT /api/tiffins/:id
+const updateTiffin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providerId = req.providerId;
+    if (await isDbConnected()) {
+      const updated = await Tiffin.findOneAndUpdate({ _id: id, providerId }, req.body, { new: true });
+      if (!updated) {
+        return res.status(404).json({ success: false, message: 'Tiffin not found or unauthorized' });
+      }
+      return res.json({ success: true, message: 'Tiffin updated in MongoDB', data: updated });
+    }
+    return res.json({ success: true, message: 'Tiffin updated (in-memory)', data: req.body });
+  } catch (error) {
+    console.error('Error updating tiffin:', error);
+    res.status(500).json({ success: false, message: 'Failed to update tiffin' });
+  }
+};
+
+// @desc    Delete a tiffin from MongoDB
+// @route   DELETE /api/tiffins/:id
+const deleteTiffin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providerId = req.providerId;
+    if (await isDbConnected()) {
+      const deleted = await Tiffin.findOneAndDelete({ _id: id, providerId });
+      if (!deleted) {
+        return res.status(404).json({ success: false, message: 'Tiffin not found or unauthorized' });
+      }
+      return res.json({ success: true, message: 'Tiffin deleted from MongoDB' });
+    }
+    return res.json({ success: true, message: 'Tiffin deleted (in-memory)' });
+  } catch (error) {
+    console.error('Error deleting tiffin:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete tiffin' });
+  }
+};
+
+module.exports = {
+  getTiffins,
+  getTiffinById,
+  createTiffin,
+  updateTiffin,
+  deleteTiffin
+};

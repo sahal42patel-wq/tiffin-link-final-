@@ -1,0 +1,321 @@
+import React, { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
+
+export default function MealRequestForm({ onSubmitRequestSuccess }) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    mealType: 'Veg Tiffin',
+    date: todayStr,
+    time: '13:00',
+    deliveryType: 'Delivery',
+    location: 'Satellite, Ahmedabad',
+    budget: '140'
+  });
+  const [loading, setLoading] = useState(false);
+  const [isMealTypeOpen, setIsMealTypeOpen] = useState(false);
+  const [isDeliveryTypeOpen, setIsDeliveryTypeOpen] = useState(false);
+  const mealTypeRef = useRef(null);
+  const deliveryTypeRef = useRef(null);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('tiffinlink_user');
+      if (savedUser) {
+        const u = JSON.parse(savedUser);
+        setFormData(prev => ({
+          ...prev,
+          customerName: u.name || prev.customerName,
+          customerPhone: u.phone || prev.customerPhone
+        }));
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (mealTypeRef.current && !mealTypeRef.current.contains(event.target)) {
+        setIsMealTypeOpen(false);
+      }
+      if (deliveryTypeRef.current && !deliveryTypeRef.current.contains(event.target)) {
+        setIsDeliveryTypeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    
+    const submissionData = {
+      customerName: formData.customerName || 'Customer Diner',
+      customerPhone: formData.customerPhone || '+91 98250 99881',
+      mealType: formData.mealType || 'Veg Tiffin',
+      date: formData.date || todayStr,
+      time: formData.time || '13:00',
+      deliveryType: formData.deliveryType || 'Delivery',
+      location: formData.location || 'Satellite, Ahmedabad',
+      budget: formData.budget || '140'
+    };
+
+    // Responsive confetti feedback
+    try {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#1A1A1A', '#4A4238', '#DED9D1']
+      });
+    } catch (err) {}
+
+    // Immediately trigger navigation and auto-filter providers
+    if (onSubmitRequestSuccess) {
+      onSubmitRequestSuccess(submissionData);
+    }
+
+    // Persist request in background with single flight
+    try {
+      await fetch('http://localhost:5000/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerName: submissionData.customerName,
+          customerPhone: submissionData.customerPhone,
+          mealType: submissionData.mealType,
+          date: submissionData.date,
+          time: submissionData.time,
+          deliveryType: submissionData.deliveryType,
+          location: submissionData.location,
+          budget: Number(submissionData.budget) || 140,
+          category: submissionData.mealType.includes('Jain') ? 'Jain' : (submissionData.mealType.includes('Non-Veg') ? 'Non-Veg' : 'Gujarati')
+        }),
+      });
+    } catch (error) {
+      console.warn('Request submission failed:', error);
+    } finally {
+      setTimeout(() => setIsSubmitting(false), 2000);
+    }
+  };
+
+  return (
+    <section id="meal-request-section" className="py-12 md:py-20 px-4 sm:px-6 md:px-margin-desktop bg-bone-white border-b border-sand-neutral/30 relative z-10">
+      <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-gutter items-center">
+        {/* Left column: Title and form */}
+        <div className="md:col-span-5 transition-all duration-500">
+          <p className="font-label-caps text-xs sm:text-sm font-bold tracking-[0.25em] text-[#6B4B2B] dark:text-[#D4AF37] mb-4 md:mb-8 uppercase">
+            KITCHEN CONCIERGE
+          </p>
+          <h2 className="font-headline-lg text-3xl sm:text-5xl md:text-headline-lg font-serif font-bold text-onyx-black dark:text-white mb-8 md:mb-12">
+            Design your dining experience.
+          </h2>
+          
+          <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-x-8 sm:gap-y-8">
+              {/* MEAL TYPE */}
+              <div ref={mealTypeRef} className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group relative">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  MEAL TYPE
+                </label>
+                <div 
+                  onClick={() => setIsMealTypeOpen(!isMealTypeOpen)}
+                  className="w-full flex justify-between items-center py-2 cursor-pointer text-body-lg font-body-lg text-onyx-black dark:text-white font-medium select-none"
+                >
+                  <span>{formData.mealType}</span>
+                  <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 ${isMealTypeOpen ? 'rotate-180' : ''}`}>
+                    keyboard_arrow_down
+                  </span>
+                </div>
+                
+                {isMealTypeOpen && (
+                  <div className="absolute left-0 right-0 mt-2 bg-[#fbf9f5] dark:bg-[#1A1A1E] border border-clay-earth/30 shadow-xl rounded-md z-[100] transition-all duration-300 max-h-60 overflow-y-auto">
+                    {[
+                      'Veg Tiffin',
+                      'Non-Veg Tiffin'
+                    ].map((option) => (
+                      <div
+                        key={option}
+                        onClick={() => {
+                          setFormData({ ...formData, mealType: option });
+                          setIsMealTypeOpen(false);
+                        }}
+                        className={`px-4 py-3 text-left hover:bg-clay-earth/15 transition-colors text-body-md font-body-md cursor-pointer ${
+                          formData.mealType === option ? 'bg-clay-earth/10 font-bold text-primary dark:text-[#D4AF37]' : 'text-[#2E1E12] dark:text-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* DATE */}
+              <div className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  DATE
+                </label>
+                <input 
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="w-full bg-transparent border-none p-0 py-2 focus:ring-0 text-body-lg font-body-lg text-onyx-black dark:text-white font-medium"
+                  required
+                />
+              </div>
+
+              {/* TIME */}
+              <div className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  TIME
+                </label>
+                <input 
+                  type="time"
+                  name="time"
+                  value={formData.time}
+                  onChange={handleChange}
+                  className="w-full bg-transparent border-none p-0 py-2 focus:ring-0 text-body-lg font-body-lg text-onyx-black dark:text-white font-medium"
+                  required
+                />
+              </div>
+
+              {/* DELIVERY/PICKUP */}
+              <div ref={deliveryTypeRef} className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group relative">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  DELIVERY/PICKUP
+                </label>
+                <div 
+                  onClick={() => setIsDeliveryTypeOpen(!isDeliveryTypeOpen)}
+                  className="w-full flex justify-between items-center py-2 cursor-pointer text-body-lg font-body-lg text-onyx-black dark:text-white font-medium select-none"
+                >
+                  <span>{formData.deliveryType}</span>
+                  <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 ${isDeliveryTypeOpen ? 'rotate-180' : ''}`}>
+                    keyboard_arrow_down
+                  </span>
+                </div>
+                
+                {isDeliveryTypeOpen && (
+                  <div className="absolute left-0 right-0 mt-2 bg-[#fbf9f5] dark:bg-[#1A1A1E] border border-clay-earth/30 shadow-xl rounded-md z-[100] transition-all duration-300">
+                    {[
+                      'Delivery',
+                      'Pickup'
+                    ].map((option) => (
+                      <div
+                        key={option}
+                        onClick={() => {
+                          setFormData({ ...formData, deliveryType: option });
+                          setIsDeliveryTypeOpen(false);
+                        }}
+                        className={`px-4 py-3 text-left hover:bg-clay-earth/15 transition-colors text-body-md font-body-md cursor-pointer ${
+                          formData.deliveryType === option ? 'bg-clay-earth/10 font-bold text-primary dark:text-[#D4AF37]' : 'text-[#2E1E12] dark:text-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* LOCATION */}
+              <div className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  LOCATION
+                </label>
+                <input 
+                  type="text" 
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Iscon Circle, Ahmedabad"
+                  className="w-full bg-transparent border-none p-0 py-2 focus:ring-0 text-body-lg font-body-lg text-onyx-black dark:text-white font-medium placeholder:opacity-50"
+                  required
+                />
+              </div>
+
+              {/* BUDGET */}
+              <div className="border-b-2 border-[#8C653E]/40 dark:border-[#5A5A68] pb-4 group">
+                <label className="font-label-caps text-xs font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1">
+                  BUDGET (₹ PER MEAL)
+                </label>
+                <input 
+                  type="number" 
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="140"
+                  className="w-full bg-transparent border-none p-0 py-2 focus:ring-0 text-body-lg font-body-lg text-onyx-black dark:text-white font-medium placeholder:opacity-50"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button 
+              disabled={loading}
+              type="submit"
+              className="w-full bg-onyx-black text-bone-white py-6 font-button-text transition-all duration-500 hover:bg-clay-earth hover:tracking-widest scale-100 active:scale-95 disabled:opacity-50 magnetic"
+            >
+              {loading ? 'FINDING PROVIDERS...' : 'FIND PROVIDERS'}
+            </button>
+          </form>
+        </div>
+
+        {/* Right column: Video */}
+        <div className="md:col-span-6 md:col-start-7 flex items-center transition-all duration-500">
+          <div className="aspect-[4/5] w-full rounded-3xl overflow-hidden shadow-[0_15px_40px_rgba(74,66,56,0.12)] border border-clay-earth/20 relative group/video">
+            {/* Inner Gold Frame */}
+            <div className="absolute inset-2 border border-clay-earth/10 pointer-events-none rounded-[20px] z-10 animate-fade-in" />
+            
+            <video 
+              ref={videoRef}
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              preload="auto"
+              disablePictureInPicture
+              controlsList="nodownload noplaybackrate nopictureinpicture"
+              className="w-full h-full object-cover select-none pointer-events-none transform group-hover/video:scale-[1.02] transition-transform duration-700"
+            >
+              <source src="/make_one_video_for_Indian_food.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
