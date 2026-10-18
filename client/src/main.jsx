@@ -34,6 +34,70 @@ import "maplibre-gl/dist/maplibre-gl.css"
   } catch (e) {}
 })();
 
+// Complete Cross-Platform Anti-Inspect Shield (Desktop, Laptop, Tablet, Mobile)
+(function setupAntiInspect() {
+  if (typeof window === 'undefined') return;
+
+  const preventEvent = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
+  // 1. Disable Right-Click Context Menu & Mobile Hold Callouts
+  window.addEventListener('contextmenu', preventEvent, { capture: true });
+  document.addEventListener('contextmenu', preventEvent, { capture: true });
+
+  // 2. Disable Keyboard Shortcuts (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, etc.)
+  const handleKeydown = (e) => {
+    // F12
+    if (e.key === 'F12' || e.keyCode === 123) {
+      return preventEvent(e);
+    }
+
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+    // Ctrl/Cmd + Shift + (I, J, C, K, E, S)
+    if (isCtrlOrCmd && e.shiftKey) {
+      const k = (e.key || '').toUpperCase();
+      const c = e.keyCode;
+      if (['I', 'J', 'C', 'K', 'E', 'S'].includes(k) || [73, 74, 67, 75, 69, 83].includes(c)) {
+        return preventEvent(e);
+      }
+    }
+
+    // Ctrl/Cmd + (U = View Source, S = Save Page)
+    if (isCtrlOrCmd && !e.shiftKey) {
+      const k = (e.key || '').toUpperCase();
+      const c = e.keyCode;
+      if (['U', 'S'].includes(k) || [85, 83].includes(c)) {
+        return preventEvent(e);
+      }
+    }
+
+    // macOS Alt + Cmd + (I, J, C)
+    if (e.altKey && (e.metaKey || e.ctrlKey)) {
+      const k = (e.key || '').toUpperCase();
+      const c = e.keyCode;
+      if (['I', 'J', 'C'].includes(k) || [73, 74, 67].includes(c)) {
+        return preventEvent(e);
+      }
+    }
+  };
+
+  window.addEventListener('keydown', handleKeydown, { capture: true });
+  document.addEventListener('keydown', handleKeydown, { capture: true });
+
+  // 3. Prevent dragging non-input content
+  window.addEventListener('dragstart', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+      return true;
+    }
+    e.preventDefault();
+    return false;
+  }, { capture: true });
+})();
+
 // Global fetch interceptor to automatically attach JWT authorization headers and credentials to API calls
 (function setupGlobalFetchInterceptor() {
   if (typeof window === 'undefined' || !window.fetch) return;
