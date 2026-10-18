@@ -113,7 +113,7 @@ export default function App() {
     if (!user) {
       // If auth session is still restoring from MongoDB/JWT, PRESERVE hash and avoid wiping history or opening modals
       if (isAuthRestoring) {
-        if (cleanHash.startsWith('#orders') || cleanHash.startsWith('#my-orders') || cleanHash.startsWith('#active-orders') || cleanHash.startsWith('#track-order')) return 'orders';
+        if (cleanHash.startsWith('#orders') || cleanHash.startsWith('#my-orders') || cleanHash.startsWith('#active-orders') || cleanHash.startsWith('#track-order') || cleanHash.startsWith('#custom-quotes') || cleanHash.startsWith('#meal-quotes') || cleanHash.startsWith('#upcoming-tiffins') || cleanHash.startsWith('#order-history') || cleanHash.startsWith('#cancelled-orders')) return 'orders';
         if (cleanHash.startsWith('#/provider') || cleanHash.startsWith('#provider')) return 'provider';
         if (cleanHash.startsWith('#/delivery') || cleanHash.startsWith('#delivery')) return 'delivery';
         if (cleanHash.startsWith('#/admin') || cleanHash.startsWith('#admin')) return 'admin';
@@ -156,6 +156,8 @@ export default function App() {
         cleanHash.startsWith('#my-orders') || 
         cleanHash.startsWith('#active-orders') || 
         cleanHash.startsWith('#track-order') || 
+        cleanHash.startsWith('#custom-quotes') || 
+        cleanHash.startsWith('#meal-quotes') || 
         cleanHash.startsWith('#upcoming-tiffins') || 
         cleanHash.startsWith('#order-history') || 
         cleanHash.startsWith('#cancelled-orders')
@@ -218,6 +220,8 @@ export default function App() {
       cleanHash.startsWith('#my-orders') || 
       cleanHash.startsWith('#active-orders') || 
       cleanHash.startsWith('#track-order') || 
+      cleanHash.startsWith('#custom-quotes') || 
+      cleanHash.startsWith('#meal-quotes') || 
       cleanHash.startsWith('#upcoming-tiffins') || 
       cleanHash.startsWith('#order-history') || 
       cleanHash.startsWith('#cancelled-orders')

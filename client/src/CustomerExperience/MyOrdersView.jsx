@@ -2071,8 +2071,11 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.hash = '#meal-request-section';
-                    window.location.reload();
+                    if (onNavigate) {
+                      onNavigate('#order-tiffin');
+                    } else {
+                      window.location.hash = '#order-tiffin';
+                    }
                   }}
                   className="px-6 py-2.5 rounded-lg bg-onyx-black text-bone-white font-button-text text-sm hover:bg-neutral-800 transition-colors inline-flex items-center gap-2 cursor-pointer shadow-sm"
                 >
