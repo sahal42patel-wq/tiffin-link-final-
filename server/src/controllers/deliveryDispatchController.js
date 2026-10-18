@@ -1551,6 +1551,7 @@ const getDriverDashboardData = async (req, res) => {
     let totalEarningsToday = 0;
     let recentDeliveries = [];
     let pendingRequests = [];
+    let allDriverCompletedReqs = [];
 
     if (await isDbConnected()) {
       await reconcileMissingDeliveryRequests();
@@ -1640,34 +1641,62 @@ const getDriverDashboardData = async (req, res) => {
         ...(driverRecord?.name && !isGenericName(driverRecord.name) ? [{ 'assignedDriver.name': driverRecord.name }] : [])
       ];
 
-      const completedReqs = driverCompletedConditions.length > 0
-        ? await DeliveryRequest.find({
-            $and: [
-              { $or: driverCompletedConditions },
-              { status: { $in: ['Delivered', 'DELIVERED', 'Completed', 'COMPLETED'] } },
-              {
-                $or: [
-                  { deliveredAt: { $gte: startOfDay, $lte: endOfDay } },
-                  { requestedAt: { $gte: startOfDay, $lte: endOfDay } },
-                  { updatedAt: { $gte: startOfDay, $lte: endOfDay } },
-                  { deliveredAt: { $exists: false } }
-                ]
-              }
-            ]
-          })
-        : [];
-
-      completedToday = completedReqs.length;
-      totalEarningsToday = completedReqs.reduce((sum, r) => sum + Number(r.driverEarning || r.deliveryFee || 51), 0);
-
-      recentDeliveries = driverCompletedConditions.length > 0
+      // Fetch all completed requests for this driver
+      allDriverCompletedReqs = driverCompletedConditions.length > 0
         ? await DeliveryRequest.find({
             $or: driverCompletedConditions,
             status: { $in: ['Delivered', 'DELIVERED', 'Completed', 'COMPLETED'] }
-          })
-          .sort({ requestedAt: -1, deliveredAt: -1 })
-          .limit(5)
+          }).lean()
         : [];
+
+      // Check Orders that are completed/delivered for this driver
+      let completedOrders = [];
+      if (ordLookupConditions && ordLookupConditions.length > 0) {
+        completedOrders = await Order.find({
+          status: { $in: ['Delivered', 'DELIVERED', 'Completed', 'COMPLETED'] },
+          $or: ordLookupConditions
+        }).lean();
+      }
+
+      // Merge order completions if not already in allDriverCompletedReqs
+      const seenOrderIds = new Set(allDriverCompletedReqs.map(r => String(r.orderId || r._id).replace(/^#+/, '')));
+      completedOrders.forEach(o => {
+        const cleanId = String(o.orderId || o._id).replace(/^#+/, '');
+        if (!seenOrderIds.has(cleanId)) {
+          seenOrderIds.add(cleanId);
+          allDriverCompletedReqs.push({
+            orderId: o.orderId,
+            status: 'Delivered',
+            driverEarning: o.driverEarning || o.deliveryFee || 25,
+            deliveredAt: o.deliveredAt || o.completedAt || o.createdAt,
+            requestedAt: o.createdAt,
+            providerName: o.restaurantName || o.providerName || 'Artisanal Home Kitchen',
+            customerName: o.customerName || 'Customer',
+            amount: o.totalAmount || 0
+          });
+        }
+      });
+
+      // Strictly count deliveries completed TODAY (within local startOfDay and endOfDay)
+      const completedTodayReqs = allDriverCompletedReqs.filter(r => {
+        const completionTime = new Date(r.deliveredAt || r.completedAt || r.requestedAt || r.createdAt);
+        return !isNaN(completionTime.getTime()) && completionTime >= startOfDay && completionTime <= endOfDay;
+      });
+
+      completedToday = completedTodayReqs.length;
+      totalEarningsToday = completedTodayReqs.reduce((sum, r) => {
+        const earning = Number(r.driverEarning !== undefined ? r.driverEarning : (r.deliveryFee !== undefined ? r.deliveryFee : 0));
+        return sum + (earning > 0 ? earning : 0);
+      }, 0);
+
+      // Most recent delivery activity
+      recentDeliveries = [...allDriverCompletedReqs]
+        .sort((a, b) => {
+          const tA = new Date(a.deliveredAt || a.completedAt || a.requestedAt || a.createdAt || 0).getTime();
+          const tB = new Date(b.deliveredAt || b.completedAt || b.requestedAt || b.createdAt || 0).getTime();
+          return tB - tA;
+        })
+        .slice(0, 5);
 
       const rawPending = await DeliveryRequest.find({
         status: { $in: ['Searching Drivers', 'Searching', 'Pending', 'SEARCHING_DRIVERS', 'SEARCHING'] },
@@ -1800,9 +1829,9 @@ const getDriverDashboardData = async (req, res) => {
         rating: realAverageRating,
         ratedCount: realRatedCount,
         performance: {
-          acceptanceRate: completedToday > 0 ? 94 : null,
-          completionRate: completedToday > 0 ? 98 : null,
-          onTimeRate: completedToday > 0 ? 96 : null
+          acceptanceRate: allDriverCompletedReqs.length > 0 ? 94 : null,
+          completionRate: allDriverCompletedReqs.length > 0 ? 98 : null,
+          onTimeRate: allDriverCompletedReqs.length > 0 ? 96 : null
         },
         earningsBreakdown: {
           baseEarnings: totalEarningsToday > 0 ? Math.round(totalEarningsToday * 0.7) : 0,
