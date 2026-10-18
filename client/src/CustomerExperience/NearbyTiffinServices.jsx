@@ -31,6 +31,90 @@ const AHMEDABAD_LOCALITIES = {
   'chandkheda': { lat: 23.1120, lng: 72.5850, name: 'Chandkheda, Ahmedabad' }
 };
 
+export const getProviderHighlightQuote = (prov) => {
+  if (!prov) return { icon: '✨', text: 'Fresh Daily Homestyle Batch' };
+
+  // 1. Explicit provider offer, promo or tagline if defined
+  if (prov.offer && typeof prov.offer === 'string' && prov.offer.trim()) {
+    return { icon: '🏷️', text: prov.offer.trim() };
+  }
+  if (prov.tagline && typeof prov.tagline === 'string' && prov.tagline.trim()) {
+    return { icon: '✨', text: prov.tagline.trim() };
+  }
+
+  // 2. Derive dynamically from kitchen's real attributes in MongoDB
+  const tags = (prov.tags || []).map(t => String(t || '').trim());
+  const cuisines = String(prov.cuisines || '').toLowerCase();
+  const desc = String(prov.description || '').toLowerCase();
+  const categories = (prov.categories || []).map(c => String(c || '').toLowerCase());
+  const tiffinNames = (prov.tiffins || []).map(t => String(t.name || '').toLowerCase()).join(' ');
+  const combined = `${tags.join(' ')} ${cuisines} ${desc} ${categories.join(' ')} ${tiffinNames}`.toLowerCase();
+
+  // Jain / Satvik / Swaminarayan
+  if (combined.includes('satvik') || combined.includes('jain') || combined.includes('no onion') || combined.includes('without onion')) {
+    return { icon: '🏷️', text: '100% Satvik Jain Available' };
+  }
+  if (combined.includes('swaminarayan')) {
+    return { icon: '🏷️', text: 'Pure Swaminarayan Option' };
+  }
+
+  // Desi Ghee / Kathiyawadi
+  if (combined.includes('desi ghee') || combined.includes('pure ghee') || combined.includes('ghee')) {
+    if (combined.includes('kathiyawadi')) {
+      return { icon: '✨', text: 'Pure Desi Ghee Kathiyawadi' };
+    }
+    return { icon: '✨', text: 'Cooked in Pure Desi Ghee' };
+  }
+  if (combined.includes('kathiyawadi')) {
+    return { icon: '✨', text: 'Authentic Kathiyawadi Taste' };
+  }
+
+  // Gujarati & Punjabi
+  if ((combined.includes('gujarati') && combined.includes('panjabi')) || (combined.includes('gujarati') && combined.includes('punjabi'))) {
+    return { icon: '✨', text: 'Fresh Gujarati & Punjabi Meals' };
+  }
+  if (combined.includes('gujarati')) {
+    return { icon: '✨', text: 'Traditional Gujarati Thali' };
+  }
+  if (combined.includes('punjabi') || combined.includes('panjabi')) {
+    return { icon: '✨', text: 'Authentic Punjabi Desi Style' };
+  }
+  if (combined.includes('healthy') || combined.includes('diet') || combined.includes('protein')) {
+    return { icon: '🌱', text: 'Healthy Balanced Home Diet' };
+  }
+  if (combined.includes('chinese')) {
+    return { icon: '⚡', text: 'Homestyle Desi Chinese & Meals' };
+  }
+  if (combined.includes('pure veg') || tags.some(t => t.toLowerCase() === 'pure veg')) {
+    return { icon: '🌱', text: '100% Pure Veg Home Kitchen' };
+  }
+  if (combined.includes('non-veg') || tags.some(t => t.toLowerCase().includes('non-veg'))) {
+    return { icon: '🍗', text: 'Fresh Veg & Non-Veg Homestyle' };
+  }
+
+  // Top Rated Badge
+  if (prov.rating && prov.rating >= 4.7) {
+    return { icon: '⭐', text: `Top Rated • ${prov.rating}★ Kitchen` };
+  }
+
+  // Same Day Delivery
+  if (prov.sameDayDelivery) {
+    return { icon: '⚡', text: 'Express Lunch Dispatch' };
+  }
+
+  // Specific clean tag if available
+  const validTag = tags.find(t => t && !t.toLowerCase().includes('http') && t.length < 30 && t.toLowerCase() !== 'indian');
+  if (validTag) {
+    return { icon: '✨', text: `${validTag} Special` };
+  }
+
+  if (combined.includes('indian')) {
+    return { icon: '✨', text: 'Authentic Indian Homestyle Batch' };
+  }
+
+  return { icon: '✨', text: 'Fresh Daily Homestyle Batch' };
+};
+
 export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, onOpenLogin }) {
   const { currentUser } = useAuth();
   // Centralized real-time location context
@@ -1395,19 +1479,16 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                             </div>
                           </div>
 
-                          {/* Bottom-Left: Dynamic Kitchen Offer Pill */}
-                          <div className="absolute bottom-2.5 left-2.5 bg-[#a0522d] text-white font-bold text-[11px] px-2.5 py-1 rounded-sm flex items-center gap-1.5 shadow-md">
-                            <span className="text-[12px]">{index % 3 === 0 ? '🏷️' : index % 3 === 1 ? '✨' : '⚡'}</span>
-                            <span>
-                              {prov.offer || (
-                                index === 0 ? 'Flat 10% OFF • Fresh Thali' :
-                                index === 1 ? 'Free Delivery • First Order' :
-                                index === 2 ? 'Pure Desi Ghee Handcrafted' :
-                                index === 3 ? '100% Satvik Jain Available' :
-                                'Fresh Daily Homestyle Batch'
-                              )}
-                            </span>
-                          </div>
+                          {/* Bottom-Left: Dynamic Kitchen Offer / Specialty Quote Pill */}
+                          {(() => {
+                            const highlight = getProviderHighlightQuote(prov);
+                            return (
+                              <div className="absolute bottom-2.5 left-2.5 bg-[#a0522d] text-white font-bold text-[11px] px-2.5 py-1 rounded-sm flex items-center gap-1.5 shadow-md">
+                                <span className="text-[12px]">{highlight.icon}</span>
+                                <span>{highlight.text}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Line 1: Kitchen Name & Rating Badge */}
