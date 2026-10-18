@@ -3345,12 +3345,6 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                   <span className="material-symbols-outlined text-[18px]">download</span>
                   <span>Export Statement (PDF)</span>
                 </button>
-                <div className="hidden sm:flex items-center gap-2 px-4 py-3 bg-surface-container-lowest shadow-sm">
-                  <span className="material-symbols-outlined text-[18px] text-secondary">verified_user</span>
-                  <span className="font-label-caps text-label-caps text-secondary uppercase">
-                    304 Steel Canister Cycle Active
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -3581,7 +3575,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                                 Vessel Custody
                               </span>
                               <span className="font-button-text text-button-text text-clay-earth">
-                                {order.vesselStatus || '304 Steel Cycle Completed'}
+                                {order.vesselStatus || 'Packaging Returned & Cleaned'}
                               </span>
                             </div>
                           </div>
