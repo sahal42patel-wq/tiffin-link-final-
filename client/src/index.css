@@ -1238,9 +1238,15 @@ html.dark aside .p-4.border-t .text-\[\#666666\] {
   .text-gray-800,
   .text-slate-950,
   .text-slate-900,
-  .text-slate-800
+  .text-slate-800,
+  .text-bone-white,
+  [class*="text-bone-white"]
 ) {
   color: #FAF8F5 !important;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) [class*="text-bone-white/"] {
+  color: rgba(250, 248, 245, 0.9) !important;
 }
 
 /* 3. Secondary & Muted Dark Text Overrides -> Warm Soft Cream / Silver (#D4D0C8) */

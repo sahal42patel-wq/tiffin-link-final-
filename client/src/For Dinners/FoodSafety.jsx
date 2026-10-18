@@ -96,24 +96,24 @@ export default function FoodSafety() {
                   <div className="flex items-start gap-3 group/row cursor-pointer transition-all duration-300">
                     <span className="material-symbols-outlined text-clay-earth text-base mt-0.5 transform group-hover/row:scale-125 group-hover/row:rotate-12 transition-all duration-300 shrink-0">verified_user</span>
                     <div className="transform group-hover/row:translate-x-1.5 transition-transform duration-300">
-                      <p className="font-label-caps text-[9px] text-bone-white tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">FSSAI AUDITED KITCHENS</p>
-                      <p className="font-body-md text-[10px] text-bone-white/60 mt-0.5 leading-relaxed">All home chefs verified with active government safety registration.</p>
+                      <p className="font-label-caps text-[9px] text-[#FAF8F5] tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">FSSAI AUDITED KITCHENS</p>
+                      <p className="font-body-md text-[10px] text-[#D4D0C8] mt-0.5 leading-relaxed">All home chefs verified with active government safety registration.</p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3 group/row cursor-pointer transition-all duration-300">
                     <span className="material-symbols-outlined text-clay-earth text-base mt-0.5 transform group-hover/row:scale-125 group-hover/row:rotate-12 transition-all duration-300 shrink-0">sanitizer</span>
                     <div className="transform group-hover/row:translate-x-1.5 transition-transform duration-300">
-                      <p className="font-label-caps text-[9px] text-bone-white tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">HYGIENE GRADE 5/5</p>
-                      <p className="font-body-md text-[10px] text-bone-white/60 mt-0.5 leading-relaxed">Bi-monthly physical inspections matching ISO-22000 checklists.</p>
+                      <p className="font-label-caps text-[9px] text-[#FAF8F5] tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">HYGIENE GRADE 5/5</p>
+                      <p className="font-body-md text-[10px] text-[#D4D0C8] mt-0.5 leading-relaxed">Bi-monthly physical inspections matching ISO-22000 checklists.</p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3 group/row cursor-pointer transition-all duration-300">
                     <span className="material-symbols-outlined text-clay-earth text-base mt-0.5 transform group-hover/row:scale-125 group-hover/row:rotate-12 transition-all duration-300 shrink-0">eco</span>
                     <div className="transform group-hover/row:translate-x-1.5 transition-transform duration-300">
-                      <p className="font-label-caps text-[9px] text-bone-white tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">ZERO-WASTE PACKAGING</p>
-                      <p className="font-body-md text-[10px] text-bone-white/60 mt-0.5 leading-relaxed">Delivered in traditional clay, brass, or certified compostable containers.</p>
+                      <p className="font-label-caps text-[9px] text-[#FAF8F5] tracking-wider font-semibold group-hover/row:text-clay-earth transition-colors">ZERO-WASTE PACKAGING</p>
+                      <p className="font-body-md text-[10px] text-[#D4D0C8] mt-0.5 leading-relaxed">Delivered in traditional clay, brass, or certified compostable containers.</p>
                     </div>
                   </div>
                 </div>
