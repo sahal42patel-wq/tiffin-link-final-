@@ -1650,7 +1650,16 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                       >
                         {isDeliveryTab ? (
                           <>
-                            <td className="py-3.5 px-4 font-mono font-bold text-onyx-black">{ord.orderId}</td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-onyx-black">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{ord.orderId}</span>
+                                {ord.pickupOtp && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 border border-amber-300 font-mono font-bold text-[10px] tracking-wider">
+                                    OTP: {ord.pickupOtp}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="py-3.5 px-4">
                               <div className="font-bold text-onyx-black">{ord.customerName}</div>
                               <div className="text-[11px] text-secondary font-mono">{ord.customerPhone}</div>
@@ -1797,6 +1806,14 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                 <span className="material-symbols-outlined text-[12px] text-amber-700">timer</span>
                                 <span>{formatTimer(ord.secondsLeft)} left</span>
                               </div>
+                              {ord.pickupOtp && (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 border border-amber-300 font-mono font-bold text-[10px] tracking-wider">
+                                    <span className="material-symbols-outlined text-[11px] text-amber-700">key</span>
+                                    <span>OTP: {ord.pickupOtp}</span>
+                                  </span>
+                                </div>
+                              )}
                             </td>
 
                             {/* Customer */}
@@ -2010,6 +2027,40 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             </div>
 
             <div className="p-5 space-y-6 flex-1 overflow-y-auto max-h-[720px]">
+
+              {/* HIGH-VISIBILITY KITCHEN PICKUP OTP CARD (PROMINENT AT TOP) */}
+              {selectedOrder.pickupOtp && (
+                <div className="p-4 bg-gradient-to-r from-amber-50 to-amber-100/80 border-2 border-amber-500 rounded-xl flex items-center justify-between shadow-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-600 animate-pulse"></span>
+                      <span className="text-xs font-mono font-black text-amber-950 uppercase tracking-wider">
+                        COURIER PICKUP OTP
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#554b3f] font-semibold">
+                      Hand this 4-digit code to delivery driver at pickup
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="font-mono text-2xl sm:text-3xl font-black tracking-widest text-[#1a1a1a] bg-white px-4 py-1.5 rounded-lg border-2 border-amber-600 shadow-sm inline-block select-all">
+                      {(selectedOrder.deliveryStatus === 'Picked Up' || selectedOrder.pickupOtpVerified)
+                        ? '••••'
+                        : selectedOrder.pickupOtp}
+                    </div>
+                    <span className={`text-[10px] font-bold block mt-1 uppercase ${
+                      (selectedOrder.deliveryStatus === 'Picked Up' || selectedOrder.pickupOtpVerified)
+                        ? 'text-emerald-700'
+                        : 'text-amber-800'
+                    }`}>
+                      {(selectedOrder.deliveryStatus === 'Picked Up' || selectedOrder.pickupOtpVerified)
+                        ? '✓ Pickup Verified'
+                        : '● Handover Code'}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Customer Identity Card */}
               <div className="bg-surface-container-low p-4 rounded-xl border border-sand-neutral/30 space-y-2.5">
