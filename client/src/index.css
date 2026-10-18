@@ -850,35 +850,46 @@ html.dark .bg-surface {
    Pure luxury gold font hierarchy for headings, brand badges,
    accents, section tags and highlights exclusively in dark mode.
    ======================================================== */
-html.dark h1,
-html.dark h2,
-html.dark h3,
-html.dark .font-headline-lg,
-html.dark .font-headline-md,
-html.dark .font-display-lg,
-html.dark .font-headline-lg-mobile {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-headline-lg,
+  .font-headline-md,
+  .font-display-lg,
+  .font-headline-lg-mobile
+) {
   color: #E5C158 !important; /* Regal Sovereign Gold */
   letter-spacing: -0.015em;
 }
 
 /* Subheadings, labels, section accents & category markers */
-html.dark .font-label-caps.text-clay-earth,
-html.dark .text-clay-earth,
-html.dark .text-secondary,
-html.dark aside nav div.text-\[\#8C7A6B\],
-html.dark aside nav div.text-\[\#8c7a6b\] {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .font-label-caps.text-clay-earth,
+  .text-clay-earth,
+  .text-secondary,
+  aside nav div.text-\[\#8C7A6B\],
+  aside nav div.text-\[\#8c7a6b\]
+) {
   color: #DFB76C !important; /* Warm Champagne Gold */
 }
 
 /* Brand Logos in Navbars & Sidebars */
-html.dark aside a span.font-serif,
-html.dark header span.font-serif,
-html.dark nav a span.font-serif {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  aside a span.font-serif,
+  header span.font-serif,
+  nav a span.font-serif
+) {
   color: #E5C158 !important;
 }
 
-html.dark aside a span.font-sans,
-html.dark header span.font-label-caps {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  aside a span.font-sans,
+  header span.font-label-caps
+) {
   color: #DFB76C !important;
 }
 
@@ -1026,226 +1037,447 @@ html.dark aside .p-4.border-t .text-\[\#666666\] {
 }
 
 /* Universal Background Replacements for Hardcoded Hex Colors */
-html.dark .bg-white,
-html.dark .bg-\[\#ffffff\],
-html.dark .bg-\[\#FFFFFF\],
-html.dark .bg-\[\#fbf9f5\],
-html.dark .bg-\[\#FBF9F5\],
-html.dark .bg-\[\#FAF8F5\],
-html.dark .bg-\[\#f5f3ef\],
-html.dark .bg-\[\#F5F3EF\],
-html.dark .bg-\[\#efeeea\],
-html.dark .bg-\[\#eae8e4\],
-html.dark .bg-\[\#F4F7F5\],
-html.dark .bg-\[\#F5F2EB\],
-html.dark .bg-\[\#F8F6F2\],
-html.dark .bg-surface-bright,
-html.dark .bg-bone-white {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .bg-white,
+  .bg-\[\#ffffff\],
+  .bg-\[\#FFFFFF\],
+  .bg-\[\#fbf9f5\],
+  .bg-\[\#FBF9F5\],
+  .bg-\[\#FAF8F5\],
+  .bg-\[\#f5f3ef\],
+  .bg-\[\#F5F3EF\],
+  .bg-\[\#efeeea\],
+  .bg-\[\#eae8e4\],
+  .bg-\[\#F4F7F5\],
+  .bg-\[\#F5F2EB\],
+  .bg-\[\#F8F6F2\],
+  .bg-surface-bright,
+  .bg-bone-white
+) {
   background-color: #161619 !important;
 }
 
 /* Page Canvas Background Override */
-html.dark .bg-\[\#FBF9F5\].min-h-screen,
-html.dark .bg-\[\#FBF9F5\].w-full,
-html.dark div.bg-\[\#FBF9F5\]:not(.p-4):not(.p-6):not(.p-7):not(button) {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .bg-\[\#FBF9F5\].min-h-screen,
+  .bg-\[\#FBF9F5\].w-full,
+  div.bg-\[\#FBF9F5\]:not(.p-4):not(.p-6):not(.p-7):not(button)
+) {
   background-color: #0E0E10 !important;
 }
 
 /* Translucent Navbars, Sticky Headers & Glass Containers */
-html.dark .bg-white\/95,
-html.dark .bg-\[\#fbf9f5\]\/95,
-html.dark .bg-\[\#FAF8F5\]\/95,
-html.dark .bg-\[\#fbf9f5\]\/90,
-html.dark .bg-\[\#FAF8F5\]\/90,
-html.dark .bg-surface\/90,
-html.dark .bg-surface-container-lowest\/90,
-html.dark .bg-bone-white\/95 {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .bg-white\/95,
+  .bg-\[\#fbf9f5\]\/95,
+  .bg-\[\#FAF8F5\]\/95,
+  .bg-\[\#fbf9f5\]\/90,
+  .bg-\[\#FAF8F5\]\/90,
+  .bg-surface\/90,
+  .bg-surface-container-lowest\/90,
+  .bg-bone-white\/95
+) {
   background-color: rgba(22, 22, 25, 0.94) !important;
 }
 
-html.dark .bg-white\/80,
-html.dark .bg-\[\#fbf9f5\]\/80,
-html.dark .bg-bone-white\/80 {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .bg-white\/80,
+  .bg-\[\#fbf9f5\]\/80,
+  .bg-bone-white\/80
+) {
   background-color: rgba(22, 22, 25, 0.86) !important;
 }
 
 /* Elevated Containers & Sub-sections */
-html.dark .bg-surface-container {
+:is(html.dark, [data-theme="dark"], .dark) .bg-surface-container {
   background-color: #1A1A1E !important;
 }
-html.dark .bg-surface-container-high {
+:is(html.dark, [data-theme="dark"], .dark) .bg-surface-container-high {
   background-color: #24242A !important;
 }
-html.dark .bg-surface-container-highest {
+:is(html.dark, [data-theme="dark"], .dark) .bg-surface-container-highest {
   background-color: #2E2E38 !important;
 }
-html.dark .bg-surface-container-low {
+:is(html.dark, [data-theme="dark"], .dark) .bg-surface-container-low {
   background-color: #151518 !important;
 }
-html.dark .bg-surface-container-lowest {
+:is(html.dark, [data-theme="dark"], .dark) .bg-surface-container-lowest {
   background-color: #161619 !important;
 }
 
 /* Table Dark Mode Styling */
-html.dark table thead tr {
+:is(html.dark, [data-theme="dark"], .dark) table thead tr {
   background-color: #1F1F24 !important;
   border-color: #282832 !important;
 }
 
-html.dark table thead th {
+:is(html.dark, [data-theme="dark"], .dark) table thead th {
   color: #DFB76C !important;
 }
 
-html.dark table tbody tr {
+:is(html.dark, [data-theme="dark"], .dark) table tbody tr {
   border-color: #282832 !important;
 }
 
-html.dark table tbody tr:hover {
+:is(html.dark, [data-theme="dark"], .dark) table tbody tr:hover {
   background-color: #1E1E24 !important;
 }
 
-html.dark table tbody tr.bg-\[\#DED9D1\]\/40 {
+:is(html.dark, [data-theme="dark"], .dark) table tbody tr.bg-\[\#DED9D1\]\/40 {
   background-color: #26262E !important;
 }
 
-html.dark table tbody td {
+:is(html.dark, [data-theme="dark"], .dark) table tbody td {
   color: #FAF8F5 !important;
 }
 
 /* Quick Action / Macro Buttons in Dark Mode */
-html.dark button.bg-white,
-html.dark .bg-white > button,
-html.dark button.bg-\[\#FBF9F5\] {
+:is(html.dark, [data-theme="dark"], .dark) button.bg-white,
+:is(html.dark, [data-theme="dark"], .dark) .bg-white > button,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#FBF9F5\] {
   background-color: #1E1E24 !important;
   color: #FAF8F5 !important;
   border-color: #383844 !important;
 }
 
-html.dark button.bg-white:hover,
-html.dark button.bg-\[\#FBF9F5\]:hover {
+:is(html.dark, [data-theme="dark"], .dark) button.bg-white:hover,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#FBF9F5\]:hover {
   background-color: #282832 !important;
   color: #E5C158 !important;
   border-color: #E5C158 !important;
 }
 
-/* Universal Text Contrast Overrides */
-html.dark .text-\[\#1a1a1a\],
-html.dark .text-\[\#1A1A1A\],
-html.dark .text-\[\#18181b\],
-html.dark .text-\[\#18181B\],
-html.dark .text-\[\#1b1c1a\],
-html.dark .text-\[\#111827\],
-html.dark .text-onyx-black,
-html.dark .text-black,
-html.dark .text-on-surface,
-html.dark .text-on-background,
-html.dark .text-gray-900,
-html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) .text-on-surface {
+/* ===================================================
+   UNIVERSAL HIGH-CONTRAST DARK MODE TYPOGRAPHY ENGINE
+   =================================================== */
+
+/* 1. Base Text Color for Dark Mode Containers (inherited fallback) */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  article,
+  section,
+  dialog,
+  main,
+  table,
+  .modal-content,
+  .bg-white,
+  .bg-\[\#ffffff\],
+  .bg-\[\#FFFFFF\],
+  .bg-\[\#fbf9f5\],
+  .bg-\[\#FBF9F5\],
+  .bg-\[\#FAF8F5\],
+  .bg-\[\#f5f3ef\],
+  .bg-\[\#F5F3EF\],
+  .bg-\[\#efeeea\],
+  .bg-\[\#eae8e4\],
+  .bg-surface-bright,
+  .bg-surface-container,
+  .bg-surface-container-low,
+  .bg-surface-container-lowest,
+  .bg-surface-container-high,
+  .bg-surface-container-highest,
+  .bg-bone-white
+) {
+  color: #FAF8F5;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  table tbody td,
+  table tbody th,
+  table tfoot td
+) {
   color: #FAF8F5 !important;
 }
 
-html.dark .text-\[\#4a4238\],
-html.dark .text-\[\#4A4238\],
-html.dark .text-\[\#665d52\],
-html.dark .text-\[\#665D52\],
-html.dark .text-\[\#747878\],
-html.dark .text-\[\#444748\],
-html.dark .text-\[\#3F3D38\],
-html.dark .text-on-surface-variant,
-html.dark .text-gray-600,
-html.dark .text-gray-700,
-html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) .text-on-surface-variant {
+/* 2. Primary High-Contrast Dark Text Replacements -> Crisp Pure Ivory (#FAF8F5) */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .text-\[\#1c1c1a\],
+  .text-\[\#1C1C1A\],
+  .text-\[\#1c1b18\],
+  .text-\[\#1a1a1a\],
+  .text-\[\#1A1A1A\],
+  .text-\[\#18181b\],
+  .text-\[\#18181B\],
+  .text-\[\#181816\],
+  .text-\[\#181512\],
+  .text-\[\#1b1c1a\],
+  .text-\[\#111827\],
+  .text-\[\#111113\],
+  .text-\[\#000000\],
+  .text-\[\#000\],
+  .text-\[\#0f172a\],
+  .text-\[\#1e293b\],
+  .text-\[\#211b12\],
+  .text-\[\#2e1e12\],
+  .text-\[\#2d2b27\],
+  .text-\[\#242424\],
+  .text-\[\#2a2a2a\],
+  .text-\[\#2e2e2e\],
+  .text-\[\#27272a\],
+  .text-\[\#262626\],
+  .text-\[\#33302a\],
+  .text-\[\#333333\],
+  .text-\[\#333\],
+  .text-\[\#374151\],
+  .text-\[\#382f28\],
+  .text-\[\#3a3a3a\],
+  .text-onyx-black,
+  .text-black,
+  .text-on-surface,
+  .text-on-background,
+  .text-stone-950,
+  .text-stone-900,
+  .text-stone-800,
+  .text-neutral-950,
+  .text-neutral-900,
+  .text-neutral-800,
+  .text-zinc-950,
+  .text-zinc-900,
+  .text-zinc-800,
+  .text-gray-950,
+  .text-gray-900,
+  .text-gray-800,
+  .text-slate-950,
+  .text-slate-900,
+  .text-slate-800
+) {
+  color: #FAF8F5 !important;
+}
+
+/* 3. Secondary & Muted Dark Text Overrides -> Warm Soft Cream / Silver (#D4D0C8) */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .text-\[\#4a4238\],
+  .text-\[\#4A4238\],
+  .text-\[\#665d52\],
+  .text-\[\#665D52\],
+  .text-\[\#6b7280\],
+  .text-\[\#6B7280\],
+  .text-\[\#444748\],
+  .text-\[\#444444\],
+  .text-\[\#747878\],
+  .text-\[\#71716b\],
+  .text-\[\#706c64\],
+  .text-\[\#3F3D38\],
+  .text-\[\#403c35\],
+  .text-\[\#4a4a46\],
+  .text-\[\#4a5d54\],
+  .text-\[\#4b3621\],
+  .text-\[\#4b5563\],
+  .text-\[\#54483c\],
+  .text-\[\#554b3f\],
+  .text-\[\#555555\],
+  .text-\[\#59554e\],
+  .text-\[\#5a5955\],
+  .text-\[\#5f5b54\],
+  .text-\[\#666666\],
+  .text-\[\#6b4b2b\],
+  .text-\[\#6c6358\],
+  .text-\[\#828282\],
+  .text-\[\#858383\],
+  .text-\[\#8a857b\],
+  .text-\[\#8c6239\],
+  .text-\[\#8c7a6b\],
+  .text-\[\#8C7A6B\],
+  .text-\[\#8c8275\],
+  .text-\[\#8C8275\],
+  .text-\[\#8c877d\],
+  .text-\[\#8c887b\],
+  .text-\[\#999\],
+  .text-\[\#999999\],
+  .text-on-surface-variant,
+  .text-secondary,
+  .text-clay-earth,
+  .text-gray-700,
+  .text-gray-600,
+  .text-stone-700,
+  .text-neutral-700,
+  .text-zinc-700,
+  .text-slate-700
+) {
   color: #D4D0C8 !important;
 }
 
-html.dark .text-\[\#8C8275\],
-html.dark .text-\[\#8C7A6B\],
-html.dark .text-gray-500,
-html.dark .text-gray-400 {
+/* 4. Tertiary & Subtle Metadata -> Light Neutral Grey (#A1A1AA) */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .text-gray-500,
+  .text-gray-400,
+  .text-stone-500,
+  .text-stone-400,
+  .text-zinc-500,
+  .text-zinc-400,
+  .text-neutral-500,
+  .text-neutral-400
+) {
   color: #A1A1AA !important;
 }
 
+/* 5. Hover Contrast Fixes (prevent links/buttons from going black on hover) */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .hover\:text-black:hover,
+  .hover\:text-\[\#1a1a1a\]:hover,
+  .hover\:text-\[\#1A1A1A\]:hover,
+  .hover\:text-\[\#111827\]:hover,
+  .hover\:text-\[\#18181b\]:hover,
+  .hover\:text-\[\#18181B\]:hover,
+  .hover\:text-\[\#1c1c1a\]:hover,
+  .hover\:text-\[\#1b1c1a\]:hover,
+  .hover\:text-\[\#665d52\]:hover,
+  .hover\:text-stone-900:hover,
+  .hover\:text-stone-950:hover,
+  .hover\:text-neutral-900:hover,
+  .hover\:text-neutral-950:hover,
+  .hover\:text-zinc-900:hover,
+  .hover\:text-zinc-950:hover,
+  .hover\:text-gray-900:hover,
+  .hover\:text-gray-950:hover
+) {
+  color: #E5C158 !important;
+}
+
+/* 6. Status / Alert Chips in Dark Mode (Vibrant Readability) */
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-emerald-50, .bg-emerald-100, .bg-emerald-50\/20) {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-emerald-50, .bg-emerald-100, .bg-emerald-50\/20) :is(.text-emerald-800, .text-emerald-900, .text-emerald-700, .text-\[\#0A8B5F\], .text-\[\#1b5e20\]) {
+  color: #34D399 !important;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-amber-50, .bg-amber-100, .bg-amber-50\/20) {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-amber-50, .bg-amber-100, .bg-amber-50\/20) :is(.text-amber-800, .text-amber-900, .text-amber-700, .text-\[\#b45309\], .text-\[\#9a6700\]) {
+  color: #FBBF24 !important;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-rose-50, .bg-rose-100, .bg-rose-50\/20, .bg-red-50, .bg-red-100) {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-rose-50, .bg-rose-100, .bg-rose-50\/20, .bg-red-50, .bg-red-100) :is(.text-rose-800, .text-rose-900, .text-red-800, .text-red-900, .text-\[\#c62828\], .text-\[\#ba1a1a\], .text-\[\#c5221f\]) {
+  color: #FB7185 !important;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-blue-50, .bg-blue-100, .bg-blue-50\/20, .bg-sky-50, .bg-sky-100) {
+  background-color: rgba(56, 189, 248, 0.16) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+:is(html.dark, [data-theme="dark"], .dark) :is(.bg-blue-50, .bg-blue-100, .bg-blue-50\/20, .bg-sky-50, .bg-sky-100) :is(.text-blue-800, .text-blue-900, .text-sky-800, .text-\[\#0369a1\], .text-\[\#005a9c\]) {
+  color: #38BDF8 !important;
+}
+
+/* 7. Preserve Crisp Black Text on Sovereign Gold / Bright Accent Buttons */
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .btn-primary,
+  button.bg-\[\#E5C158\],
+  button.bg-\[\#DFB76C\],
+  button.bg-amber-400,
+  button.bg-yellow-400,
+  a.bg-\[\#E5C158\],
+  .bg-\[\#E5C158\]
+) {
+  color: #111113 !important;
+}
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .btn-primary,
+  button.bg-\[\#E5C158\],
+  button.bg-\[\#DFB76C\],
+  button.bg-amber-400,
+  button.bg-yellow-400,
+  a.bg-\[\#E5C158\],
+  .bg-\[\#E5C158\]
+) * {
+  color: #111113 !important;
+  -webkit-text-fill-color: #111113 !important;
+}
+
 /* Universal Border Contrast Overrides */
-html.dark .border-\[\#ded9d1\],
-html.dark .border-\[\#ded9d1\]\/60,
-html.dark .border-\[\#ded9d1\]\/70,
-html.dark .border-\[\#DED9D1\],
-html.dark .border-\[\#DED9D1\]\/60,
-html.dark .border-\[\#DED9D1\]\/50,
-html.dark .border-\[\#DED9D1\]\/40,
-html.dark .border-\[\#ECE7DE\],
-html.dark .border-\[\#D5D0C5\],
-html.dark .border-\[\#E5ECE8\],
-html.dark .border-\[\#e7e2d8\],
-html.dark .border-\[\#eae8e4\],
-html.dark .border-\[\#c4c7c7\],
-html.dark .border-\[\#C4BCAD\],
-html.dark .border-\[\#D6CFBF\],
-html.dark .border-sand-neutral,
-html.dark .border-outline,
-html.dark .border-outline-variant,
-html.dark .border-sand-neutral\/40,
-html.dark .border-sand-neutral\/30,
-html.dark .border-sand-neutral\/60,
-html.dark .border-gray-200,
-html.dark .border-gray-300,
-html.dark .divide-\[\#DED9D1\]\/60 > :not([hidden]) ~ :not([hidden]) {
+:is(html.dark, [data-theme="dark"], .dark) :is(
+  .border-\[\#ded9d1\],
+  .border-\[\#ded9d1\]\/60,
+  .border-\[\#ded9d1\]\/70,
+  .border-\[\#DED9D1\],
+  .border-\[\#DED9D1\]\/60,
+  .border-\[\#DED9D1\]\/50,
+  .border-\[\#DED9D1\]\/40,
+  .border-\[\#ECE7DE\],
+  .border-\[\#D5D0C5\],
+  .border-\[\#E5ECE8\],
+  .border-\[\#e7e2d8\],
+  .border-\[\#eae8e4\],
+  .border-\[\#c4c7c7\],
+  .border-\[\#C4BCAD\],
+  .border-\[\#D6CFBF\],
+  .border-sand-neutral,
+  .border-outline,
+  .border-outline-variant,
+  .border-sand-neutral\/40,
+  .border-sand-neutral\/30,
+  .border-sand-neutral\/60,
+  .border-gray-200,
+  .border-gray-300
+) {
+  border-color: #282832 !important;
+}
+
+:is(html.dark, [data-theme="dark"], .dark) .divide-\[\#DED9D1\]\/60 > :not([hidden]) ~ :not([hidden]) {
   border-color: #282832 !important;
 }
 
 /* Form Inputs, Selects & Textareas across all views */
-html.dark input:not([type="checkbox"]):not([type="radio"]),
-html.dark textarea,
-html.dark select,
-html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) input[type="text"],
-html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) input[type="search"],
-html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) select {
+:is(html.dark, [data-theme="dark"], .dark) input:not([type="checkbox"]):not([type="radio"]),
+:is(html.dark, [data-theme="dark"], .dark) textarea,
+:is(html.dark, [data-theme="dark"], .dark) select,
+:is(html.dark, [data-theme="dark"], .dark) :is(div:has(> aside), aside ~ div, .provider-dashboard-root) input[type="text"],
+:is(html.dark, [data-theme="dark"], .dark) :is(div:has(> aside), aside ~ div, .provider-dashboard-root) input[type="search"],
+:is(html.dark, [data-theme="dark"], .dark) :is(div:has(> aside), aside ~ div, .provider-dashboard-root) select {
   background-color: #1A1A1E !important;
   color: #FAF8F5 !important;
   border-color: #383844 !important;
 }
 
-html.dark select option {
+:is(html.dark, [data-theme="dark"], .dark) select option {
   background-color: #1A1A1E !important;
   color: #FAF8F5 !important;
 }
 
-html.dark input::placeholder,
-html.dark textarea::placeholder {
+:is(html.dark, [data-theme="dark"], .dark) input::placeholder,
+:is(html.dark, [data-theme="dark"], .dark) textarea::placeholder {
   color: #71717A !important;
 }
 
 /* Custom Primary Buttons & Action Buttons in Dark Mode */
-html.dark .btn-primary,
-html.dark button.bg-onyx-black,
-html.dark a.bg-onyx-black:not(aside *),
-html.dark button.bg-\[\#1A1A1A\],
-html.dark button.bg-\[\#1a1a1a\],
-html.dark button.bg-\[\#18181B\],
-html.dark button.bg-\[\#18181b\] {
+:is(html.dark, [data-theme="dark"], .dark) .btn-primary,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-onyx-black,
+:is(html.dark, [data-theme="dark"], .dark) a.bg-onyx-black:not(aside *),
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#1A1A1A\],
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#1a1a1a\],
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#18181B\],
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#18181b\] {
   background-color: #E5C158 !important;
   color: #111113 !important;
   border-color: #E5C158 !important;
   font-weight: 600 !important;
 }
 
-html.dark .btn-primary *,
-html.dark button.bg-onyx-black *,
-html.dark a.bg-onyx-black:not(aside *) *,
-html.dark button.bg-\[\#1A1A1A\] *,
-html.dark button.bg-\[\#18181B\] * {
+:is(html.dark, [data-theme="dark"], .dark) .btn-primary *,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-onyx-black *,
+:is(html.dark, [data-theme="dark"], .dark) a.bg-onyx-black:not(aside *) *,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#1A1A1A\] *,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#18181B\] * {
   color: #111113 !important;
   -webkit-text-fill-color: #111113 !important;
 }
 
-html.dark .btn-primary:hover:not(:disabled),
-html.dark button.bg-onyx-black:hover,
-html.dark button.bg-\[\#1A1A1A\]:hover,
-html.dark button.bg-\[\#18181B\]:hover {
+:is(html.dark, [data-theme="dark"], .dark) .btn-primary:hover:not(:disabled),
+:is(html.dark, [data-theme="dark"], .dark) button.bg-onyx-black:hover,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#1A1A1A\]:hover,
+:is(html.dark, [data-theme="dark"], .dark) button.bg-\[\#18181B\]:hover {
   background-color: #DFB76C !important;
   color: #111113 !important;
   border-color: #DFB76C !important;
 }
+
 
 /* Provider dashboard buttons override */
 html.dark :is(div:has(> aside), aside ~ div, .provider-dashboard-root) button.w-full.py-2\.5.bg-surface-container {
