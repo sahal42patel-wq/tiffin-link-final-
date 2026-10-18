@@ -354,7 +354,7 @@ export default function ReviewsTab({ currentUser }) {
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] text-xs font-medium text-white hover:bg-neutral-800 transition-colors rounded cursor-pointer disabled:opacity-60"
           >
             <RotateCw size={15} className={isSyncing ? 'animate-spin' : ''} />
-            <span>{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
+            <span>{isSyncing ? 'Refreshing...' : 'Refresh Reviews'}</span>
           </button>
         </div>
       </div>

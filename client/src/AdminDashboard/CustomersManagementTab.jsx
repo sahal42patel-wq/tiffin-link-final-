@@ -2928,11 +2928,11 @@ export default function CustomersManagementTab({ subTab = 'customers-all', onNav
             </div>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#f5f3ef] font-mono text-[11px] text-[#665d52] uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1a1a1a]"></span>
-                LIVE DATABASE STREAM
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                ACTIVE DIRECTORY
               </span>
               <span className="inline-flex items-center px-2 py-1 bg-[#efeeea] font-mono text-[11px] text-[#444748]">
-                MONGODB CONNECTED
+                STATUS: ONLINE
               </span>
             </div>
           </div>
@@ -2941,7 +2941,7 @@ export default function CustomersManagementTab({ subTab = 'customers-all', onNav
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-2">
             <div className="max-w-3xl">
               <span className="font-mono text-xs uppercase text-[#665d52] tracking-widest block mb-2">
-                Live Database Registry
+                Customer Registry
               </span>
               <h1 className="font-serif text-4xl text-[#1a1a1a] tracking-tight leading-none mb-3">
                 {currentView === 'suspended'

@@ -490,7 +490,7 @@ export default function DispatchEngineTab({ onNavigate }) {
                   {requests.length === 0 && (
                     <tr>
                       <td colSpan="8" className="py-10 text-center text-[#665d52] font-mono text-xs">
-                        {loading ? 'Fetching real dispatch requests from MongoDB...' : 'No delivery requests found in database.'}
+                        {loading ? 'Fetching active dispatch requests...' : 'No delivery requests currently active.'}
                       </td>
                     </tr>
                   )}

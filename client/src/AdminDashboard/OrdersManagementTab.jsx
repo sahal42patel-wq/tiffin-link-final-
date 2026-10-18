@@ -257,7 +257,7 @@ export default function OrdersManagementTab({ subTab = 'orders-all' }) {
           className="bg-[#1b1c1a] hover:bg-neutral-800 text-white font-medium text-xs px-4 py-2 flex items-center gap-2 transition-colors shadow-sm"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Database</span>
+          <span>Refresh Orders</span>
         </button>
       </div>
 

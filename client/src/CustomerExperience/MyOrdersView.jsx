@@ -889,11 +889,11 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
   </div>
 
   <div class="footer-note">
-    <strong>Culinary &amp; Quality Guarantee:</strong> Prepared with fresh daily ingredients adhering strictly to FSSAI culinary standards. Sealed in food-grade 304 stainless steel thermal canisters. Verified digitally under TiffinLink Escrow Protocol SEC-889102-AHM.
+    <strong>Culinary &amp; Quality Guarantee:</strong> Prepared with fresh daily ingredients adhering strictly to FSSAI culinary standards. Sealed in food-grade insulated canisters with 100% freshness guarantee.
   </div>
 
   <div class="signature-row">
-    <div>Authorized Signatory: TiffinLink Escrow Ledger</div>
+    <div>Authorized Signatory: TiffinLink Operations</div>
     <div>Original for Recipient • Computer Generated Invoice</div>
   </div>
 
@@ -1148,8 +1148,8 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
   <div class="header">
     <div>
       <div class="brand-title">TIFFIN LINK</div>
-      <div class="brand-subtitle">Escrow Reversal &amp; Settlement System</div>
-      <div class="brand-sub">NPCI Fast-Path Settlement Gateway • Escrow Protocol TL-ESC-2026</div>
+      <div class="brand-subtitle">Order Refund Receipt</div>
+      <div class="brand-sub">Secure Payment Gateway • Customer Protection Guarantee</div>
     </div>
     <div class="badge-box">
       <div class="refund-badge">✓ 100% Refund Credited</div>
@@ -2038,20 +2038,16 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-sand-neutral/40 text-xs font-semibold text-secondary">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                  Live Socket Stream Active
-                </span>
                 <button
                   type="button"
                   onClick={() => {
                     fetchCustomerRequests();
                     triggerToast('Refreshed meal requests and quotes');
                   }}
-                  className="px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-highest transition-colors text-xs font-semibold text-on-surface border border-sand-neutral/30 flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-highest transition-colors text-xs font-semibold text-on-surface border border-sand-neutral/30 flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <span className="material-symbols-outlined text-[15px]">refresh</span>
-                  <span>Sync</span>
+                  <span>Refresh Offers</span>
                 </button>
               </div>
             </div>
@@ -4577,7 +4573,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                     </span>
                   </div>
                   <span className="font-label-caps text-label-caps text-secondary block">
-                    Culinary Escrow Protocol Ref • SEC-889102-AHM • GSTIN 24AABCT1342M1Z5
+                    Verified Digital Receipt • GSTIN 24AABCT1342M1Z5
                   </span>
                 </div>
                 <button

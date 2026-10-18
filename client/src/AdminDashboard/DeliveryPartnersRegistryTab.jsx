@@ -359,7 +359,7 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
 
   const handleRefresh = async () => {
     await fetchDriversFromDb();
-    showToast(`Live database sync complete: ${stats.registeredFleet} driver(s) registered`);
+    showToast(`Fleet refresh complete: ${stats.registeredFleet} driver(s) registered`);
   };
 
   return (
@@ -701,13 +701,13 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
                   {loading ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center font-mono text-sm text-[#665d52]">
-                        <span className="inline-block animate-spin mr-2">🔄</span> Loading couriers from database...
+                        <span className="inline-block animate-spin mr-2">🔄</span> Loading couriers...
                       </td>
                     </tr>
                   ) : filteredPartners.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center font-mono text-sm text-[#665d52]">
-                        No couriers found matching filters in MongoDB.
+                        No couriers found matching filters.
                       </td>
                     </tr>
                   ) : (
