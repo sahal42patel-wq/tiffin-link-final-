@@ -160,8 +160,12 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
           deliveryFee: Number(o.deliveryFee !== undefined && o.deliveryFee !== null ? o.deliveryFee : (o.deliveryCharge !== undefined && o.deliveryCharge !== null ? o.deliveryCharge : 25)),
           packagingFee: Number(o.packagingFee) || 0,
           items: Array.isArray(o.items) && o.items.length > 0 ? o.items : (Array.isArray(o.selectedItems) && o.selectedItems.length > 0 ? o.selectedItems : []),
-          paymentMethod: o.paymentMethod || (o.paymentStatus === 'Cash on Delivery' ? 'Cash on Delivery (COD)' : 'Online Pre-paid (UPI)'),
-          paymentStatus: o.paymentStatus || 'Paid',
+          paymentMethod: (String(o.paymentMethod || '').toLowerCase().includes('cash') || String(o.paymentMethod || '').toLowerCase().includes('cod') || String(o.paymentStatus || '').toLowerCase().includes('cash'))
+            ? 'Cash on Delivery'
+            : (o.paymentMethod || 'Online Pre-paid (UPI)'),
+          paymentStatus: (String(o.paymentMethod || '').toLowerCase().includes('cash') || String(o.paymentMethod || '').toLowerCase().includes('cod') || String(o.paymentStatus || '').toLowerCase().includes('cash'))
+            ? 'Cash on Delivery'
+            : (o.paymentStatus || 'Paid'),
           otp: o.deliveryOtp || o.otp || '',
           etaMinutes: o.etaMinutes !== undefined ? Number(o.etaMinutes) : (o.estimatedTime ? parseInt(o.estimatedTime) || 15 : 15),
           deliveryDistance: o.deliveryDistance || (o.distanceKm ? `${o.distanceKm} km` : '1.8 km'),
@@ -281,9 +285,23 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
         fetchCustomerRequests();
         triggerToast('⚡ Live kitchen quote received on your meal request!');
       };
+      const handleOrderDeclinedNotice = (data) => {
+        fetchOrders();
+        if (data) {
+          triggerToast(`⚠️ Order ${data.orderId || ''} declined by ${data.providerName || 'kitchen'}: "${data.cancellationReason || 'Kitchen at full capacity'}"`);
+        }
+      };
+      const handleRequestDeclinedNotice = (data) => {
+        fetchCustomerRequests();
+        if (data) {
+          triggerToast(`⚠️ Meal request declined by kitchen: "${data.reason || 'Unavailable'}"`);
+        }
+      };
 
       s.on('order:status:updated', handleRealtimeUpdate);
       s.on('order:updated', handleRealtimeUpdate);
+      s.on('order:declined', handleOrderDeclinedNotice);
+      s.on('order:cancelled', handleOrderDeclinedNotice);
       s.on('delivery:assigned', handleRealtimeUpdate);
       s.on('delivery:status:updated', handleRealtimeUpdate);
       s.on('delivery:delivered', handleRealtimeUpdate);
@@ -291,10 +309,13 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
       s.on('request:offer:new', handleOfferNotice);
       s.on('request:new', handleRealtimeUpdate);
       s.on('request:accepted', handleRealtimeUpdate);
+      s.on('request:declined', handleRequestDeclinedNotice);
 
       cleanupSocket = () => {
         s.off('order:status:updated', handleRealtimeUpdate);
         s.off('order:updated', handleRealtimeUpdate);
+        s.off('order:declined', handleOrderDeclinedNotice);
+        s.off('order:cancelled', handleOrderDeclinedNotice);
         s.off('delivery:assigned', handleRealtimeUpdate);
         s.off('delivery:status:updated', handleRealtimeUpdate);
         s.off('delivery:delivered', handleRealtimeUpdate);
@@ -302,6 +323,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
         s.off('request:offer:new', handleOfferNotice);
         s.off('request:new', handleRealtimeUpdate);
         s.off('request:accepted', handleRealtimeUpdate);
+        s.off('request:declined', handleRequestDeclinedNotice);
       };
     } catch (sockErr) {
       console.warn('Socket registration warning in MyOrdersView:', sockErr);
@@ -1475,31 +1497,82 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                 </p>
               </div>
             ) : activeOrders.length === 0 ? (
-              <div className="bg-surface-container-lowest rounded-xl border border-sand-neutral/70 p-12 text-center space-y-4 shadow-sm">
-                <span className="material-symbols-outlined text-[48px] text-secondary">lunch_dining</span>
-                <h3 className="font-headline-md text-headline-md text-onyx-black">No Active Consignments</h3>
-                <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
-                  All your past orders have been safely delivered. Browse artisanal home kitchens in Satellite and Bodakdev to order fresh homestyle tiffins!
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      if (onNavigate) onNavigate('#order-tiffin');
-                      else window.location.hash = '#order-tiffin';
-                    }}
-                    className="px-6 py-3 bg-onyx-black text-on-primary rounded font-button-text text-button-text hover:bg-neutral-800 transition-colors"
-                  >
-                    Order Tiffin Now
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (onNavigate) onNavigate('#home');
-                      else window.location.hash = '#home';
-                    }}
-                    className="px-6 py-3 bg-[#efeeea] text-[#1a1a1a] rounded font-button-text text-button-text hover:bg-[#eae8e4] transition-colors border border-[#ded9d1]"
-                  >
-                    Back to Home
-                  </button>
+              <div className="space-y-4">
+                {cancelledOrders.some(o => o.cancelledBy === 'Provider') && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-5 shadow-sm text-left">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="material-symbols-outlined text-[22px]">store</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
+                              Recent Order Declined by Restaurant
+                            </span>
+                            <span className="text-xs text-gray-500 font-semibold">
+                              {cancelledOrders.find(o => o.cancelledBy === 'Provider')?.orderId}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-gray-900 mt-1">
+                            {cancelledOrders.find(o => o.cancelledBy === 'Provider')?.providerName || 'Kitchen'} was unable to prepare your meal
+                          </h4>
+                          <p className="text-xs text-gray-700 italic mt-1 pl-3 border-l-2 border-rose-300">
+                            &ldquo;{cancelledOrders.find(o => o.cancelledBy === 'Provider')?.cancellationReason || 'Kitchen at full preparation capacity.'}&rdquo;
+                          </p>
+                          <div className="mt-2 text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+                            <span>100% Escrow Refund Recredited to Source Account (Zero Cancellation Fee)</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => switchTab('cancelled')}
+                          className="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                        >
+                          View Refund Dossier
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (onNavigate) onNavigate('#find-tiffin');
+                            else window.location.hash = '#find-tiffin';
+                          }}
+                          className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                        >
+                          Find Alternative Kitchen
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-surface-container-lowest rounded-xl border border-sand-neutral/70 p-12 text-center space-y-4 shadow-sm">
+                  <span className="material-symbols-outlined text-[48px] text-secondary">lunch_dining</span>
+                  <h3 className="font-headline-md text-headline-md text-onyx-black">No Active Consignments</h3>
+                  <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
+                    All your past orders have been safely delivered. Browse artisanal home kitchens in Satellite and Bodakdev to order fresh homestyle tiffins!
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={() => {
+                        if (onNavigate) onNavigate('#order-tiffin');
+                        else window.location.hash = '#order-tiffin';
+                      }}
+                      className="px-6 py-3 bg-onyx-black text-on-primary rounded font-button-text text-button-text hover:bg-neutral-800 transition-colors cursor-pointer"
+                    >
+                      Order Tiffin Now
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onNavigate) onNavigate('#home');
+                        else window.location.hash = '#home';
+                      }}
+                      className="px-6 py-3 bg-[#efeeea] text-[#1a1a1a] rounded font-button-text text-button-text hover:bg-[#eae8e4] transition-colors border border-[#ded9d1] cursor-pointer"
+                    >
+                      Back to Home
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -3850,11 +3923,17 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
             ) : (
               <div className="space-y-10">
                 {cancelledOrders.map((order) => {
-                const isOnline =
-                  (order.paymentMethod || '').toLowerCase().includes('upi') ||
-                  (order.paymentMethod || '').toLowerCase().includes('online');
+                const isCod = 
+                  String(order.paymentMethod || '').toLowerCase().includes('cash') ||
+                  String(order.paymentMethod || '').toLowerCase().includes('cod') ||
+                  String(order.paymentStatus || '').toLowerCase().includes('cash');
+                const isOnline = !isCod && (
+                  String(order.paymentMethod || '').toLowerCase().includes('upi') ||
+                  String(order.paymentMethod || '').toLowerCase().includes('online') ||
+                  String(order.paymentStatus || '').toLowerCase() === 'paid'
+                );
                 const orderKey = order.orderId || order._id;
-                const arn = order.arnRef || 'NPCI-REF-8921048201';
+                const refundRef = `REF-${orderKey.replace(/^#+/, '')}`;
 
                 return (
                   <div
@@ -3867,11 +3946,17 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                         <span className="font-headline-md text-headline-md text-onyx-black tracking-tight">
                           Order {order.orderId || orderKey}
                         </span>
-                        <span className="px-2.5 py-1 rounded bg-error-container text-on-error-container font-label-caps text-label-caps tracking-widest uppercase flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-error" /> CANCELLED
-                        </span>
-                        <span className="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-label-caps text-label-caps uppercase">
-                          {isOnline ? 'Online Pre-paid (UPI)' : 'Cash on Delivery (COD)'}
+                        {order.cancelledBy === 'Provider' ? (
+                          <span className="px-2.5 py-1 rounded bg-rose-100 text-rose-800 border border-rose-300 font-label-caps text-label-caps tracking-wider uppercase flex items-center gap-1.5 font-bold">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" /> DECLINED BY RESTAURANT
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded bg-error-container text-on-error-container font-label-caps text-label-caps tracking-widest uppercase flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-error" /> CANCELLED
+                          </span>
+                        )}
+                        <span className="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-label-caps text-label-caps uppercase font-semibold">
+                          {isCod ? 'Cash on Delivery (COD)' : 'Online Pre-paid (UPI)'}
                         </span>
                       </div>
                       <div className="text-right">
@@ -3909,23 +3994,47 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                               {order.tiffinName}
                             </div>
                             <div className="font-label-caps text-label-caps text-secondary mt-1 flex items-center gap-2">
-                              <span>Gross Charged: ₹{order.totalAmount}.00</span>
+                              <span>Order Total: ₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                               <span>•</span>
-                              <span>{isOnline ? `UPI: ${order.upiHandle || 'aarav@okaxis'}` : 'COD (Doorstep Handover)'}</span>
-                              <span>•</span>
-                              <span>Canister {order.canister || '#C-809'}</span>
+                              <span>{isCod ? 'Cash on Delivery (Doorstep)' : (order.upiHandle ? `UPI: ${order.upiHandle}` : 'Online Pre-paid (UPI)')}</span>
+                              {order.canister && (
+                                <>
+                                  <span>•</span>
+                                  <span>Canister {order.canister}</span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
 
+                        {order.cancelledBy === 'Provider' && (
+                          <div className="bg-amber-50/90 border border-amber-300/80 rounded-lg p-4 space-y-2">
+                            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                              <span className="material-symbols-outlined text-[18px] text-amber-600">storefront</span>
+                              <span>Restaurant Explanation</span>
+                            </div>
+                            <p className="text-sm text-onyx-black italic font-medium pl-3 border-l-2 border-amber-400">
+                              &ldquo;{order.cancellationReason || 'The kitchen is at peak preparation capacity and cannot accept this order right now.'}&rdquo;
+                            </p>
+                            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded border border-emerald-200">
+                              <span className="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+                              <span>{isCod ? 'Zero Cancellation Fee • No Payment Collected' : '100% Escrow Refund Recredited to Source Account (Zero Cancellation Fee)'}</span>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="bg-surface-container p-4 rounded space-y-3">
                           <div className="flex items-center justify-between text-on-surface-variant font-body-md text-button-text">
                             <span className="text-secondary font-label-caps text-label-caps uppercase">Ordered At:</span>
-                            <span className="text-onyx-black">{order.orderedAt || '28 Sep 2026, 11:15 AM'}</span>
+                            <span className="text-onyx-black">{order.orderedAt || order.date || 'Today'}</span>
                           </div>
                           <div className="flex items-center justify-between text-on-surface-variant font-body-md text-button-text">
-                            <span className="text-secondary font-label-caps text-label-caps uppercase">Grace Window Used:</span>
-                            <span className="text-onyx-black">{order.graceUsed || '7 mins elapsed (Cutoff threshold: 10 mins)'}</span>
+                            <span className="text-secondary font-label-caps text-label-caps uppercase">
+                              {order.cancelledBy === 'Provider' ? 'Cancellation Policy:' : 'Grace Window:'}
+                            </span>
+                            <span className="text-onyx-black font-medium">
+                              {order.cancelledBy === 'Provider' ? 'Declined by Kitchen (Zero Penalty Guarantee)' : 'Zero Cancellation Fee Applied'}
+                            </span>
                           </div>
                           <div className="flex items-start justify-between gap-4 text-on-surface-variant font-body-md text-button-text">
                             <span className="text-secondary font-label-caps text-label-caps uppercase shrink-0">Declared Cause:</span>
@@ -3940,16 +4049,29 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                             onClick={() =>
                               setExpandedDossier((prev) => ({ ...prev, [orderKey]: !prev[orderKey] }))
                             }
-                            className="bg-onyx-black text-white hover:bg-clay-earth font-button-text text-button-text px-5 py-2.5 rounded transition-colors flex items-center gap-2"
+                            className="bg-onyx-black text-white hover:bg-clay-earth font-button-text text-button-text px-5 py-2.5 rounded transition-colors flex items-center gap-2 cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[18px]">receipt_long</span>
                             <span>{expandedDossier[orderKey] ? 'Hide Complete Dossier' : 'View Complete Dossier'}</span>
                           </button>
 
+                          {order.cancelledBy === 'Provider' && (
+                            <button
+                              onClick={() => {
+                                if (onNavigate) onNavigate('#find-tiffin');
+                                else window.location.hash = '#find-tiffin';
+                              }}
+                              className="bg-clay-earth hover:bg-onyx-black text-white font-button-text text-button-text px-4 py-2.5 rounded transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">restaurant</span>
+                              <span>Find Another Kitchen</span>
+                            </button>
+                          )}
+
                           {isOnline ? (
                             <button
                               onClick={() => handleDownloadRefundReceipt(order, arn)}
-                              className="bg-surface-container hover:bg-surface-container-high text-onyx-black font-button-text text-button-text px-4 py-2.5 rounded transition-colors flex items-center gap-2"
+                              className="bg-surface-container hover:bg-surface-container-high text-onyx-black font-button-text text-button-text px-4 py-2.5 rounded transition-colors flex items-center gap-2 cursor-pointer"
                             >
                               <span className="material-symbols-outlined text-[18px]">download</span>
                               <span>Download Refund Receipt (PDF)</span>
@@ -3961,7 +4083,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                                 if (onNavigate) onNavigate('#order-tiffin');
                                 else window.location.hash = '#order-tiffin';
                               }}
-                              className="bg-surface-container hover:bg-surface-container-high text-onyx-black font-button-text text-button-text px-4 py-2.5 rounded transition-colors flex items-center gap-2"
+                              className="bg-surface-container hover:bg-surface-container-high text-onyx-black font-button-text text-button-text px-4 py-2.5 rounded transition-colors flex items-center gap-2 cursor-pointer"
                             >
                               <span className="material-symbols-outlined text-[18px]">cached</span>
                               <span>Reorder with Correct Address</span>
@@ -3973,91 +4095,83 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                               if (onNavigate) onNavigate('#order-tiffin');
                               else window.location.hash = '#order-tiffin';
                             }}
-                            className="text-onyx-black font-button-text text-button-text hover:text-secondary underline decoration-1 underline-offset-4 px-2 py-2 transition-colors"
+                            className="text-onyx-black font-button-text text-button-text hover:text-secondary underline decoration-1 underline-offset-4 px-2 py-2 transition-colors cursor-pointer"
                           >
                             Order Again →
                           </button>
                         </div>
                       </div>
 
-                      {/* Right Telemetry Panel */}
+                      {/* Right Payment & Cancellation Summary Panel */}
                       <div className="lg:col-span-5 bg-surface-container rounded-lg p-6 flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-4">
-                            <span className="font-label-caps text-label-caps uppercase text-secondary tracking-wider">
-                              Settlement Registry
+                            <span className="font-label-caps text-label-caps uppercase text-secondary tracking-wider font-semibold">
+                              Payment Summary
                             </span>
                             <span
-                              className={`px-3 py-1 rounded font-label-caps text-label-caps uppercase tracking-wider flex items-center gap-1.5 ${
-                                isOnline
-                                  ? 'bg-primary text-white'
-                                  : 'bg-surface-container-high text-on-surface-variant'
+                              className={`px-3 py-1 rounded font-label-caps text-label-caps uppercase tracking-wider flex items-center gap-1.5 font-bold ${
+                                isCod
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : 'bg-emerald-600 text-white'
                               }`}
                             >
                               <span className="material-symbols-outlined text-[14px]">
-                                {isOnline ? 'check' : 'format_image_left'}
+                                {isCod ? 'payments' : 'check_circle'}
                               </span>
-                              <span>{isOnline ? 'Refunded • 100%' : 'NO REFUND REQUIRED'}</span>
+                              <span>{isCod ? 'NO PAYMENT DUE (COD)' : '100% REFUNDED'}</span>
                             </span>
                           </div>
 
                           <div className="space-y-4 my-6">
                             <div>
                               <div className="font-label-caps text-label-caps text-secondary uppercase">
-                                {isOnline ? 'Disbursed Principal' : 'Captured Payment Balance'}
+                                {isCod ? 'Amount Due' : 'Refund Disbursed'}
                               </div>
                               <div className="font-headline-md text-headline-md text-onyx-black tracking-tight">
-                                ₹{isOnline ? order.totalAmount : 0}.00
+                                {isCod ? '₹0.00' : `₹${Number(order.totalAmount || 0).toFixed(2)}`}
                               </div>
                             </div>
 
-                            <div className="bg-surface p-3 rounded space-y-2 font-body-md text-button-text">
+                            <div className="bg-surface p-3.5 rounded-lg space-y-2.5 font-body-md text-button-text">
                               <div className="flex justify-between items-center text-on-surface-variant">
                                 <span className="text-secondary font-label-caps text-label-caps uppercase">
-                                  {isOnline ? 'NPCI ARN Ref:' : 'Escrow Hold Status:'}
+                                  Payment Mode:
                                 </span>
-                                <span className="font-mono text-onyx-black font-medium select-all">
-                                  {isOnline ? arn : 'None (COD Dispatch Aborted)'}
+                                <span className="text-onyx-black font-semibold">
+                                  {isCod ? 'Cash on Delivery (Doorstep)' : 'Online Pre-paid (UPI / Card)'}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center text-on-surface-variant">
                                 <span className="text-secondary font-label-caps text-label-caps uppercase">
-                                  {isOnline ? 'Dispatched Node:' : 'Cancellation Penalty:'}
+                                  Cancellation Fee:
                                 </span>
-                                <span className="text-onyx-black">
-                                  {isOnline ? 'Yes Bank Nodal Escrow' : '₹0.00 (Zero Penalty Guarantee)'}
+                                <span className="text-emerald-700 font-bold">
+                                  ₹0.00 (Zero Fee Guarantee)
                                 </span>
                               </div>
                               <div className="flex justify-between items-center text-on-surface-variant">
                                 <span className="text-secondary font-label-caps text-label-caps uppercase">
-                                  {isOnline ? 'Processing Time:' : 'Delivery Rider Queue:'}
+                                  Payment Status:
                                 </span>
-                                <span className="text-onyx-black">
-                                  {isOnline ? '2 mins (Immediate Batch)' : 'Removed from Route Batch'}
+                                <span className="text-onyx-black font-medium">
+                                  {isCod ? 'No Cash Was Collected' : 'Recredited to Source Bank'}
                                 </span>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="bg-surface-container-high p-3 rounded flex items-center justify-between text-secondary">
+                        <div className="bg-surface-container-high p-3 rounded-lg flex items-center justify-between text-secondary">
                           <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-emerald-700 animate-ping" />
-                            <span className="font-label-caps text-label-caps uppercase text-onyx-black">
-                              {isOnline ? 'Webhook Reconciled' : 'Zero Grievance Recorded'}
+                            <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                            <span className="font-label-caps text-label-caps uppercase text-onyx-black text-[11px] font-semibold">
+                              {isCod ? 'Zero Liability Protection' : '100% Escrow Guarantee'}
                             </span>
                           </div>
-                          {isOnline && (
-                            <svg className="w-24 h-6 text-clay-earth" fill="none" viewBox="0 0 100 24">
-                              <path
-                                d="M0 12h20l5-8 10 16 10-14 8 10 7-4h40"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="1.75"
-                              />
-                            </svg>
-                          )}
+                          <span className="text-[11px] text-secondary font-medium">
+                            {isCod ? 'Zero Penalty Applied' : 'Full Reversal Confirmed'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -4065,39 +4179,39 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                     {/* Expandable Dossier Module */}
                     {expandedDossier[orderKey] && (
                       <div className="mt-8 pt-6 bg-surface-container-low p-6 rounded-lg animate-in fade-in duration-200">
-                        <div className="flex items-center justify-between pb-4">
+                        <div className="flex items-center justify-between pb-4 border-b border-sand-neutral/50 mb-4">
                           <h4 className="font-headline-md text-headline-md text-onyx-black">
-                            Escrow Vault Audit Report • #{orderKey}
+                            Cancellation &amp; Settlement Details • #{orderKey}
                           </h4>
-                          <span className="font-label-caps text-label-caps text-secondary uppercase">
-                            Digest: {isOnline ? 'SHA256-VALID' : 'COD-RELEASE-CONFIRMED'}
+                          <span className="px-2.5 py-1 rounded bg-surface-container font-label-caps text-label-caps text-secondary uppercase font-semibold">
+                            {isCod ? 'Cash on Delivery' : 'Pre-paid Online'}
                           </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-body-md text-body-md text-on-surface-variant">
                           <div>
-                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1">
-                              Kitchen Allocation Status
+                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1 font-bold">
+                              Kitchen Order Status
                             </p>
-                            <p>
-                              Stove ignited: No. Prep sheet flagged as VOID. Zero ingredients wasted or charged to provider ledger.
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1">
-                              Eco-Canister Reassignment
-                            </p>
-                            <p>
-                              Stainless steel tiffin stack disassociated from delivery dispatch route. Returned to ready rack.
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Order was cancelled before meal preparation started. Zero food was prepared or charged.
                             </p>
                           </div>
                           <div>
-                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1">
-                              Clearinghouse Trace
+                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1 font-bold">
+                              Delivery Logistics
                             </p>
-                            <p>
-                              {isOnline
-                                ? `Batch ID: ESCROW-${orderKey}. Direct credit acknowledgment received from remitting UPI switch.`
-                                : 'Customer COD privilege score remains 100/100 under 10-Minute Fair Use Policy.'}
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Delivery partner assignment cancelled with zero dispatch penalty fees.
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-label-caps text-label-caps uppercase text-onyx-black mb-1 font-bold">
+                              Payment Settlement
+                            </p>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              {isCod 
+                                ? 'No money was collected from customer on this Cash on Delivery order. Zero cancellation fee applied.' 
+                                : '100% of the total amount has been credited back to your original payment method with zero deductions.'}
                             </p>
                           </div>
                         </div>

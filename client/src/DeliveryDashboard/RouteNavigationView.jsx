@@ -739,13 +739,13 @@ export default function RouteNavigationView({ currentUser, onNavigateTab }) {
                 <div className="p-2.5 bg-surface-container-low border border-sand-neutral">
                   <p className="font-label-caps text-[10px] uppercase text-secondary font-bold">Remaining</p>
                   <p className="font-headline-md text-xl text-onyx-black font-serif mt-0.5">
-                    {realDistance || (activeDelivery.distanceKm ? `${activeDelivery.distanceKm} km` : '4.8 km')}
+                    {realDistance || (activeDelivery.distanceKm ? `${activeDelivery.distanceKm} km` : '—')}
                   </p>
                 </div>
                 <div className="p-2.5 bg-surface-container-low border border-sand-neutral">
                   <p className="font-label-caps text-[10px] uppercase text-secondary font-bold">Est. Time</p>
                   <p className="font-headline-md text-xl text-onyx-black font-serif mt-0.5">
-                    {realEta || (activeDelivery.etaMinutes ? `${activeDelivery.etaMinutes} min` : '14 min')}
+                    {realEta || (activeDelivery.etaMinutes ? `${activeDelivery.etaMinutes} min` : '—')}
                   </p>
                 </div>
                 <div className="p-2.5 bg-surface-container-low border border-sand-neutral">

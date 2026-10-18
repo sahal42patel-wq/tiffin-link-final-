@@ -35,6 +35,9 @@ app.use(session({
 }));
 
 // API Routes
+const advancedFeaturesRoutes = require('./routes/advancedFeaturesRoutes');
+app.use('/api/v1', advancedFeaturesRoutes);
+app.use('/api', advancedFeaturesRoutes);
 app.use('/api', routes);
 
 // Root Health Check Endpoint

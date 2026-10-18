@@ -3,91 +3,12 @@ import { getSocket } from '../services/socket';
 import { playDeliveryRequestSound, stopDeliveryRequestSound } from '../services/soundNotifier';
 
 /**
- * Web Audio API 10-Second Delivery Request Alert Sound Synthesizer
+ * Unified Sound Alert Adapter for Delivery Requests
  */
-class DeliveryAlertAudio {
-  constructor() {
-    this.audioCtx = null;
-    this.timer = null;
-    this.isPlaying = false;
-  }
-
-  initContext() {
-    if (!this.audioCtx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        this.audioCtx = new AudioCtx();
-      }
-    }
-  }
-
-  play10SecChime(onStopCallback) {
-    try {
-      this.stop();
-      this.initContext();
-      if (!this.audioCtx) return;
-
-      if (this.audioCtx.state === 'suspended') {
-        this.audioCtx.resume().catch(() => {});
-      }
-
-      this.isPlaying = true;
-      let iterations = 0;
-      const maxIterations = 8; // ~10 seconds total duration (every 1.2 seconds)
-
-      const playTonePair = () => {
-        if (!this.isPlaying || iterations >= maxIterations) {
-          this.stop();
-          if (onStopCallback) onStopCallback();
-          return;
-        }
-
-        iterations++;
-        const now = this.audioCtx.currentTime;
-
-        // Tone 1: A5 (880 Hz)
-        const osc1 = this.audioCtx.createOscillator();
-        const gain1 = this.audioCtx.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(880, now);
-        gain1.gain.setValueAtTime(0.15, now);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        osc1.connect(gain1);
-        gain1.connect(this.audioCtx.destination);
-        osc1.start(now);
-        osc1.stop(now + 0.3);
-
-        // Tone 2: C6 (1046.5 Hz)
-        const osc2 = this.audioCtx.createOscillator();
-        const gain2 = this.audioCtx.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(1046.5, now + 0.15);
-        gain2.gain.setValueAtTime(0.2, now + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        osc2.connect(gain2);
-        gain2.connect(this.audioCtx.destination);
-        osc2.start(now + 0.15);
-        osc2.stop(now + 0.5);
-
-        this.timer = setTimeout(playTonePair, 1200);
-      };
-
-      playTonePair();
-    } catch (err) {
-      console.warn('Audio play exception:', err.message);
-    }
-  }
-
-  stop() {
-    this.isPlaying = false;
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-  }
-}
-
-const deliveryAudio = new DeliveryAlertAudio();
+const deliveryAudio = {
+  stop: () => stopDeliveryRequestSound(),
+  play: (duration) => playDeliveryRequestSound(duration)
+};
 
 const isSameDeliveryHelper = (reqA, reqB) => {
   if (!reqA || !reqB) return false;
@@ -288,8 +209,10 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
     if (!socket) return;
 
     const handleNewRequest = (data) => {
+      const reqObj = data?.request || data || {};
+      const seconds = Math.max(10, Number(reqObj.secondsLeft || reqObj.timeoutSeconds || 45));
       if (soundEnabled) {
-        playDeliveryRequestSound(10);
+        playDeliveryRequestSound(seconds);
       }
       fetchRequests(false);
     };
@@ -345,17 +268,26 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
   // Live 1-second countdown ticker
   useEffect(() => {
     const timer = setInterval(() => {
-      setRequests((prev) =>
-        prev
+      setRequests((prev) => {
+        const updated = prev
           .map((req) => ({
             ...req,
             secondsLeft: Math.max(0, (req.secondsLeft || 60) - 1)
           }))
-          .filter((req) => req.secondsLeft > 0)
-      );
+          .filter((req) => req.secondsLeft > 0);
+
+        // When all active requests expire (timer reaches 0), stop ringing immediately
+        if (prev.length > 0 && updated.length === 0) {
+          stopDeliveryRequestSound();
+        }
+        return updated;
+      });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      stopDeliveryRequestSound();
+    };
   }, []);
 
   // Filtered Cards Feed
@@ -400,6 +332,7 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
   // Atomic Accept Handler
   const handleAcceptAtomic = async (req) => {
     if (!req) return;
+    stopDeliveryRequestSound();
     deliveryAudio.stop();
 
     if (activeDelivery) {
@@ -463,6 +396,7 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
 
   // Confirm Decline Handler
   const handleConfirmDecline = async () => {
+    stopDeliveryRequestSound();
     deliveryAudio.stop();
     if (!declineModalReq) return;
     const reqId = declineModalReq.requestId || declineModalReq._id;
@@ -610,8 +544,12 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
           <button
             type="button"
             onClick={() => {
-              setSoundEnabled(!soundEnabled);
-              if (soundEnabled) deliveryAudio.stop();
+              const nextVal = !soundEnabled;
+              setSoundEnabled(nextVal);
+              if (!nextVal) {
+                stopDeliveryRequestSound();
+                deliveryAudio.stop();
+              }
             }}
             className={`w-8 h-8 flex items-center justify-center bg-bone-white border border-sand-neutral hover:bg-surface-container-high transition-colors cursor-pointer ${
               !soundEnabled ? 'opacity-50' : ''

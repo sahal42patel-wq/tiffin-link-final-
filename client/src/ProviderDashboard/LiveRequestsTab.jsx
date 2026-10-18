@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api';
 import { getSocket } from '../services/socket';
+import { stopKitchenAlertSound } from '../services/soundNotifier';
 
 export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRequest }) {
   const [requests, setRequests] = useState([]);
@@ -270,6 +271,8 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
       });
 
       if (json.success) {
+        stopKitchenAlertSound();
+        window.dispatchEvent(new CustomEvent('tiffinlink:order-accepted', { detail: { id: targetId } }));
         setRequests(prev => prev.filter(r => r.id !== reqItem.id && r.dbId !== targetId));
         setAcceptedTodayCount(prev => prev + 1);
         showToast(`✓ ${reqItem.id} Accepted! Created Order & Assigned to Kitchen Prep Queue.`);
@@ -293,6 +296,8 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
 
   const handleDeclineRequest = async (reqItem) => {
     const targetId = reqItem.dbId || reqItem.id;
+    stopKitchenAlertSound();
+    window.dispatchEvent(new CustomEvent('tiffinlink:request-declined', { detail: { id: targetId } }));
     setRequests(prev => prev.filter(r => r.id !== reqItem.id && r.dbId !== targetId));
     showToast(`Request ${reqItem.id} passed. Updated live stream.`);
 

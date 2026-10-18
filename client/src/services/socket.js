@@ -6,6 +6,7 @@ let socket = null;
 let currentJoinedDeliveryRoom = null;
 let currentProviderRoom = null;
 let currentDriverRoom = null;
+let currentCustomerRoom = null;
 
 export const initSocket = () => {
   if (socket && socket.connected) return socket;
@@ -38,6 +39,9 @@ export const initSocket = () => {
     }
     if (currentDriverRoom) {
       socket.emit('join:driver', { driverId: currentDriverRoom });
+    }
+    if (currentCustomerRoom) {
+      socket.emit('join:customer', currentCustomerRoom);
     }
   });
 
@@ -87,6 +91,13 @@ export const joinDriverRoom = (driverId) => {
   const s = getSocket();
   currentDriverRoom = driverId;
   s.emit('join:driver', { driverId });
+};
+
+export const joinCustomerRoom = (customerId, email) => {
+  if (!customerId && !email) return;
+  const s = getSocket();
+  currentCustomerRoom = { customerId: customerId ? String(customerId) : '', email: email || '' };
+  s.emit('join:customer', currentCustomerRoom);
 };
 
 export const sendDriverPresence = (isOnline) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api';
 import { getSocket } from '../services/socket';
-import { playKitchenOrderSound } from '../services/soundNotifier';
+import { playKitchenOrderSound, stopKitchenAlertSound } from '../services/soundNotifier';
 const isDeliveryStatus = (st) => {
   const s = String(st || '').toLowerCase().trim();
   return ['delivery', 'out for delivery', 'dispatched', 'in transit', 'driver assigned', 'picked up', 'arrived at customer', 'arrived at provider', 'searching drivers', 'delivery_requested'].includes(s);
@@ -452,12 +452,16 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
         }
 
         if (newStatus === 'Preparing' || newStatus === 'Accepted') {
+          stopKitchenAlertSound();
+          window.dispatchEvent(new CustomEvent('tiffinlink:order-accepted', { detail: { id: targetOrder.orderId || targetOrder.id } }));
           showToast(`✓ Order ${targetOrder.orderId} Accepted! Moved to Kitchen Prep Queue.`);
           setActiveStatusTab('Preparing');
         } else if (newStatus === 'Delivery' || newStatus === 'Confirm Pickup') {
           showToast(`✓ Order ${targetOrder.orderId} dispatched to courier network! Delivery broadcast active.`);
           setActiveStatusTab('Delivery');
         } else if (newStatus === 'Cancelled') {
+          stopKitchenAlertSound();
+          window.dispatchEvent(new CustomEvent('tiffinlink:request-declined', { detail: { id: targetOrder.orderId || targetOrder.id } }));
           showToast(`Order ${targetOrder.orderId} Declined. Reason logged.`);
         } else {
           showToast(`✓ Order ${targetOrder.orderId} status updated to ${newStatus}`);

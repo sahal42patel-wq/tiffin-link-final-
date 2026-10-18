@@ -82,6 +82,14 @@ const enrichOrderFinancials = (o) => {
   obj.netPayout = netPayout;
   obj.secondsLeft = secondsLeft;
 
+  const isCod = (obj.paymentStatus || '').toLowerCase().includes('cash') || 
+                (obj.paymentMethod || '').toLowerCase().includes('cash') || 
+                (obj.paymentMethod || '').toLowerCase().includes('cod');
+  if (isCod) {
+    obj.paymentMethod = 'Cash on Delivery';
+    obj.paymentStatus = 'Cash on Delivery';
+  }
+
   obj.pricing = {
     itemsSubtotal: subtotal,
     packagingCharge: packagingFee,
@@ -634,7 +642,17 @@ const rejectOrder = async (req, res) => {
         });
       }
 
-      const rejectionReason = reason || notes || 'Declined by kitchen provider';
+      const rejectionReason = reason || notes || 'The kitchen is at peak preparation capacity and cannot accept this order right now.';
+
+      // Lookup provider name if missing
+      let providerName = existing.providerName || '';
+      if (!providerName) {
+        try {
+          const User = require('../models/User');
+          const provUser = await User.findById(providerId).lean();
+          providerName = provUser?.kitchenName || provUser?.businessName || provUser?.name || 'Kitchen Partner';
+        } catch (e) {}
+      }
 
       const updatedOrder = await Order.findOneAndUpdate(
         {
@@ -646,6 +664,7 @@ const rejectOrder = async (req, res) => {
             status: 'Cancelled',
             cancelledBy: 'Provider',
             cancellationReason: rejectionReason,
+            providerName: providerName || 'Kitchen Partner',
             cancelledAt: new Date()
           }
         },
@@ -659,28 +678,74 @@ const rejectOrder = async (req, res) => {
         });
       }
 
-      // Audit Log & Socket Notification
+      // Audit Log
       try {
         const AuditLog = require('../models/AuditLog');
         await AuditLog.create({
           action: 'ORDER_REJECTED',
           entityType: 'Order',
           entityId: String(updatedOrder._id),
-          performedBy: req.user?.name || 'Provider',
+          performedBy: req.user?.name || providerName || 'Provider',
           details: `Order ${updatedOrder.orderId} declined by provider. Reason: ${rejectionReason}`
         });
       } catch (aErr) {}
+
+      // Socket Notification directly to customer and fleet
+      const declinePayload = {
+        orderId: updatedOrder.orderId,
+        _id: updatedOrder._id,
+        status: 'Cancelled',
+        cancelledBy: 'Provider',
+        cancellationReason: rejectionReason,
+        providerId: updatedOrder.providerId,
+        providerName: providerName || 'Kitchen Partner',
+        tiffinName: updatedOrder.tiffinName || 'Tiffin Meal',
+        totalAmount: updatedOrder.totalAmount,
+        customerEmail: updatedOrder.customerEmail,
+        customerId: updatedOrder.customerId,
+        refundNotice: '100% full refund credited to original payment source. Zero fee deducted.'
+      };
 
       try {
         const { emitToProvider, getIO } = require('../services/socketService');
         emitToProvider(providerId, 'order:status:updated', { orderId: updatedOrder.orderId, status: 'Cancelled' });
         const io = getIO();
-        if (io) io.emit('order:status:updated', { orderId: updatedOrder.orderId, status: 'Cancelled', providerId });
+        if (io) {
+          io.emit('order:status:updated', declinePayload);
+          io.emit('order:declined', declinePayload);
+          io.emit('order:cancelled', declinePayload);
+          if (updatedOrder.customerId) {
+            io.to(`customer:${updatedOrder.customerId}`).emit('order:declined', declinePayload);
+          }
+          if (updatedOrder.customerEmail) {
+            io.to(`customer:${updatedOrder.customerEmail.toLowerCase()}`).emit('order:declined', declinePayload);
+          }
+        }
       } catch (sErr) {}
+
+      // Customer In-App Notification
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          userId: updatedOrder.customerId || updatedOrder.customerEmail,
+          userEmail: updatedOrder.customerEmail,
+          title: 'Order Declined by Kitchen',
+          message: `Your Order ${updatedOrder.orderId} for "${updatedOrder.tiffinName}" was declined by ${providerName || 'the kitchen'}. Reason: "${rejectionReason}". Your full payment of ₹${updatedOrder.totalAmount} has been refunded.`,
+          type: 'order_cancelled',
+          orderId: updatedOrder.orderId,
+          role: 'customer',
+          metadata: {
+            orderId: updatedOrder.orderId,
+            cancellationReason: rejectionReason,
+            cancelledBy: 'Provider',
+            providerName: providerName || 'Kitchen Partner'
+          }
+        });
+      } catch (nErr) {}
 
       return res.json({
         success: true,
-        message: `Order ${updatedOrder.orderId} declined. Reason logged.`,
+        message: `Order ${updatedOrder.orderId} declined. Reason logged and customer notified.`,
         data: enrichOrderFinancials(updatedOrder)
       });
     }
@@ -912,7 +977,12 @@ const createCustomerOrder = async (req, res) => {
       rotliCount: rotliCount || 4,
       selectedShaak: selectedShaak || '',
       instructions: instructions || '',
-      paymentStatus: (paymentMethod || '').toLowerCase().includes('cash') ? 'Cash on Delivery' : 'Paid',
+      paymentMethod: (paymentMethod || '').toLowerCase().includes('cash') || (paymentMethod || '').toLowerCase().includes('cod') 
+        ? 'Cash on Delivery' 
+        : (paymentMethod || 'Online Payment'),
+      paymentStatus: (paymentMethod || '').toLowerCase().includes('cash') || (paymentMethod || '').toLowerCase().includes('cod') 
+        ? 'Cash on Delivery' 
+        : 'Paid',
       status: 'New',
       deliveryStatus: 'Unassigned',
       pickupAddress: providerDoc?.address?.street 

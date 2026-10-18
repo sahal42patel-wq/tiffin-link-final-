@@ -142,6 +142,20 @@ const initSocket = (server) => {
       }
     });
 
+    // Join Customer Room explicitly
+    socket.on('join:customer', ({ customerId, email }) => {
+      if (customerId) {
+        const roomName = `customer:${customerId}`;
+        socket.join(roomName);
+        console.log(`📡 Socket ${socket.id} explicitly joined room: ${roomName}`);
+      }
+      if (email) {
+        const emailRoom = `customer:${email.toLowerCase()}`;
+        socket.join(emailRoom);
+        console.log(`📡 Socket ${socket.id} joined email room: ${emailRoom}`);
+      }
+    });
+
     // Join Delivery Tracking Room with Security Verification
     socket.on('join:delivery', async ({ deliveryId }) => {
       try {

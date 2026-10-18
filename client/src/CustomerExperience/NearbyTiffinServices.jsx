@@ -5,6 +5,18 @@ import { useLocation } from '../context/LocationContext';
 import TiffinCustomizer from './TiffinCustomizer';
 import ProviderDossier from './ProviderDossier';
 import { getSocket } from '../services/socket';
+import NutritionDietitianModal from '../components/NutritionDietitianModal';
+import CorporateBulkModal from '../components/CorporateBulkModal';
+import KitchenCamAuditModal from '../components/KitchenCamAuditModal';
+import CommunityRecipeModal from '../components/CommunityRecipeModal';
+import TasteGuaranteeModal from '../components/TasteGuaranteeModal';
+import MealSwapModal from '../components/MealSwapModal';
+import DabbaDepositModal from '../components/DabbaDepositModal';
+import EmergencyMealModal from '../components/EmergencyMealModal';
+import AuctionAndMatchingModal from '../components/AuctionAndMatchingModal';
+import HostelBulkPoolModal from '../components/HostelBulkPoolModal';
+import HyperlocalBroadcastBanner from '../components/HyperlocalBroadcastBanner';
+
 
 const AHMEDABAD_LOCALITIES = {
   'satellite': { lat: 23.0300, lng: 72.5178, name: 'Satellite, Ahmedabad' },
@@ -31,7 +43,7 @@ const AHMEDABAD_LOCALITIES = {
   'chandkheda': { lat: 23.1120, lng: 72.5850, name: 'Chandkheda, Ahmedabad' }
 };
 
-export const getProviderHighlightQuote = (prov) => {
+const getProviderHighlightQuote = (prov) => {
   if (!prov) return { icon: '✨', text: 'Fresh Daily Homestyle Batch' };
 
   // 1. Explicit provider offer, promo or tagline if defined
@@ -124,6 +136,21 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
   const [activeView, setActiveView] = useState('listing');
   const [selectedDossierProvider, setSelectedDossierProvider] = useState(null);
   const [selectedCustomizerTiffin, setSelectedCustomizerTiffin] = useState(null);
+
+  // Advanced Feature Modals State
+  const [isNutritionModalOpen, setIsNutritionModalOpen] = useState(false);
+  const [isCorporateModalOpen, setIsCorporateModalOpen] = useState(false);
+  const [isKitchenCamModalOpen, setIsKitchenCamModalOpen] = useState(false);
+  const [isCommunityRecipeModalOpen, setIsCommunityRecipeModalOpen] = useState(false);
+  const [isTasteGuaranteeModalOpen, setIsTasteGuaranteeModalOpen] = useState(false);
+  const [isMealSwapModalOpen, setIsMealSwapModalOpen] = useState(false);
+  const [isDabbaDepositModalOpen, setIsDabbaDepositModalOpen] = useState(false);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+  const [isAuctionModalOpen, setIsAuctionModalOpen] = useState(false);
+  const [isHostelPoolModalOpen, setIsHostelPoolModalOpen] = useState(false);
+  const [activeAuditKitchen, setActiveAuditKitchen] = useState('');
+  const [activeAuctionRequest, setActiveAuctionRequest] = useState(null);
+
 
   // Search & Filter State (Screen 1 & 2)
   const [isSearchFormOpen, setIsSearchFormOpen] = useState(false);
@@ -646,6 +673,101 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
           </div>
         </div>
       </section>
+
+      {/* Real-time Hyperlocal Broadcast Notifications (Feature 9) */}
+      <HyperlocalBroadcastBanner />
+
+      {/* Advanced Food Tech Innovations Quick Launch Bar */}
+      <section className="w-full bg-[#f4f1ea] border-b border-[#ded9d1]/80 py-2.5 px-4 sm:px-6 lg:px-20 overflow-x-auto no-scrollbar">
+        <div className="max-w-[1440px] mx-auto flex items-center gap-2 min-w-max text-xs">
+          <span className="font-label-caps text-[10px] uppercase font-bold text-[#665d52] tracking-wider shrink-0 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping" />
+            Marketplace Features:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setIsEmergencyModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🚨</span>
+            <span>Emergency Meal Dispatch</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsAuctionModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>⚖️</span>
+            <span>Multi-Kitchen Auction</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsCorporateModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🏢</span>
+            <span>Corporate Catering</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsHostelPoolModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>👥</span>
+            <span>Hostel / PG Bulk Pool</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsCommunityRecipeModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🍲</span>
+            <span>Community Chef Spotlight</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsNutritionModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🥗</span>
+            <span>Dietitian & Macros</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDabbaDepositModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>♻️</span>
+            <span>Eco-Dabba Deposit & Return</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsMealSwapModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🔄</span>
+            <span>1-Click Meal Swap</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsTasteGuaranteeModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+          >
+            <span>🛡️</span>
+            <span>Taste Guarantee Claim</span>
+          </button>
+        </div>
+      </section>
+
 
       {/* ─────────────────────────────────────────────────────────────────────────────
           SCREEN 1: EXPANDABLE "DESIGN YOUR DINING EXPERIENCE" SEARCH ARCHITECTURE
@@ -1509,12 +1631,27 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                         </div>
                       </div>
 
-                      {/* Line 3: Locality & Distance / ETA */}
+                      {/* Line 3: Locality & Distance / ETA & Live Audit */}
                       <div className="flex items-center justify-between text-xs text-[#828282] gap-2 pt-2 border-t border-[#f0eeea]">
                         <span className="truncate">{pLocality.split(',')[0]}</span>
-                        <span className="shrink-0 font-medium text-[#665d52]">
-                          {prov.distanceKm || '1.5'} km • ~{prov.etaMinutes || '25'} min
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveAuditKitchen(prov.name);
+                              setIsKitchenCamModalOpen(true);
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1 transition cursor-pointer"
+                            title="Live CCTV & Temperature Audit"
+                          >
+                            <span>🎥</span>
+                            <span>Audit</span>
+                          </button>
+                          <span className="font-medium text-[#665d52]">
+                            {prov.distanceKm || '1.5'} km • ~{prov.etaMinutes || '25'} min
+                          </span>
+                        </div>
                       </div>
                     </article>
                   );
@@ -1586,6 +1723,62 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
           </>
         )}
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          ADVANCED MARKETPLACE & CUSTOMER EXPERIENCE MODALS
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <EmergencyMealModal
+        isOpen={isEmergencyModalOpen}
+        onClose={() => setIsEmergencyModalOpen(false)}
+        defaultAddress={locationAddress}
+      />
+
+      <AuctionAndMatchingModal
+        isOpen={isAuctionModalOpen}
+        onClose={() => setIsAuctionModalOpen(false)}
+        request={activeAuctionRequest}
+      />
+
+      <CorporateBulkModal
+        isOpen={isCorporateModalOpen}
+        onClose={() => setIsCorporateModalOpen(false)}
+      />
+
+      <HostelBulkPoolModal
+        isOpen={isHostelPoolModalOpen}
+        onClose={() => setIsHostelPoolModalOpen(false)}
+      />
+
+      <CommunityRecipeModal
+        isOpen={isCommunityRecipeModalOpen}
+        onClose={() => setIsCommunityRecipeModalOpen(false)}
+      />
+
+      <NutritionDietitianModal
+        isOpen={isNutritionModalOpen}
+        onClose={() => setIsNutritionModalOpen(false)}
+      />
+
+      <DabbaDepositModal
+        isOpen={isDabbaDepositModalOpen}
+        onClose={() => setIsDabbaDepositModalOpen(false)}
+      />
+
+      <MealSwapModal
+        isOpen={isMealSwapModalOpen}
+        onClose={() => setIsMealSwapModalOpen(false)}
+      />
+
+      <TasteGuaranteeModal
+        isOpen={isTasteGuaranteeModalOpen}
+        onClose={() => setIsTasteGuaranteeModalOpen(false)}
+      />
+
+      <KitchenCamAuditModal
+        isOpen={isKitchenCamModalOpen}
+        onClose={() => setIsKitchenCamModalOpen(false)}
+        kitchenName={activeAuditKitchen || 'Ahmedabad Partner Kitchen'}
+      />
     </div>
   );
 }

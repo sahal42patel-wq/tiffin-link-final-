@@ -37,6 +37,17 @@ const providerSchema = new mongoose.Schema({
     lng: { type: Number, default: 72.5178 },
     isLocationPinned: { type: Boolean, default: false }
   },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [72.5178, 23.0300]
+    }
+  },
   cuisines: { type: String, default: '' },
   maxMeals: { type: String, default: '' },
   maxCapacity: { type: Number, default: 30 },
@@ -98,6 +109,20 @@ const providerSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+// 2dsphere index for location-based geospatial queries
+providerSchema.index({ location: '2dsphere' });
+
+// Ensure GeoJSON coordinates stay synchronized with address lat/lng
+providerSchema.pre('save', function (next) {
+  if (this.address && typeof this.address.lng === 'number' && typeof this.address.lat === 'number') {
+    this.location = {
+      type: 'Point',
+      coordinates: [this.address.lng, this.address.lat]
+    };
+  }
+  next();
 });
 
 module.exports = mongoose.model('Provider', providerSchema);

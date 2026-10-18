@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 import ProviderSidebar from './ProviderSidebar';
-import { playKitchenOrderSound, isSoundEnabled, setSoundEnabled } from '../services/soundNotifier';
+import { playKitchenOrderSound, playKitchenAlertLoop, stopKitchenAlertSound, isSoundEnabled, setSoundEnabled } from '../services/soundNotifier';
 import DashboardOverviewTab from './DashboardOverviewTab';
 import LiveRequestsTab from './LiveRequestsTab';
 import MyTiffinsTab from './MyTiffinsTab';
@@ -188,6 +188,8 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
   const [statusToast, setStatusToast] = useState('');
   const [soundActive, setSoundActive] = useState(isSoundEnabled());
   const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [isAcceptingAlert, setIsAcceptingAlert] = useState(false);
+  const [isDecliningAlert, setIsDecliningAlert] = useState(false);
 
   // Dynamic Sidebar & Header Badge Counts from MongoDB Database
   const [badgeCounts, setBadgeCounts] = useState({
@@ -203,36 +205,54 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
     }));
   };
 
-  useEffect(() => {
-    const fetchSidebarBadges = async () => {
-      try {
-        const dashRes = await apiRequest('/providers/dashboard');
-        const dashJson = typeof dashRes?.json === 'function' ? await dashRes.json() : dashRes;
-        if (dashJson && dashJson.success && dashJson.data) {
-          if (dashJson.data.acceptingOrders !== undefined) {
-            setIsKitchenOnline(Boolean(dashJson.data.acceptingOrders));
-          }
-          setBadgeCounts(prev => ({
-            ...prev,
-            liveRequests: dashJson.data.liveRequestsCount || 0,
-            newOrders: dashJson.data.newOrdersCount || 0
-          }));
+  const fetchSidebarBadges = async () => {
+    try {
+      const dashRes = await apiRequest('/providers/dashboard');
+      const dashJson = typeof dashRes?.json === 'function' ? await dashRes.json() : dashRes;
+      if (dashJson && dashJson.success && dashJson.data) {
+        if (dashJson.data.acceptingOrders !== undefined) {
+          setIsKitchenOnline(Boolean(dashJson.data.acceptingOrders));
         }
+        setBadgeCounts(prev => ({
+          ...prev,
+          liveRequests: dashJson.data.liveRequestsCount || 0,
+          newOrders: dashJson.data.newOrdersCount || 0
+        }));
 
-        // Fetch real unread notification count
-        const notifRes = await apiRequest('/notifications?limit=1');
-        const notifJson = typeof notifRes?.json === 'function' ? await notifRes.json() : notifRes;
-        if (notifJson && notifJson.success && notifJson.summary) {
-          setBadgeCounts(prev => ({
-            ...prev,
-            notifications: notifJson.summary.unread || 0
-          }));
+        // If there are live requests and no alert is active, surface the latest pending request
+        if (dashJson.data.liveRequestsCount > 0) {
+          try {
+            const reqRes = await apiRequest('/requests');
+            const reqJson = typeof reqRes?.json === 'function' ? await reqRes.json() : reqRes;
+            if (reqJson && reqJson.success && Array.isArray(reqJson.data) && reqJson.data.length > 0) {
+              const pendingReq = reqJson.data.find(r => r.status === 'pending');
+              if (pendingReq) {
+                setNewOrderAlert(prev => {
+                  if (prev) return prev;
+                  playKitchenAlertLoop();
+                  return pendingReq;
+                });
+              }
+            }
+          } catch (e) {}
         }
-      } catch (err) {
-        console.error('Error fetching sidebar badge counts from MongoDB:', err);
       }
-    };
 
+      // Fetch real unread notification count
+      const notifRes = await apiRequest('/notifications?limit=1');
+      const notifJson = typeof notifRes?.json === 'function' ? await notifRes.json() : notifRes;
+      if (notifJson && notifJson.success && notifJson.summary) {
+        setBadgeCounts(prev => ({
+          ...prev,
+          notifications: notifJson.summary.unread || 0
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching sidebar badge counts from MongoDB:', err);
+    }
+  };
+
+  useEffect(() => {
     if (currentUser) {
       fetchSidebarBadges();
     }
@@ -253,12 +273,10 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
         const handleNewOrderIncoming = (data) => {
           if (data?.providerId && pId && String(data.providerId) !== String(pId)) return;
           fetchSidebarBadges();
-          playKitchenOrderSound();
+          playKitchenAlertLoop();
           if (data) {
+            // Keep request showing on provider dashboard until provider explicitly accepts or declines
             setNewOrderAlert(data);
-            setTimeout(() => {
-              setNewOrderAlert(prev => (prev === data ? null : prev));
-            }, 8000);
           }
           window.dispatchEvent(new CustomEvent('tiffinlink:new-order', { detail: data }));
         };
@@ -269,20 +287,58 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
           window.dispatchEvent(new CustomEvent('tiffinlink:new-order', { detail: data }));
         };
 
+        const handleRequestResolved = (data) => {
+          if (data?.requestId || data?.orderId || data?.id) {
+            const resolvedId = String(data.requestId || data.orderId || data.id || '').replace(/^#/, '');
+            setNewOrderAlert(prev => {
+              if (!prev) return null;
+              const prevId = String(prev._id || prev.id || prev.requestId || prev.orderId || '').replace(/^#/, '');
+              if (prevId === resolvedId) {
+                stopKitchenAlertSound();
+                return null;
+              }
+              return prev;
+            });
+          }
+          fetchSidebarBadges();
+        };
+
+        const handleWindowOrderAccepted = () => {
+          stopKitchenAlertSound();
+          setNewOrderAlert(null);
+          fetchSidebarBadges();
+        };
+
+        const handleWindowRequestDeclined = () => {
+          stopKitchenAlertSound();
+          setNewOrderAlert(null);
+          fetchSidebarBadges();
+        };
+
+        window.addEventListener('tiffinlink:order-accepted', handleWindowOrderAccepted);
+        window.addEventListener('tiffinlink:request-declined', handleWindowRequestDeclined);
+
         socket.on('order:created', handleNewOrderIncoming);
         socket.on('order:new', handleNewOrderIncoming);
         socket.on('request:new', handleNewOrderIncoming);
         socket.on('order:status:updated', handleBadgeSync);
-        socket.on('request:accepted', handleBadgeSync);
+        socket.on('request:accepted', handleRequestResolved);
+        socket.on('request:declined', handleRequestResolved);
+        socket.on('request:cancelled', handleRequestResolved);
         socket.on('notification:new', handleBadgeSync);
 
         return () => {
           clearInterval(interval);
+          stopKitchenAlertSound();
+          window.removeEventListener('tiffinlink:order-accepted', handleWindowOrderAccepted);
+          window.removeEventListener('tiffinlink:request-declined', handleWindowRequestDeclined);
           socket.off('order:created', handleNewOrderIncoming);
           socket.off('order:new', handleNewOrderIncoming);
           socket.off('request:new', handleNewOrderIncoming);
           socket.off('order:status:updated', handleBadgeSync);
-          socket.off('request:accepted', handleBadgeSync);
+          socket.off('request:accepted', handleRequestResolved);
+          socket.off('request:declined', handleRequestResolved);
+          socket.off('request:cancelled', handleRequestResolved);
           socket.off('notification:new', handleBadgeSync);
         };
       }
@@ -290,6 +346,91 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
 
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  // Live countdown ticker for newOrderAlert if secondsLeft exists
+  useEffect(() => {
+    if (!newOrderAlert) return;
+    const timer = setInterval(() => {
+      setNewOrderAlert(prev => {
+        if (!prev) return null;
+        if (typeof prev.secondsLeft === 'number') {
+          if (prev.secondsLeft <= 1) {
+            stopKitchenAlertSound();
+            return null;
+          }
+          return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+        }
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [newOrderAlert]);
+
+  const handleAcceptIncomingAlert = async (alertItem) => {
+    if (!alertItem || isAcceptingAlert || isDecliningAlert) return;
+    setIsAcceptingAlert(true);
+    stopKitchenAlertSound();
+
+    const rawId = alertItem._id || alertItem.id || alertItem.requestId || alertItem.orderId;
+    const cleanId = String(rawId || '').replace(/^#/, '').trim();
+    const isOrder = Boolean(alertItem.orderId && !alertItem.requestId && !alertItem.mealType);
+
+    try {
+      const endpoint = isOrder ? `/orders/${encodeURIComponent(cleanId)}/accept` : `/requests/${encodeURIComponent(cleanId)}/accept`;
+      const res = await apiRequest(endpoint, { method: 'POST' });
+      const json = typeof res?.json === 'function' ? await res.json() : res;
+
+      if (json && json.success) {
+        setStatusToast('✓ Request accepted! Order created in Kitchen Prep Queue.');
+        setNewOrderAlert(null);
+        window.dispatchEvent(new CustomEvent('tiffinlink:order-accepted', { detail: { id: cleanId } }));
+      } else {
+        setStatusToast(`⚠️ ${json?.message || 'Request is no longer available.'}`);
+        setNewOrderAlert(null);
+      }
+    } catch (err) {
+      console.error('Error accepting incoming request:', err);
+      setStatusToast('⚠️ Failed to accept request. Please try again.');
+    } finally {
+      setIsAcceptingAlert(false);
+      setTimeout(() => setStatusToast(''), 4000);
+      fetchSidebarBadges();
+    }
+  };
+
+  const handleDeclineIncomingAlert = async (alertItem) => {
+    if (!alertItem || isAcceptingAlert || isDecliningAlert) return;
+    setIsDecliningAlert(true);
+    stopKitchenAlertSound();
+
+    const rawId = alertItem._id || alertItem.id || alertItem.requestId || alertItem.orderId;
+    const cleanId = String(rawId || '').replace(/^#/, '').trim();
+    const isOrder = Boolean(alertItem.orderId && !alertItem.requestId && !alertItem.mealType);
+
+    try {
+      if (isOrder) {
+        await apiRequest(`/orders/${encodeURIComponent(cleanId)}/reject`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: 'Declined by kitchen provider' })
+        }).catch(() => {});
+      } else {
+        await apiRequest(`/requests/${encodeURIComponent(cleanId)}/decline`, {
+          method: 'POST'
+        }).catch(() => {});
+      }
+
+      setStatusToast('Request declined and removed.');
+      setNewOrderAlert(null);
+      window.dispatchEvent(new CustomEvent('tiffinlink:request-declined', { detail: { id: cleanId } }));
+    } catch (err) {
+      console.error('Error declining incoming request:', err);
+      setNewOrderAlert(null);
+    } finally {
+      setIsDecliningAlert(false);
+      setTimeout(() => setStatusToast(''), 3500);
+      fetchSidebarBadges();
+    }
+  };
 
   const handleToggleKitchenOnline = async () => {
     const nextStatus = !isKitchenOnline;
@@ -599,38 +740,113 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
         </main>
       </div>
 
-      {/* Real-Time Live Order Alert Banner */}
+      {/* Real-Time Incoming Request / Order Persistent Modal Banner */}
       {newOrderAlert && (
-        <div className="fixed top-20 right-6 z-[9999] animate-in slide-in-from-top-4 duration-300 max-w-md w-full bg-onyx-black text-white p-4 rounded-xl shadow-2xl border border-clay-earth/40 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-clay-earth/20 text-clay-earth flex items-center justify-center animate-bounce shrink-0">
-              <span className="material-symbols-outlined text-[24px]">notifications_active</span>
+        <div className="fixed top-20 right-4 sm:right-8 z-[9999] animate-in slide-in-from-top-4 duration-300 max-w-lg w-[calc(100vw-2rem)] sm:w-full bg-onyx-black/95 backdrop-blur-md text-white p-5 rounded-2xl shadow-2xl border-2 border-clay-earth/70 space-y-4">
+          {/* Header Row */}
+          <div className="flex items-start justify-between gap-3 border-b border-sand-neutral/20 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-clay-earth/25 text-clay-earth flex items-center justify-center animate-pulse shrink-0 border border-clay-earth/40">
+                <span className="material-symbols-outlined text-[22px]">notifications_active</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-button-text font-bold text-sm text-sand-neutral tracking-tight">
+                    {newOrderAlert.orderId ? '🛎️ New Customer Order' : '🚨 New Incoming Live Request'}
+                  </span>
+                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold animate-pulse">
+                    PENDING ACTION
+                  </span>
+                </div>
+                <div className="text-xs text-secondary mt-0.5">
+                  Action required • Remains on screen until Accepted or Declined
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="font-button-text font-bold text-sm text-sand-neutral flex items-center gap-2">
-                <span>🛎️ New Order Received!</span>
-                <span className="bg-emerald-600/30 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded font-mono">LIVE</span>
-              </div>
-              <div className="text-xs text-white/90 font-medium mt-0.5">
-                {newOrderAlert.orderId ? `Order #${newOrderAlert.orderId}` : 'New Meal Ticket'} • ₹{newOrderAlert.totalAmount || newOrderAlert.amount || '0'}
-              </div>
+
+            <div className="text-right shrink-0">
+              <span className="font-label-caps text-[10px] text-secondary uppercase block">Order Value</span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">
+                ₹{newOrderAlert.totalAmount || (newOrderAlert.quantity || 1) * (newOrderAlert.budget || 0) || newOrderAlert.budget || newOrderAlert.amount || '0'}
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          {/* Details Grid */}
+          <div className="bg-surface-container-lowest/10 border border-sand-neutral/15 rounded-xl p-3 text-xs space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-secondary font-medium">Meal Item:</span>
+              <span className="font-semibold text-white truncate text-right">
+                {newOrderAlert.mealType || newOrderAlert.tiffinName || (newOrderAlert.items && newOrderAlert.items[0]?.name) || 'Homestyle Tiffin'} • {newOrderAlert.quantity || 1} Box(es)
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-secondary font-medium">Customer:</span>
+              <span className="text-white truncate text-right">
+                {newOrderAlert.customerName || 'Direct Customer'} {newOrderAlert.customerPhone ? `(${newOrderAlert.customerPhone})` : ''}
+              </span>
+            </div>
+
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-secondary font-medium shrink-0">Delivery Location:</span>
+              <span className="text-sand-neutral/90 text-right truncate max-w-[260px]">
+                {newOrderAlert.customerAddress || newOrderAlert.location || newOrderAlert.deliveryAddress?.street || 'Customer address on file'}
+              </span>
+            </div>
+
+            {newOrderAlert.specialInstructions && (
+              <div className="pt-1 border-t border-sand-neutral/15 text-sand-neutral italic text-[11px] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px] text-clay-earth">info</span>
+                <span>Note: "{newOrderAlert.specialInstructions}"</span>
+              </div>
+            )}
+
+            {typeof newOrderAlert.secondsLeft === 'number' && (
+              <div className="flex items-center justify-between pt-1 border-t border-sand-neutral/15 text-[11px]">
+                <span className="text-secondary">Auto-expires in:</span>
+                <span className="text-amber-400 font-bold font-mono">
+                  {Math.floor(newOrderAlert.secondsLeft / 60)}:{(newOrderAlert.secondsLeft % 60).toString().padStart(2, '0')}s
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Decision Buttons */}
+          <div className="flex items-center gap-2 pt-1">
             <button
-              onClick={() => {
-                setNewOrderAlert(null);
-                handleTabChange('orders-all');
-              }}
-              className="px-3 py-1.5 bg-clay-earth hover:bg-clay-earth/90 text-white rounded text-xs font-button-text font-semibold transition-colors cursor-pointer"
+              type="button"
+              disabled={isAcceptingAlert || isDecliningAlert}
+              onClick={() => handleAcceptIncomingAlert(newOrderAlert)}
+              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-button-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              View Order
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              <span>{isAcceptingAlert ? 'Accepting...' : 'Accept Request'}</span>
             </button>
+
             <button
-              onClick={() => setNewOrderAlert(null)}
-              className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+              type="button"
+              disabled={isAcceptingAlert || isDecliningAlert}
+              onClick={() => handleDeclineIncomingAlert(newOrderAlert)}
+              className="py-2.5 px-4 bg-neutral-800 hover:bg-rose-900/60 text-sand-neutral hover:text-white border border-neutral-700 font-button-text font-semibold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <span className="material-symbols-outlined text-[16px]">cancel</span>
+              <span>{isDecliningAlert ? 'Declining...' : 'Decline'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (newOrderAlert.orderId) {
+                  setActiveTab('orders-all');
+                } else {
+                  setActiveTab('live-requests');
+                }
+              }}
+              className="p-2.5 bg-neutral-800/80 hover:bg-neutral-700 text-secondary hover:text-white rounded-xl text-xs transition-colors cursor-pointer"
+              title="View full details in dashboard tab"
+            >
+              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
             </button>
           </div>
         </div>

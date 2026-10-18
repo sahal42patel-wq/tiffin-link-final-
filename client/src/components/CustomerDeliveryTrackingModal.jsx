@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Navigation, PackageCheck, Clock, Phone, MapPin, Truck } from 'lucide-react';
+import { X, Search, Navigation, PackageCheck, Clock, Phone, MapPin, Truck, Store, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
 import GoogleDeliveryMap from './GoogleDeliveryMap';
 import { apiRequest } from '../services/api';
 import { 
@@ -88,10 +88,16 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
         const ordRes = await apiRequest(`/orders/${encodeURIComponent(cleanId)}`);
         if (ordRes && ordRes.success && ordRes.data) {
           const ord = ordRes.data;
+          const isCancelled = String(ord.status || '').toLowerCase() === 'cancelled' || String(ord.status || '').toLowerCase() === 'rejected';
           setActiveDelivery({
             orderId: ord.orderId,
             requestId: ord.orderId,
             status: ord.deliveryStatus === 'Delivered' ? 'Delivered' : (ord.status === 'Delivery' ? (ord.deliveryStatus || 'Searching Drivers') : ord.status),
+            isCancelled,
+            cancelledBy: ord.cancelledBy || 'Provider',
+            cancellationReason: ord.cancellationReason || 'The kitchen is at peak capacity and was unable to fulfill this order.',
+            providerName: ord.providerName || 'The Kitchen Partner',
+            totalAmount: ord.totalAmount || 0,
             etaMinutes: ord.estimatedTime ? parseInt(ord.estimatedTime) || 15 : 15,
             distanceKm: ord.deliveryDistance ? parseFloat(ord.deliveryDistance) || 2.4 : 2.4,
             pickupAddress: { street: ord.pickupAddress || 'Kitchen Hub, Ahmedabad' },
@@ -173,6 +179,63 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
           ) : error ? (
             <div className="p-8 text-center bg-red-50 rounded-2xl border border-red-200 space-y-2">
               <p className="text-xs font-black text-red-800">{error}</p>
+            </div>
+          ) : activeDelivery?.isCancelled || String(activeDelivery?.status || '').toLowerCase() === 'cancelled' || String(activeDelivery?.status || '').toLowerCase() === 'rejected' ? (
+            <div className="space-y-4">
+              <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 text-left">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                    <Store size={22} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 bg-rose-100/70 px-2 py-0.5 rounded">
+                      Order Declined by Kitchen
+                    </span>
+                    <h3 className="text-base font-bold text-gray-900 mt-0.5">
+                      {activeDelivery.providerName || 'Kitchen Partner'}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="bg-white/90 border border-rose-200/80 rounded-xl p-3.5 mb-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 mb-1">
+                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                    <span>Restaurant Message</span>
+                  </div>
+                  <p className="text-xs font-medium text-gray-800 italic pl-3 border-l-2 border-amber-400">
+                    &ldquo;{activeDelivery.cancellationReason || 'The kitchen is at peak capacity and unable to prepare this order.'}&rdquo;
+                  </p>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5">
+                  <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                  <div className="text-xs text-emerald-900 font-semibold">
+                    100% Escrow Refund Recredited to Source Account (Zero Cancellation Fee)
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      window.location.hash = '#find-tiffin';
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Browse Other Kitchens</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      window.location.hash = '#cancelled-orders';
+                    }}
+                    className="px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    View Refund Details
+                  </button>
+                </div>
+              </div>
             </div>
           ) : activeDelivery ? (
             <div className="space-y-4">

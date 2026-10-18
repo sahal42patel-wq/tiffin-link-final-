@@ -185,6 +185,12 @@ const createRequest = async (req, res) => {
       await newRequest.save();
       const enriched = enrichRequestWithLiveTimer(newRequest);
 
+      // Trigger AI Smart Provider Matching in background
+      try {
+        const { evaluateMatchingForRequest } = require('../services/matchingService');
+        evaluateMatchingForRequest(newRequest._id).catch(err => console.log('Auto matching eval error:', err.message));
+      } catch (mErr) {}
+
       try {
         const { getIO } = require('../services/socketService');
         const io = getIO();
@@ -268,6 +274,37 @@ const acceptRequest = async (req, res) => {
 
       await newOrder.save();
 
+      // Enqueue to SmartQueue for kitchen prep
+      try {
+        const SmartQueue = require('../models/SmartQueue');
+        await new SmartQueue({
+          queueType: 'provider_prep',
+          orderId: orderNumber,
+          providerId: String(providerId),
+          customerName: requestDoc.customerName,
+          customerAddress: requestDoc.customerAddress || requestDoc.location,
+          mealTitle: requestDoc.mealType,
+          quantity: requestDoc.quantity || 1,
+          isUrgent: Boolean(requestDoc.isUrgent || requestDoc.urgencyLevel === 'emergency'),
+          urgencyLevel: requestDoc.urgencyLevel || 'standard',
+          priorityScore: requestDoc.urgencyLevel === 'emergency' ? 95 : 60,
+          status: 'queued',
+          targetReadyTime: new Date(Date.now() + 25 * 60 * 1000)
+        }).save();
+      } catch (qErr) {}
+
+      // Risk Evaluation in background
+      try {
+        const { evaluateOrderRisk } = require('../services/fraudRiskService');
+        evaluateOrderRisk({
+          orderId: orderNumber,
+          userId: requestDoc.customerId,
+          userEmail: requestDoc.customerEmail,
+          totalAmount: finalTotal,
+          actionType: 'order_placement'
+        }).catch(() => {});
+      } catch (rErr) {}
+
       // Realtime Socket broadcast
       try {
         const { getIO, emitToProvider } = require('../services/socketService');
@@ -315,6 +352,32 @@ const declineRequest = async (req, res) => {
         );
       } else {
         updated = await MealRequest.findOneAndUpdate(matchCriteria, { status: 'declined' }, { new: true });
+      }
+
+      if (updated) {
+        try {
+          const { getIO } = require('../services/socketService');
+          const io = getIO();
+          const declineReason = req.body?.reason || 'The selected kitchen is currently at peak preparation capacity.';
+          const payload = {
+            requestId: updated._id,
+            status: 'declined',
+            mealType: updated.mealType,
+            customerEmail: updated.customerEmail,
+            customerId: updated.customerId,
+            providerId: String(providerId || ''),
+            reason: declineReason
+          };
+          if (io) {
+            io.emit('request:declined', payload);
+            if (updated.customerId) {
+              io.to(`customer:${updated.customerId}`).emit('request:declined', payload);
+            }
+            if (updated.customerEmail) {
+              io.to(`customer:${updated.customerEmail.toLowerCase()}`).emit('request:declined', payload);
+            }
+          }
+        } catch (sErr) {}
       }
 
       return res.json({ success: true, message: 'Request dismissed for this provider', data: updated });

@@ -51,6 +51,17 @@ const mealRequestSchema = new mongoose.Schema({
     type: String,
     default: 'Satellite, Ahmedabad'
   },
+  coordinates: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [72.5178, 23.0300]
+    }
+  },
   distance: {
     type: String,
     default: '1.8 km'
@@ -77,6 +88,40 @@ const mealRequestSchema = new mongoose.Schema({
   isUrgent: {
     type: Boolean,
     default: false
+  },
+  urgencyLevel: {
+    type: String,
+    enum: ['standard', 'urgent', 'emergency'],
+    default: 'standard'
+  },
+  matchingStatus: {
+    type: String,
+    enum: ['pending', 'evaluating', 'matched', 'no_match', 'completed', 'expired'],
+    default: 'pending'
+  },
+  matches: [{
+    providerId: { type: String, required: true },
+    providerName: { type: String, required: true },
+    score: { type: Number, default: 0 },
+    distanceKm: { type: Number, default: 0 },
+    breakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
+    reasonCodes: [{ type: String }],
+    notifiedAt: { type: Date, default: Date.now }
+  }],
+  corporateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null
+  },
+  hostelId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hostel',
+    default: null
+  },
+  groupOrderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GroupOrder',
+    default: null
   },
   offers: [{
     providerId: { type: String, required: true },
@@ -148,6 +193,10 @@ mealRequestSchema.pre('save', function(next) {
   }
   next();
 });
+
+// 2dsphere index for geospatial proximity matching
+mealRequestSchema.index({ coordinates: '2dsphere' });
+mealRequestSchema.index({ status: 1, urgencyLevel: 1, expiresAt: 1 });
 
 module.exports = mongoose.model('MealRequest', mealRequestSchema);
 

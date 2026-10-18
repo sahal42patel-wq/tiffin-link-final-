@@ -42,7 +42,9 @@ import LoginModal from './components/LoginModal';
 import DemoModal from './components/DemoModal';
 import CookieConsentModal from './components/CookieConsentModal';
 import CustomerDeliveryTrackingModal from './components/CustomerDeliveryTrackingModal';
+import RestaurantDeclineModal from './components/RestaurantDeclineModal';
 import CartDrawer from './components/CartDrawer';
+import { getSocket, joinCustomerRoom } from './services/socket';
 
 import { useAuth } from './context/AuthContext';
 import { clearAuthTokens, getCookie, setCookie, saveUserSession } from './services/api';
@@ -86,6 +88,9 @@ export default function App() {
   const [profileModalTab, setProfileModalTab] = useState('profile');
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
   const [activeCustomerOrderId, setActiveCustomerOrderId] = useState('');
+  const [restaurantDeclineData, setRestaurantDeclineData] = useState(null);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const prevActiveOrderRef = useRef('');
   const [preloaderFinished, setPreloaderFinished] = useState(false);
 
   const [searchFilters, setSearchFilters] = useState({});
@@ -355,18 +360,66 @@ export default function App() {
   };
 
 
-  // Sync active order for logged-in Diner/Customer from MongoDB
+  // Sync active order and real-time decline events for logged-in Diner/Customer
   useEffect(() => {
     if (!currentUser || currentUser.role === 'provider' || currentUser.role === 'delivery') {
       setHasActiveOrder(false);
       setActiveCustomerOrderId('');
+      prevActiveOrderRef.current = '';
       return;
     }
+
+    const customerId = currentUser.id || currentUser._id;
+    const email = currentUser.email || '';
+
+    // Join Customer-specific Socket room for real-time order & request updates
+    joinCustomerRoom(customerId, email);
+
+    const handleOrderDeclined = (data) => {
+      if (!data) return;
+      setRestaurantDeclineData({
+        orderId: data.orderId || prevActiveOrderRef.current || 'TL-ORDER',
+        providerName: data.providerName || 'Kitchen Partner',
+        tiffinName: data.tiffinName || 'Tiffin Meal',
+        cancellationReason: data.cancellationReason || 'The kitchen is at peak preparation capacity and cannot accept this order right now.',
+        totalAmount: data.totalAmount || 0,
+        refundNotice: data.refundNotice || '100% Escrow Refund Recredited to Source Account'
+      });
+      setIsDeclineModalOpen(true);
+      setHasActiveOrder(false);
+      setActiveCustomerOrderId('');
+      prevActiveOrderRef.current = '';
+      showToastNotification(`⚠️ ${data.providerName || 'Kitchen'} was unable to accept your order. 100% refunded.`);
+    };
+
+    const handleRequestDeclined = (data) => {
+      if (!data) return;
+      setRestaurantDeclineData({
+        orderId: data.requestId || 'REQ-CUSTOM',
+        providerName: data.providerName || 'Kitchen Partner',
+        tiffinName: data.mealType ? `${data.mealType} Meal Request` : 'Custom Meal Request',
+        cancellationReason: data.reason || 'The kitchen was unable to fulfill your custom meal request at this time.',
+        totalAmount: 0,
+        refundNotice: 'No payment deducted for unaccepted requests.'
+      });
+      setIsDeclineModalOpen(true);
+      showToastNotification(`⚠️ Custom request declined by kitchen.`);
+    };
+
+    const handleStatusUpdated = (data) => {
+      if (data && (String(data.status).toLowerCase() === 'cancelled' || String(data.status).toLowerCase() === 'rejected') && data.cancelledBy === 'Provider') {
+        handleOrderDeclined(data);
+      }
+    };
+
+    const socket = getSocket();
+    socket.on('order:declined', handleOrderDeclined);
+    socket.on('order:status:updated', handleStatusUpdated);
+    socket.on('request:declined', handleRequestDeclined);
 
     const checkActiveOrder = async () => {
       try {
         const token = localStorage.getItem('tiffinlink_access_token') || localStorage.getItem('token') || localStorage.getItem('tiffinlink_token') || '';
-        const email = currentUser?.email || '';
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -375,12 +428,35 @@ export default function App() {
         if (json.success && Array.isArray(json.data)) {
           const terminal = ['delivered', 'completed', 'cancelled', 'rejected', 'failed', 'payment_failed', 'delivery_failed'];
           const active = json.data.find(o => !terminal.includes(String(o.status || '').toLowerCase().trim()));
+
+          // Check if previously tracked active order was declined while diner was on another view or disconnected
+          if (prevActiveOrderRef.current && !active) {
+            const declinedOrder = json.data.find(o => 
+              (o.orderId === prevActiveOrderRef.current || o._id === prevActiveOrderRef.current) &&
+              (String(o.status || '').toLowerCase() === 'cancelled' || String(o.status || '').toLowerCase() === 'rejected') &&
+              (o.cancelledBy === 'Provider' || o.cancellationReason)
+            );
+            if (declinedOrder && !isDeclineModalOpen) {
+              handleOrderDeclined({
+                orderId: declinedOrder.orderId || prevActiveOrderRef.current,
+                providerName: declinedOrder.providerName || 'Kitchen Partner',
+                tiffinName: declinedOrder.tiffinName || 'Tiffin Meal',
+                cancellationReason: declinedOrder.cancellationReason || 'The kitchen is at peak preparation capacity and cannot accept this order right now.',
+                totalAmount: declinedOrder.totalAmount || 0,
+                refundNotice: '100% Escrow Refund Recredited to Source Account'
+              });
+            }
+          }
+
           if (active) {
             setHasActiveOrder(true);
-            setActiveCustomerOrderId(active.orderId || active._id);
+            const activeId = active.orderId || active._id;
+            setActiveCustomerOrderId(activeId);
+            prevActiveOrderRef.current = activeId;
           } else {
             setHasActiveOrder(false);
             setActiveCustomerOrderId('');
+            prevActiveOrderRef.current = '';
           }
         }
       } catch (err) {
@@ -390,8 +466,13 @@ export default function App() {
 
     checkActiveOrder();
     const interval = setInterval(checkActiveOrder, 4000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
+    return () => {
+      clearInterval(interval);
+      socket.off('order:declined', handleOrderDeclined);
+      socket.off('order:status:updated', handleStatusUpdated);
+      socket.off('request:declined', handleRequestDeclined);
+    };
+  }, [currentUser, isDeclineModalOpen]);
 
 
 
@@ -907,6 +988,20 @@ export default function App() {
         isOpen={isCustomerTrackingModalOpen}
         onClose={() => setIsCustomerTrackingModalOpen(false)}
         initialOrderId={activeCustomerOrderId}
+      />
+
+      <RestaurantDeclineModal
+        isOpen={isDeclineModalOpen}
+        onClose={() => setIsDeclineModalOpen(false)}
+        declineData={restaurantDeclineData}
+        onFindAlternative={() => {
+          setView('find-tiffin');
+          window.location.hash = '#find-tiffin';
+        }}
+        onViewCancelledOrders={() => {
+          setView('orders');
+          window.location.hash = '#cancelled-orders';
+        }}
       />
 
       <UserProfileModal 

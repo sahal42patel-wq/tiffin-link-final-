@@ -3261,6 +3261,39 @@ const getCompletedDeliveries = async (req, res) => {
 
     let allCompleted = Array.from(recordMap.values());
 
+    // Enrich deliveries with real dynamic customer reviews from MongoDB
+    const orderIdsToLookup = allCompleted.map(d => String(d.orderId || d.requestId || '')).filter(Boolean);
+    if (orderIdsToLookup.length > 0) {
+      try {
+        const foundReviews = await Review.find({
+          $or: [
+            { orderId: { $in: orderIdsToLookup } },
+            { orderId: { $in: orderIdsToLookup.map(id => id.replace(/^#/, '')) } }
+          ]
+        }).lean();
+
+        const reviewMap = new Map();
+        foundReviews.forEach(r => {
+          if (r.orderId) {
+            reviewMap.set(String(r.orderId), r);
+            reviewMap.set(String(r.orderId).replace(/^#/, ''), r);
+          }
+        });
+
+        allCompleted.forEach(item => {
+          const rawId = String(item.orderId || item.requestId || '');
+          const cleanId = rawId.replace(/^#/, '');
+          const rev = reviewMap.get(rawId) || reviewMap.get(cleanId);
+          if (rev) {
+            item.rating = rev.deliveryRating || rev.rating || item.rating;
+            item.reviewComment = rev.deliveryComment || rev.comment || item.reviewComment;
+          }
+        });
+      } catch (revErr) {
+        console.warn('Failed to attach reviews to completed deliveries:', revErr.message);
+      }
+    }
+
     // Calculate Summary Stats from all driver completed records
     const completedCount = allCompleted.length;
     const totalEarnings = allCompleted.reduce((sum, item) => sum + (item.driverEarning || 0), 0);

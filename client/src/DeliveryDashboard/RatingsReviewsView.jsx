@@ -107,20 +107,20 @@ export default function RatingsReviewsView({ currentUser, onNavigateTab }) {
   };
 
   const summary = data?.summary || {
-    averageRating: 4.8,
-    totalReviews: 42,
+    averageRating: null,
+    totalReviews: 0,
     distribution: {
-      5: { count: 32, percentage: 76 },
-      4: { count: 7, percentage: 17 },
-      3: { count: 2, percentage: 5 },
-      2: { count: 1, percentage: 2 },
+      5: { count: 0, percentage: 0 },
+      4: { count: 0, percentage: 0 },
+      3: { count: 0, percentage: 0 },
+      2: { count: 0, percentage: 0 },
       1: { count: 0, percentage: 0 }
     },
     breakdown: {
-      customerRating: 4.8,
-      deliveryExperience: 4.7,
-      onTimeArrival: 4.6,
-      professionalism: 4.9
+      customerRating: null,
+      deliveryExperience: null,
+      onTimeArrival: null,
+      professionalism: null
     }
   };
 
@@ -350,7 +350,9 @@ export default function RatingsReviewsView({ currentUser, onNavigateTab }) {
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">{summary.breakdown?.customerRating?.toFixed(1) || '4.8'}</span>
+                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">
+                      {summary.breakdown?.customerRating != null ? summary.breakdown.customerRating.toFixed(1) : (summary.averageRating != null ? summary.averageRating.toFixed(1) : '—')}
+                    </span>
                     <span className="font-label-caps text-[11px] text-secondary">★</span>
                   </div>
                   <p className="font-label-caps text-[10px] text-stone-500 mt-1">Baseline across drops</p>
@@ -364,7 +366,9 @@ export default function RatingsReviewsView({ currentUser, onNavigateTab }) {
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">{summary.breakdown?.deliveryExperience?.toFixed(1) || '4.7'}</span>
+                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">
+                      {summary.breakdown?.deliveryExperience != null ? summary.breakdown.deliveryExperience.toFixed(1) : '—'}
+                    </span>
                     <span className="font-label-caps text-[11px] text-secondary">★</span>
                   </div>
                   <p className="font-label-caps text-[10px] text-stone-500 mt-1">Seal & temp handling</p>
@@ -378,7 +382,9 @@ export default function RatingsReviewsView({ currentUser, onNavigateTab }) {
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">{summary.breakdown?.onTimeArrival?.toFixed(1) || '4.6'}</span>
+                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">
+                      {summary.breakdown?.onTimeArrival != null ? summary.breakdown.onTimeArrival.toFixed(1) : '—'}
+                    </span>
                     <span className="font-label-caps text-[11px] text-secondary">★</span>
                   </div>
                   <p className="font-label-caps text-[10px] text-stone-500 mt-1">Within 15-min window</p>
@@ -392,7 +398,9 @@ export default function RatingsReviewsView({ currentUser, onNavigateTab }) {
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">{summary.breakdown?.professionalism?.toFixed(1) || '4.9'}</span>
+                    <span className="font-headline-md text-2xl font-serif text-primary font-bold">
+                      {summary.breakdown?.professionalism != null ? summary.breakdown.professionalism.toFixed(1) : '—'}
+                    </span>
                     <span className="font-label-caps text-[11px] text-secondary">★</span>
                   </div>
                   <p className="font-label-caps text-[10px] text-stone-500 mt-1">OTP & Dabba exchange</p>

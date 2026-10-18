@@ -7,6 +7,8 @@
 let audioCtx = null;
 let deliveryTimer = null;
 let isDeliveryAlertActive = false;
+let kitchenTimer = null;
+let isKitchenAlertActive = false;
 
 const STORAGE_KEY = 'tiffinlink_sound_enabled';
 
@@ -21,6 +23,7 @@ export const setSoundEnabled = (enabled) => {
   localStorage.setItem(STORAGE_KEY, enabled ? 'true' : 'false');
   if (!enabled) {
     stopDeliveryRequestSound();
+    stopKitchenAlertSound();
   }
 };
 
@@ -107,9 +110,40 @@ export const playKitchenOrderSound = () => {
 };
 
 /**
+ * Play recurring kitchen chime for Providers when a new meal request or order arrives
+ * Repeats every 2.5 seconds until explicitly accepted or declined
+ */
+export const playKitchenAlertLoop = () => {
+  if (!isSoundEnabled()) return;
+  stopKitchenAlertSound();
+
+  isKitchenAlertActive = true;
+  playKitchenOrderSound();
+
+  kitchenTimer = setInterval(() => {
+    if (!isKitchenAlertActive || !isSoundEnabled()) {
+      stopKitchenAlertSound();
+      return;
+    }
+    playKitchenOrderSound();
+  }, 2500);
+};
+
+/**
+ * Stop kitchen alert chime immediately (when provider accepts or declines the request)
+ */
+export const stopKitchenAlertSound = () => {
+  isKitchenAlertActive = false;
+  if (kitchenTimer) {
+    clearInterval(kitchenTimer);
+    kitchenTimer = null;
+  }
+};
+
+/**
  * Play repeating urgent alert chime for Delivery Drivers when a new delivery request is broadcast
  */
-export const playDeliveryRequestSound = (durationSeconds = 10, onComplete) => {
+export const playDeliveryRequestSound = (durationSeconds = 60, onComplete) => {
   if (!isSoundEnabled()) return;
   stopDeliveryRequestSound();
 
@@ -122,7 +156,8 @@ export const playDeliveryRequestSound = (durationSeconds = 10, onComplete) => {
 
     isDeliveryAlertActive = true;
     let iteration = 0;
-    const maxIterations = Math.max(1, Math.round(durationSeconds / 1.1));
+    const hasLimit = typeof durationSeconds === 'number' && durationSeconds > 0 && isFinite(durationSeconds);
+    const maxIterations = hasLimit ? Math.max(1, Math.round(durationSeconds / 1.1)) : Infinity;
 
     const playPulse = () => {
       if (!isDeliveryAlertActive || iteration >= maxIterations) {

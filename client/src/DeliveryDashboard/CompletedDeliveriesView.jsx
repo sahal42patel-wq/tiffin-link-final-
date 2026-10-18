@@ -478,11 +478,22 @@ export default function CompletedDeliveriesView({ currentUser, onNavigateTab }) 
                   {/* Card Footer */}
                   <div className="pt-4 border-t border-sand-neutral flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3 text-secondary font-label-caps text-[11px]">
-                      <span>Order Total: ₹{item.orderTotal ? item.orderTotal.toFixed(2) : '224.00'}</span>
-                      <span>•</span>
-                      <span className="text-amber-700 flex items-center gap-0.5 font-bold">
-                        {item.rating ? `★ ${item.rating} Rating` : '★ 4.8 Rating'}
-                      </span>
+                      <span>Order Total: ₹{item.orderTotal ? item.orderTotal.toFixed(2) : '0.00'}</span>
+                      {item.rating != null ? (
+                        <>
+                          <span>•</span>
+                          <span className="text-amber-700 flex items-center gap-0.5 font-bold">
+                            ★ {Number(item.rating).toFixed(1)} Rating
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span>•</span>
+                          <span className="text-stone-400 font-medium">
+                            Not Rated Yet
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <button
@@ -630,15 +641,21 @@ export default function CompletedDeliveriesView({ currentUser, onNavigateTab }) 
               <div className="p-3.5 bg-surface-container border border-sand-neutral space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-label-caps text-[10px] text-secondary uppercase tracking-wider">RATING</span>
-                  <span className="text-amber-700 font-bold">
-                    {selectedDelivery.rating ? `★★★★★ ${selectedDelivery.rating}` : '★★★★★ 4.8'}
-                  </span>
+                  {selectedDelivery.rating != null ? (
+                    <span className="text-amber-700 font-bold">
+                      {'★'.repeat(Math.round(selectedDelivery.rating))} {Number(selectedDelivery.rating).toFixed(1)} Rating
+                    </span>
+                  ) : (
+                    <span className="text-stone-400 font-medium text-xs">
+                      Customer review pending
+                    </span>
+                  )}
                 </div>
-                {selectedDelivery.reviewComment && (
+                {selectedDelivery.reviewComment ? (
                   <p className="font-headline-md italic text-sm text-onyx-black leading-snug pt-1">
                     "{selectedDelivery.reviewComment}"
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* Action Button */}
@@ -761,15 +778,21 @@ export default function CompletedDeliveriesView({ currentUser, onNavigateTab }) 
             <div className="p-3.5 bg-surface-container border border-sand-neutral space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-label-caps text-[10px] text-secondary uppercase tracking-wider">RATING</span>
-                <span className="text-amber-700 font-bold">
-                  {selectedDelivery.rating ? `★★★★★ ${selectedDelivery.rating}` : '★★★★★ 4.8'}
-                </span>
+                {selectedDelivery.rating != null ? (
+                  <span className="text-amber-700 font-bold">
+                    {'★'.repeat(Math.round(selectedDelivery.rating))} {Number(selectedDelivery.rating).toFixed(1)} Rating
+                  </span>
+                ) : (
+                  <span className="text-stone-400 font-medium text-xs">
+                    Customer review pending
+                  </span>
+                )}
               </div>
-              {selectedDelivery.reviewComment && (
+              {selectedDelivery.reviewComment ? (
                 <p className="font-headline-md italic text-sm text-onyx-black leading-snug pt-1">
                   "{selectedDelivery.reviewComment}"
                 </p>
-              )}
+              ) : null}
             </div>
 
             {/* Action Button */}

@@ -164,6 +164,25 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [soundActive, setSoundActive] = useState(isSoundEnabled());
   const [incomingDeliveryAlert, setIncomingDeliveryAlert] = useState(null);
+  const [alertSecondsLeft, setAlertSecondsLeft] = useState(45);
+
+  // Live countdown timer for incoming delivery request ringtone and alert
+  useEffect(() => {
+    if (!incomingDeliveryAlert) return;
+
+    const timer = setInterval(() => {
+      setAlertSecondsLeft((prev) => {
+        if (prev <= 1) {
+          stopDeliveryRequestSound();
+          setIncomingDeliveryAlert(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [incomingDeliveryAlert]);
 
   // GPS Watcher state
   const [gpsStatus, setGpsStatus] = useState({ status: 'INIT', message: '', coords: null });
@@ -283,8 +302,10 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
       const reqObj = data?.request || data;
       if (!reqObj) return;
 
-      playDeliveryRequestSound(10);
+      const seconds = Math.max(10, Number(reqObj.secondsLeft || reqObj.timeoutSeconds || 45));
+      setAlertSecondsLeft(seconds);
       setIncomingDeliveryAlert(reqObj);
+      playDeliveryRequestSound(seconds);
       fetchDashboardData();
       window.dispatchEvent(new CustomEvent('tiffinlink:new-delivery-request', { detail: reqObj }));
     };
@@ -369,6 +390,8 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
   // Atomic Delivery Acceptance
   const handleAcceptDelivery = async (order) => {
     if (!order) return;
+    stopDeliveryRequestSound();
+    setIncomingDeliveryAlert(null);
 
     // If order was already accepted via subview, avoid redundant second accept
     if (order.status === 'Driver Assigned' || order.status === 'Picked Up') {
@@ -1242,16 +1265,21 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-clay-earth opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-clay-earth" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
               </span>
-              <span className="font-button-text font-bold text-sm tracking-wide text-sand-neutral uppercase">
-                New Delivery Request!
+              <span className="font-button-text font-bold text-sm tracking-wide text-sand-neutral uppercase flex items-center gap-1.5">
+                <span>🔔 New Delivery Request!</span>
               </span>
             </div>
-            <span className="text-xs font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">
-              Earn ₹{incomingDeliveryAlert.driverEarning || incomingDeliveryAlert.deliveryFee || 50}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono bg-red-500/20 text-red-400 px-2.5 py-0.5 rounded font-bold border border-red-500/40 animate-pulse">
+                ⏳ {alertSecondsLeft}s
+              </span>
+              <span className="text-xs font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold">
+                Earn ₹{incomingDeliveryAlert.driverEarning || incomingDeliveryAlert.deliveryFee || 50}
+              </span>
+            </div>
           </div>
 
           <div className="text-xs text-bone-white/80 space-y-1">
@@ -1281,7 +1309,6 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
             </button>
             <button
               onClick={() => {
-                stopDeliveryRequestSound();
                 setIncomingDeliveryAlert(null);
                 setActiveTab('requests');
               }}
@@ -1293,10 +1320,11 @@ export default function DeliveryDashboard({ currentUser, onLogout }) {
               onClick={() => {
                 stopDeliveryRequestSound();
                 setIncomingDeliveryAlert(null);
+                showToast('Delivery request declined');
               }}
-              className="px-3 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-sand-neutral rounded-lg text-xs font-button-text transition-colors cursor-pointer"
+              className="px-3.5 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-sand-neutral rounded-lg text-xs font-button-text transition-colors cursor-pointer"
             >
-              Dismiss
+              Decline
             </button>
           </div>
         </div>
