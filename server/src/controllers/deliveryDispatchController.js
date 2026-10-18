@@ -183,7 +183,11 @@ const reconcileMissingDeliveryRequests = async () => {
         $or: [
           { orderId: ordIdStr },
           { orderId: cleanOrdId },
-          { orderId: hashedOrdId }
+          { orderId: hashedOrdId },
+          { requestId: `TL-REQ-${cleanOrdId}` },
+          { requestId: `TL-REQ-${ordIdStr}` },
+          { requestId: cleanOrdId },
+          { requestId: hashedOrdId }
         ]
       });
 
@@ -804,6 +808,16 @@ const verifyOtp = async (req, res) => {
     await delivery.save();
 
     if (delivery.orderId) {
+      await DeliveryRequest.updateMany(
+        { orderId: delivery.orderId },
+        {
+          $set: {
+            status: 'Picked Up',
+            pickupOtpVerified: true,
+            pickedUpAt: delivery.pickedUpAt
+          }
+        }
+      );
       await Order.updateMany(
         buildIdQuery(delivery.orderId),
         { 
@@ -1067,6 +1081,10 @@ const updateDeliveryStatus = async (req, res) => {
 
       if (request) {
         if (request.orderId) {
+          await DeliveryRequest.updateMany(
+            { orderId: request.orderId },
+            { $set: statusUpdates }
+          );
           const ordQuery = buildIdQuery(request.orderId);
           const ordStatusMap = {
             'ARRIVED_PROVIDER': 'At Kitchen',
@@ -1570,8 +1588,20 @@ const getDriverDashboardData = async (req, res) => {
       if (activeConditions.length > 0) {
         activeReq = await DeliveryRequest.findOne({
           $or: activeConditions,
-          status: { $in: ['Driver Assigned', 'Arrived at Provider', 'Picked Up', 'Out for Delivery', 'ARRIVED_PROVIDER', 'PICKED_UP', 'OUT_FOR_DELIVERY'] }
+          status: { $in: ['Driver Assigned', 'Arrived at Provider', 'Picked Up', 'Out for Delivery', 'Arrived at Customer', 'ARRIVED_PROVIDER', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'ARRIVED_CUSTOMER'] }
         }).sort({ requestedAt: -1 });
+      }
+
+      // Check if activeReq is already delivered or completed in related Order
+      if (activeReq && activeReq.orderId) {
+        const ordCheck = await Order.findOne(buildIdQuery(activeReq.orderId)).select('status deliveryStatus');
+        if (ordCheck && (ordCheck.status === 'Completed' || ordCheck.status === 'Delivered' || ordCheck.deliveryStatus === 'Delivered')) {
+          await DeliveryRequest.updateMany(
+            { orderId: activeReq.orderId },
+            { $set: { status: 'Delivered', deliveryOtpVerified: true, customerHandoverOtpVerified: true, completedAt: new Date() } }
+          );
+          activeReq = null;
+        }
       }
 
       // Fallback matching directly via Order if DeliveryRequest is unlinked
@@ -1594,26 +1624,6 @@ const getDriverDashboardData = async (req, res) => {
 
         if (ordMatch) {
           activeReq = await DeliveryRequest.findOne(buildIdQuery(ordMatch.orderId));
-          if (!activeReq) {
-            activeReq = await DeliveryRequest.create({
-              requestId: `#DEL-${Math.floor(1000 + Math.random() * 9000)}`,
-              orderId: ordMatch.orderId,
-              providerName: ordMatch.restaurantName || ordMatch.providerName || 'Artisanal Home Kitchen',
-              customerName: ordMatch.customerName || 'Customer',
-              customerPhone: ordMatch.customerPhone || '',
-              deliveryAddress: { street: ordMatch.customerAddress || 'Customer Address' },
-              pickupAddress: { street: 'Pickup Kitchen' },
-              assignedDriver: {
-                driverId: driverInfo.driverId || String(driverRecord?._id || ''),
-                name: driverInfo.name,
-                phone: driverPhone || ''
-              },
-              status: 'Driver Assigned',
-              amount: ordMatch.totalAmount || 0,
-              itemCount: ordMatch.quantity || 1,
-              tiffinName: ordMatch.tiffinName || 'Meal Package'
-            });
-          }
         }
       }
 
@@ -2697,11 +2707,21 @@ const getActiveDelivery = async (req, res) => {
             ...(driverPhone ? [{ deliveryPartnerPhone: driverPhone }, { deliveryPartnerPhone: `+91 ${cleanPhone}` }] : [])
           ].filter(Boolean)
         }).sort({ createdAt: -1 });
-
         if (ordMatch) {
           activeReq = await DeliveryRequest.findOne({
             $or: [{ orderId: ordMatch.orderId }, { orderId: ordMatch._id?.toString() }, { requestId: ordMatch.orderId }]
           });
+        }
+      }
+
+      if (activeReq && activeReq.orderId) {
+        const relOrd = await Order.findOne(buildIdQuery(activeReq.orderId)).select('status deliveryStatus');
+        if (relOrd && (relOrd.status === 'Completed' || relOrd.status === 'Delivered' || relOrd.deliveryStatus === 'Delivered')) {
+          await DeliveryRequest.updateMany(
+            { orderId: activeReq.orderId },
+            { $set: { status: 'Delivered', deliveryOtpVerified: true, customerHandoverOtpVerified: true, completedAt: new Date() } }
+          );
+          activeReq = null;
         }
       }
 
@@ -4390,6 +4410,18 @@ const verifyCustomerHandoverOtp = async (req, res) => {
     }
 
     if (targetDoc.orderId) {
+      await DeliveryRequest.updateMany(
+        { orderId: targetDoc.orderId },
+        {
+          $set: {
+            status: 'Delivered',
+            deliveryOtpVerified: true,
+            customerHandoverOtpVerified: true,
+            customerHandoverVerifiedAt: now,
+            completedAt: now
+          }
+        }
+      );
       await Order.updateMany(
         buildIdQuery(targetDoc.orderId),
         {

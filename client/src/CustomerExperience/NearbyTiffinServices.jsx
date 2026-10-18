@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useLocation } from '../context/LocationContext';
 import TiffinCustomizer from './TiffinCustomizer';
 import ProviderDossier from './ProviderDossier';
+import { getSocket } from '../services/socket';
 
 const AHMEDABAD_LOCALITIES = {
   'satellite': { lat: 23.0300, lng: 72.5178, name: 'Satellite, Ahmedabad' },
@@ -169,6 +170,60 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
   useEffect(() => {
     fetchProviders();
   }, [coordinates, radiusKm, mealType, budget, sortBy]);
+
+  // Real-time live rating updates for all kitchen cards without page refresh
+  useEffect(() => {
+    const s = getSocket();
+    if (!s) return;
+
+    const handleRatingUpdated = (data) => {
+      if (!data || !data.providerId) return;
+      const targetId = String(data.providerId);
+      const newRating = Number(data.rating);
+      const newCount = Number(data.reviewCount || data.totalReviews || 0);
+
+      setProviders(prevList => prevList.map(prov => {
+        const provId = String(prov._id || prov.id || prov.providerId || '');
+        if (provId === targetId) {
+          return {
+            ...prov,
+            rating: !isNaN(newRating) ? newRating : prov.rating,
+            reviewCount: newCount > 0 ? newCount : (prov.reviewCount || 0)
+          };
+        }
+        return prov;
+      }));
+    };
+
+    const handleNewReview = (data) => {
+      if (!data) return;
+      const targetId = String(data.providerId || data.review?.providerId || '');
+      if (!targetId) return;
+
+      const newRating = data.providerRating !== undefined ? Number(data.providerRating) : Number(data.rating);
+      const newCount = data.providerReviewCount !== undefined ? Number(data.providerReviewCount) : null;
+
+      setProviders(prevList => prevList.map(prov => {
+        const provId = String(prov._id || prov.id || prov.providerId || '');
+        if (provId === targetId) {
+          return {
+            ...prov,
+            rating: !isNaN(newRating) && newRating > 0 ? newRating : prov.rating,
+            reviewCount: newCount !== null ? newCount : ((prov.reviewCount || 0) + 1)
+          };
+        }
+        return prov;
+      }));
+    };
+
+    s.on('provider:rating:updated', handleRatingUpdated);
+    s.on('review:new', handleNewReview);
+
+    return () => {
+      s.off('provider:rating:updated', handleRatingUpdated);
+      s.off('review:new', handleNewReview);
+    };
+  }, []);
 
   // Synchronize dynamic initialFilters coming from Kitchen Concierge form or Categories
   useEffect(() => {
@@ -1297,7 +1352,9 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                   const pFormats = (prov.categories && prov.categories.length > 0)
                     ? prov.categories
                     : (prov.tags || ['Gujarati Thali', 'Kathiyawadi', 'Homestyle']);
-                  const pRating = prov.rating ? Number(prov.rating).toFixed(1) : '4.8';
+                  const pRating = (prov.rating !== undefined && prov.rating !== null && !isNaN(Number(prov.rating)) && Number(prov.rating) > 0)
+                    ? Number(prov.rating).toFixed(1)
+                    : (prov.rating === 0 ? '0.0' : '4.8');
                   const fallbackImg = `/assets/provider_${(index % 5) + 1}.png`;
 
                   return (

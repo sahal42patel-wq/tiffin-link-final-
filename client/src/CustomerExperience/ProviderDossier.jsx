@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { getSocket } from '../services/socket';
 
 export default function ProviderDossier({
   provider,
@@ -17,6 +18,14 @@ export default function ProviderDossier({
   const [tiffins, setTiffins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDetailsTiffin, setSelectedDetailsTiffin] = useState(null);
+
+  // Real-Time Reviews & Rating State
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewFilter, setReviewFilter] = useState('all');
+  const [reviewsStats, setReviewsStats] = useState(null);
+  const [liveRating, setLiveRating] = useState(provider?.rating || 0);
+  const [liveReviewCount, setLiveReviewCount] = useState(provider?.reviewCount || 0);
 
   const providerId = provider?._id || provider?.id;
 
@@ -75,6 +84,163 @@ export default function ProviderDossier({
   const fssai = p.fssaiNumber || '—';
   const rating = p.rating || 0;
   const reviewCount = p.reviewCount || 0;
+
+  // Sync initial live rating from provider object
+  useEffect(() => {
+    if (p.rating !== undefined && p.rating !== null) {
+      setLiveRating(Number(p.rating));
+    }
+    if (p.reviewCount !== undefined && p.reviewCount !== null) {
+      setLiveReviewCount(Number(p.reviewCount));
+    }
+  }, [p.rating, p.reviewCount]);
+
+  // Fetch real reviews with ratings and owner replies from MongoDB
+  const fetchReviews = useCallback(async () => {
+    if (!providerId) return;
+    try {
+      setReviewsLoading(true);
+      const res = await apiRequest(`/reviews?providerId=${providerId}&limit=50`);
+      if (res?.success && res.data) {
+        setReviews(res.data.reviews || []);
+        if (res.data.stats) {
+          setReviewsStats(res.data.stats);
+          if (res.data.stats.overallRating !== undefined) {
+            setLiveRating(Number(res.data.stats.overallRating));
+          }
+          if (res.data.stats.totalReviews !== undefined) {
+            setLiveReviewCount(Number(res.data.stats.totalReviews));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch reviews for provider:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [providerId]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  // Real-time live synchronization for new reviews and owner replies
+  useEffect(() => {
+    if (!providerId) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const pIdStr = String(providerId);
+    socket.emit('join:provider', { providerId: pIdStr });
+
+    const handleNewReview = (payload) => {
+      if (!payload) return;
+      const targetPId = String(payload.providerId || payload.review?.providerId || '');
+      if (targetPId && targetPId !== pIdStr) return;
+
+      if (payload.providerRating !== undefined) {
+        setLiveRating(Number(payload.providerRating));
+      } else if (payload.rating !== undefined) {
+        setLiveRating(Number(payload.rating));
+      }
+
+      if (payload.providerReviewCount !== undefined) {
+        setLiveReviewCount(Number(payload.providerReviewCount));
+      } else if (payload.reviewCount !== undefined) {
+        setLiveReviewCount(Number(payload.reviewCount));
+      } else {
+        setLiveReviewCount(prev => prev + 1);
+      }
+
+      if (payload.review) {
+        setReviews(prev => {
+          if (prev.some(r => String(r._id) === String(payload.review._id))) return prev;
+          return [payload.review, ...prev];
+        });
+      } else {
+        fetchReviews();
+      }
+    };
+
+    const handleReviewReplied = (payload) => {
+      if (!payload) return;
+      const targetPId = String(payload.providerId || '');
+      if (targetPId && targetPId !== pIdStr) return;
+
+      const reviewId = String(payload.reviewId || payload.review?._id || '');
+      setReviews(prev => prev.map(r => {
+        if (String(r._id) === reviewId) {
+          return {
+            ...r,
+            providerReply: payload.providerReply || payload.review?.providerReply || r.providerReply,
+            repliedAt: payload.repliedAt || payload.review?.repliedAt || new Date(),
+            repliedBy: payload.repliedBy || payload.review?.repliedBy || r.repliedBy || providerName
+          };
+        }
+        return r;
+      }));
+    };
+
+    const handleRatingUpdated = (payload) => {
+      if (!payload) return;
+      const targetPId = String(payload.providerId || '');
+      if (targetPId && targetPId !== pIdStr) return;
+      if (payload.rating !== undefined) setLiveRating(Number(payload.rating));
+      if (payload.reviewCount !== undefined) setLiveReviewCount(Number(payload.reviewCount));
+    };
+
+    socket.on('review:new', handleNewReview);
+    socket.on('review:replied', handleReviewReplied);
+    socket.on('review:updated', handleReviewReplied);
+    socket.on('provider:rating:updated', handleRatingUpdated);
+
+    return () => {
+      socket.off('review:new', handleNewReview);
+      socket.off('review:replied', handleReviewReplied);
+      socket.off('review:updated', handleReviewReplied);
+      socket.off('provider:rating:updated', handleRatingUpdated);
+    };
+  }, [providerId, providerName, fetchReviews]);
+
+  // Review filtering for diner inspection
+  const filteredReviews = useMemo(() => {
+    if (reviewFilter === 'with_replies') {
+      return reviews.filter(r => r.providerReply && String(r.providerReply).trim() !== '');
+    }
+    if (reviewFilter === '5_star') {
+      return reviews.filter(r => Number(r.rating) === 5);
+    }
+    if (reviewFilter === '4_star') {
+      return reviews.filter(r => Number(r.rating) === 4);
+    }
+    return reviews;
+  }, [reviews, reviewFilter]);
+
+  // Dynamic Real-Time Sub-Metrics calculated from actual reviews
+  const subMetrics = useMemo(() => {
+    if (!reviews || reviews.length === 0) {
+      const fallback = liveRating && Number(liveRating) > 0 ? Number(liveRating).toFixed(1) : '0.0';
+      return {
+        foodQuality: fallback,
+        packaging: fallback,
+        delivery: fallback
+      };
+    }
+
+    const validFood = reviews.filter(r => r.foodQualityRating !== undefined || r.tasteRating !== undefined || r.rating !== undefined);
+    const validPack = reviews.filter(r => r.packagingRating !== undefined || r.rating !== undefined);
+    const validDeliv = reviews.filter(r => r.deliveryRating !== undefined || r.rating !== undefined);
+
+    const foodSum = validFood.reduce((acc, r) => acc + (Number(r.foodQualityRating || r.tasteRating || r.rating) || 5), 0);
+    const packSum = validPack.reduce((acc, r) => acc + (Number(r.packagingRating || r.rating) || 5), 0);
+    const delivSum = validDeliv.reduce((acc, r) => acc + (Number(r.deliveryRating || r.rating) || 5), 0);
+
+    return {
+      foodQuality: validFood.length > 0 ? (foodSum / validFood.length).toFixed(1) : (liveRating ? Number(liveRating).toFixed(1) : '0.0'),
+      packaging: validPack.length > 0 ? (packSum / validPack.length).toFixed(1) : (liveRating ? Number(liveRating).toFixed(1) : '0.0'),
+      delivery: validDeliv.length > 0 ? (delivSum / validDeliv.length).toFixed(1) : (liveRating ? Number(liveRating).toFixed(1) : '0.0')
+    };
+  }, [reviews, liveRating]);
 
   // Dynamic Distance & Corridor Calculation
   const distanceKm = useMemo(() => {
@@ -212,11 +378,11 @@ export default function ProviderDossier({
                   <span className="font-label-caps text-xs text-[#665d52] uppercase font-semibold">RATING</span>
                   <div className="mt-4">
                     <p style={{ fontFamily: "'EB Garamond', serif" }} className="text-3xl text-[#1a1a1a] leading-none">
-                      {rating}
+                      {liveRating !== undefined && liveRating !== null && !isNaN(Number(liveRating)) ? Number(liveRating).toFixed(1) : (rating ? Number(rating).toFixed(1) : '0.0')}
                     </p>
                     <div className="flex items-center gap-1 mt-1 text-[#1a1a1a]">
-                      <span className="material-symbols-outlined text-[14px]">star</span>
-                      <span className="font-label-caps text-[10px] uppercase font-bold">{reviewCount} CUSTOMER REVIEWS</span>
+                      <span className="material-symbols-outlined text-[14px] text-[#b45309]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                      <span className="font-label-caps text-[10px] uppercase font-bold">{liveReviewCount !== undefined ? liveReviewCount : reviewCount} CUSTOMER REVIEWS</span>
                     </div>
                   </div>
                 </div>
@@ -484,6 +650,316 @@ export default function ProviderDossier({
                         View Details
                       </button>
                     </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          SECTION 03: REAL-TIME VERIFIED CUSTOMER REVIEWS & OWNER REPLIES
+          ───────────────────────────────────────────────────────────────────────────── */}
+      <section className="w-full bg-[#fbf9f5] px-4 sm:px-6 lg:px-20 py-16 border-t border-[#ded9d1]" id="customer-reviews">
+        <div className="max-w-[1440px] mx-auto">
+          {/* Section Editorial Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-6 border-b border-[#ded9d1] gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="font-label-caps text-xs text-[#a0522d] uppercase tracking-widest font-bold">DINER EXPERIENCES</span>
+              </div>
+              <h2 style={{ fontFamily: "'EB Garamond', serif" }} className="text-3xl sm:text-4xl text-[#1a1a1a] tracking-tight">
+                Customer Reviews &amp; Kitchen Ratings
+              </h2>
+            </div>
+            <p className="font-body-md text-xs sm:text-sm text-[#665d52] max-w-md leading-relaxed">
+              Transparent, unedited feedback from diners across Ahmedabad. Every review is linked to an authentic fulfilled order.
+            </p>
+          </div>
+
+          {/* Rating Summary Scorecard Grid */}
+          <div className="bg-white p-6 sm:p-8 border border-[#ded9d1] shadow-xs mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+              
+              {/* Primary Score Pillar */}
+              <div className="md:col-span-4 flex flex-col items-center sm:items-start text-center sm:text-left border-b md:border-b-0 md:border-r border-[#ded9d1] pb-6 md:pb-0 md:pr-8">
+                <span className="font-label-caps text-xs text-[#665d52] uppercase tracking-wider font-semibold">
+                  OVERALL DINING RATING
+                </span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span style={{ fontFamily: "'EB Garamond', serif" }} className="text-6xl text-[#1a1a1a] leading-none font-semibold">
+                    {liveRating !== undefined && liveRating !== null && !isNaN(Number(liveRating)) ? Number(liveRating).toFixed(1) : '0.0'}
+                  </span>
+                  <span className="text-xl text-[#665d52] font-sans font-light">/ 5.0</span>
+                </div>
+                
+                {/* 5-Star Visual Meter */}
+                <div className="flex items-center gap-1 mt-3">
+                  {[1, 2, 3, 4, 5].map((starIdx) => (
+                    <span
+                      key={starIdx}
+                      className={`material-symbols-outlined text-[22px] ${
+                        starIdx <= Math.round(Number(liveRating) || 0) ? 'text-[#b45309]' : 'text-[#ded9d1]'
+                      }`}
+                      style={{ fontVariationSettings: starIdx <= Math.round(Number(liveRating) || 0) ? "'FILL' 1" : "'FILL' 0" }}
+                    >
+                      star
+                    </span>
+                  ))}
+                </div>
+
+                <p className="font-label-caps text-xs text-[#1a1a1a] font-bold uppercase mt-2 tracking-wide">
+                  Based on {liveReviewCount} verified customer review{liveReviewCount === 1 ? '' : 's'}
+                </p>
+
+                <div className="mt-4 inline-flex items-center gap-2 bg-[#fcf6ee] border border-[#eedcc8] px-3 py-1.5 rounded-sm">
+                  <span className="material-symbols-outlined text-[#a0522d] text-[16px]">thumb_up</span>
+                  <span className="font-label-caps text-[11px] text-[#8c531b] font-bold uppercase">
+                    {reviewsStats?.positivePercent !== undefined ? reviewsStats.positivePercent : (liveReviewCount > 0 ? 100 : 0)}% Positive Experience
+                  </span>
+                </div>
+              </div>
+
+              {/* Star Rating Breakdown Distribution */}
+              <div className="md:col-span-8 flex flex-col justify-center space-y-2.5">
+                {[5, 4, 3, 2, 1].map((s) => {
+                  const count = reviews.filter(r => Number(r.rating) === s).length;
+                  const total = reviews.length;
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={s} className="flex items-center gap-3 text-xs">
+                      <div className="flex items-center gap-1 w-14 shrink-0 font-label-caps text-[11px] font-bold text-[#1a1a1a]">
+                        <span>{s}</span>
+                        <span className="material-symbols-outlined text-[13px] text-[#b45309]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                      </div>
+                      <div className="flex-1 bg-[#efeeea] h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#b45309] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        ></div>
+                      </div>
+                      <span className="w-16 text-right font-mono text-[11px] text-[#665d52]">
+                        {count} ({pct}%)
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {/* Sub-Metric badges (Dynamic & Real-Time) */}
+                <div className="pt-4 mt-2 border-t border-[#ded9d1]/60 flex flex-wrap items-center gap-4 text-xs text-[#665d52]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-700">soup_kitchen</span>
+                    <span className="font-semibold text-[#1a1a1a]">Food Authenticity:</span>
+                    <span className="font-bold text-[#b45309]">{subMetrics.foodQuality}★</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-700">inventory_2</span>
+                    <span className="font-semibold text-[#1a1a1a]">Packaging &amp; Warmth:</span>
+                    <span className="font-bold text-[#b45309]">{subMetrics.packaging}★</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-700">schedule</span>
+                    <span className="font-semibold text-[#1a1a1a]">Punctuality:</span>
+                    <span className="font-bold text-[#b45309]">{subMetrics.delivery}★</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Review Filter Navigation Tabs */}
+          <div className="flex items-center justify-between gap-4 mb-6 flex-wrap pb-3 border-b border-[#ded9d1]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setReviewFilter('all')}
+                className={`px-3.5 py-1.5 text-xs uppercase font-label-caps font-bold transition-all cursor-pointer ${
+                  reviewFilter === 'all'
+                    ? 'bg-[#1a1a1a] text-white shadow-xs'
+                    : 'bg-[#efeeea] hover:bg-[#ded9d1] text-[#1a1a1a] border border-[#ded9d1]'
+                }`}
+              >
+                All Reviews ({reviews.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('with_replies')}
+                className={`px-3.5 py-1.5 text-xs uppercase font-label-caps font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  reviewFilter === 'with_replies'
+                    ? 'bg-[#1a1a1a] text-white shadow-xs'
+                    : 'bg-[#efeeea] hover:bg-[#ded9d1] text-[#1a1a1a] border border-[#ded9d1]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">reply</span>
+                <span>With Owner Replies ({reviews.filter(r => r.providerReply && String(r.providerReply).trim() !== '').length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('5_star')}
+                className={`px-3.5 py-1.5 text-xs uppercase font-label-caps font-bold transition-all cursor-pointer ${
+                  reviewFilter === '5_star'
+                    ? 'bg-[#1a1a1a] text-white shadow-xs'
+                    : 'bg-[#efeeea] hover:bg-[#ded9d1] text-[#1a1a1a] border border-[#ded9d1]'
+                }`}
+              >
+                5 Star ({reviews.filter(r => Number(r.rating) === 5).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('4_star')}
+                className={`px-3.5 py-1.5 text-xs uppercase font-label-caps font-bold transition-all cursor-pointer ${
+                  reviewFilter === '4_star'
+                    ? 'bg-[#1a1a1a] text-white shadow-xs'
+                    : 'bg-[#efeeea] hover:bg-[#ded9d1] text-[#1a1a1a] border border-[#ded9d1]'
+                }`}
+              >
+                4 Star ({reviews.filter(r => Number(r.rating) === 4).length})
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={fetchReviews}
+                className="inline-flex items-center gap-1 text-xs text-[#665d52] hover:text-[#1a1a1a] cursor-pointer font-semibold"
+                title="Refresh reviews"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${reviewsLoading ? 'animate-spin' : ''}`}>refresh</span>
+                <span>Live Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          {reviewsLoading && reviews.length === 0 ? (
+            <div className="py-16 text-center space-y-3 bg-white border border-[#ded9d1]">
+              <div className="w-8 h-8 border-3 border-[#1a1a1a] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="font-label-caps text-xs uppercase text-[#665d52]">Loading diner reviews...</p>
+            </div>
+          ) : filteredReviews.length === 0 ? (
+            <div className="p-12 text-center bg-white border border-[#ded9d1] space-y-3">
+              <span className="material-symbols-outlined text-4xl text-[#665d52]">rate_review</span>
+              <p className="text-base text-[#1a1a1a] font-medium">No reviews match the selected filter.</p>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('all')}
+                className="px-4 py-2 bg-[#1a1a1a] text-white text-xs uppercase font-bold cursor-pointer"
+              >
+                Show All Reviews
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredReviews.map((rev) => {
+                const formattedDate = rev.createdAt
+                  ? new Date(rev.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })
+                  : 'Recent order';
+                const initial = (rev.customerName || 'V').trim().charAt(0).toUpperCase();
+
+                return (
+                  <article
+                    key={rev._id}
+                    className="bg-white p-6 border border-[#ded9d1] shadow-xs transition-shadow hover:shadow-sm"
+                  >
+                    {/* Top Row: Customer Info & Rating */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#f0eeea]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#efeeea] border border-[#ded9d1] flex items-center justify-center font-bold text-[#1a1a1a] text-sm shrink-0">
+                          {initial}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-[#1a1a1a] text-sm capitalize">
+                              {rev.customerName || 'Verified Diner'}
+                            </span>
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                              <span className="material-symbols-outlined text-[12px] text-emerald-700">verified</span>
+                              <span>Verified Order</span>
+                            </span>
+                          </div>
+                          <span className="text-xs text-[#8c8275] block mt-0.5">
+                            {formattedDate}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Star Rating Badge */}
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <div className="flex items-center gap-0.5 bg-[#fbf9f5] px-2.5 py-1 border border-[#ded9d1] rounded-sm">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <span
+                              key={s}
+                              className={`material-symbols-outlined text-[16px] ${
+                                s <= Number(rev.rating) ? 'text-[#b45309]' : 'text-[#ded9d1]'
+                              }`}
+                              style={{ fontVariationSettings: s <= Number(rev.rating) ? "'FILL' 1" : "'FILL' 0" }}
+                            >
+                              star
+                            </span>
+                          ))}
+                          <span className="ml-1 text-xs font-bold text-[#1a1a1a]">
+                            {Number(rev.rating).toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Meal / Order Badge */}
+                    <div className="pt-3 flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 bg-[#f5f3ef] text-[#4a4238] border border-[#ded9d1] px-2.5 py-1 rounded-sm text-xs font-medium">
+                        <span className="material-symbols-outlined text-[14px] text-[#a0522d]">lunch_dining</span>
+                        <span>{rev.tiffinName || 'Artisanal Homestyle Tiffin'}</span>
+                      </span>
+                    </div>
+
+                    {/* Customer Review Description / Remarks */}
+                    <div className="pt-3">
+                      {rev.comment && rev.comment.trim() ? (
+                        <p className="text-sm text-[#1a1a1a] leading-relaxed font-body-md whitespace-pre-line">
+                          "{rev.comment.trim()}"
+                        </p>
+                      ) : (
+                        <p className="text-xs text-[#8c8275] italic flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[14px]">star_outline</span>
+                          <span>Diner provided a {rev.rating}-star rating without a written description.</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Kitchen Owner Reply Box */}
+                    {rev.providerReply && rev.providerReply.trim() && (
+                      <div className="mt-4 bg-[#f5f3ef] border-l-4 border-[#a0522d] p-4 rounded-r-lg shadow-2xs">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[16px] text-[#a0522d]">storefront</span>
+                            <span className="font-label-caps text-xs text-[#1a1a1a] font-bold">
+                              Response from {rev.repliedBy || providerName}
+                            </span>
+                            <span className="bg-[#1a1a1a] text-white text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wider rounded-xs">
+                              KITCHEN OWNER
+                            </span>
+                          </div>
+                          {rev.repliedAt && (
+                            <span className="text-[11px] text-[#8c8275]">
+                              {new Date(rev.repliedAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs sm:text-sm text-[#2d2b27] leading-relaxed whitespace-pre-line pl-6">
+                          {rev.providerReply.trim()}
+                        </p>
+                      </div>
+                    )}
                   </article>
                 );
               })}

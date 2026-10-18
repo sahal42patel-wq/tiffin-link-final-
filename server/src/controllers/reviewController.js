@@ -42,14 +42,14 @@ const filterByDateRange = (dateObj, range, customStart, customEnd) => {
 // @route   GET /api/reviews
 const getReviews = async (req, res) => {
   try {
-    let providerId = req.providerId;
+    let providerId = req.query.providerId || req.providerId;
     if (!providerId && req.user) {
       const p = await Provider.findOne({ $or: [{ userId: req.user._id }, { email: req.user.email }] });
       if (p) providerId = p._id.toString();
     }
 
     if (!providerId) {
-      return res.status(403).json({ success: false, message: 'Provider authorization required' });
+      return res.status(400).json({ success: false, message: 'Provider authorization or providerId required' });
     }
 
     const {
@@ -328,15 +328,28 @@ const replyToReview = async (req, res) => {
 
       await reviewDoc.save();
 
-      // Emit Socket.IO event to provider room for instant UI sync
+      // Emit Socket.IO event to provider room and globally for instant UI sync
       try {
-        const { emitToProvider } = require('../services/socketService');
+        const { emitToProvider, getIO } = require('../services/socketService');
         emitToProvider(pIdStr, 'review:replied', {
           reviewId: reviewDoc._id,
           providerReply: reviewDoc.providerReply,
           repliedAt: reviewDoc.repliedAt,
           repliedBy: reviewDoc.repliedBy
         });
+        const io = getIO();
+        if (io) {
+          const replyPayload = {
+            reviewId: String(reviewDoc._id),
+            providerId: pIdStr,
+            providerReply: reviewDoc.providerReply,
+            repliedAt: reviewDoc.repliedAt,
+            repliedBy: reviewDoc.repliedBy,
+            review: reviewDoc
+          };
+          io.emit('review:replied', replyPayload);
+          io.emit('review:updated', replyPayload);
+        }
       } catch (sErr) {
         // Socket emission failure is non-fatal
       }
@@ -535,6 +548,8 @@ const createReview = async (req, res) => {
       }
 
       // 4. Atomically recalculate Provider's real MongoDB rating
+      let providerRating = finalRating;
+      let providerReviewCount = 1;
       if (resolvedProviderId) {
         const providerReviews = await Review.find({
           providerId: String(resolvedProviderId),
@@ -544,6 +559,8 @@ const createReview = async (req, res) => {
         if (providerReviews.length > 0) {
           const pSum = providerReviews.reduce((acc, r) => acc + r.rating, 0);
           const pAvg = Number((pSum / providerReviews.length).toFixed(1));
+          providerRating = pAvg;
+          providerReviewCount = providerReviews.length;
           await Provider.updateMany(
             {
               $or: [
@@ -572,11 +589,20 @@ const createReview = async (req, res) => {
             rating: reviewData.rating,
             deliveryRating: reviewData.deliveryRating,
             driverId: resolvedDriverId,
-            providerId: resolvedProviderId
+            providerId: String(resolvedProviderId),
+            review: newRev,
+            providerRating,
+            providerReviewCount
           };
           io.emit('review:new', payload);
           io.emit('driver:rating:updated', payload);
           io.emit('delivery:dashboard:refresh', payload);
+          io.emit('provider:rating:updated', {
+            providerId: String(resolvedProviderId),
+            rating: providerRating,
+            reviewCount: providerReviewCount,
+            totalReviews: providerReviewCount
+          });
           if (resolvedDriverId) {
             io.to(`driver:${resolvedDriverId}`).emit('driver:rating:updated', payload);
           }
