@@ -140,7 +140,7 @@ export default function CookieConsentModal({ isOpenOverride, onCloseOverride }) 
                   <span style={{ fontFamily: "'EB Garamond', serif" }} className="text-base font-normal text-bone-white tracking-wide">
                     Essential & Sessions (Required)
                   </span>
-                  <p className="text-[11px] font-light text-[#a8a29e] mt-0.5">Authenticates sessions, database security, and cart tokens.</p>
+                  <p className="text-[11px] font-light text-[#a8a29e] mt-0.5">Authenticates secure sessions, account protection, and cart preferences.</p>
                 </div>
               </div>
               <span 

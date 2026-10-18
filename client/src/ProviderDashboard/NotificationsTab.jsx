@@ -523,7 +523,7 @@ export default function NotificationsTab({ currentUser, onNavigateTab, onUnreadC
               </div>
             </div>
             <div className="mt-6 pt-3 border-t border-sand-neutral/50 flex items-center justify-between text-xs text-on-surface-variant">
-              <span className="truncate">Live synced • Scoped to {kitchenName}</span>
+              <span className="truncate">Up to date • Scoped to {kitchenName}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
             </div>
           </div>

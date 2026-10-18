@@ -167,7 +167,7 @@ export default function ProviderLiveOrdersTab({ onNavigate, onOpenProvider360 })
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2.5 px-3.5 py-2 bg-[#efeeea] text-[#1a1a1a] text-[12px] font-mono border border-[#ded9d1]/50">
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
-              <span className="font-medium">Real-time Socket Connected</span>
+              <span className="font-medium">Live Orders Connected</span>
               <span className="text-[#665d52]/60">•</span>
               <span className="text-[#665d52]">Hub: Ahmedabad AMD-C</span>
             </div>

@@ -115,7 +115,7 @@ export default function PendingKycTab({ onNavigate, onOpenDriver360 }) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`Courier ${cName} (#${cId}) approved! Activated in fleet database.`);
+        showToast(`Courier ${cName} (#${cId}) approved! Activated in fleet.`);
         fetchQueueData();
       } else {
         showToast(data.message || 'Approval completed');
@@ -444,7 +444,7 @@ export default function PendingKycTab({ onNavigate, onOpenDriver360 }) {
                       <div className="flex flex-col items-center justify-center">
                         <span className="material-symbols-outlined text-4xl text-[#ded9d1] mb-2">verified_user</span>
                         <p className="font-serif text-lg text-[#1a1a1a]">No Pending Driver KYC Applications</p>
-                        <p className="text-xs text-[#665d52] font-mono mt-1">All registered delivery partners in your database have been processed.</p>
+                        <p className="text-xs text-[#665d52] font-mono mt-1">All registered delivery partners have been processed.</p>
                       </div>
                     </td>
                   </tr>

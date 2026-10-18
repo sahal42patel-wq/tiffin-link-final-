@@ -319,7 +319,7 @@ export default function EarningsTab({ currentUser, initialSubTab = 'earnings' })
       }
     } catch (err) {
       console.error('Error requesting withdrawal:', err);
-      setWithdrawFormError('Failed to submit withdrawal request. Check backend connection.');
+      setWithdrawFormError('Failed to submit withdrawal request. Please check your network connection.');
     } finally {
       setWithdrawSubmitting(false);
     }

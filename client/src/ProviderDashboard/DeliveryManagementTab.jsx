@@ -128,7 +128,7 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
     } catch (err) {
       console.error('Error fetching delivery management data:', err);
       if (isInitial) {
-        setError('Unable to load delivery data. Please verify backend connection.');
+        setError('Unable to load delivery data. Please check your network connection.');
       }
     } finally {
       if (isInitial) setLoading(false);
@@ -609,7 +609,7 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
           </div>
           <div className="font-label-caps text-[11px] text-secondary flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-onyx-black"></span>
-            <span>Real-time backend synchronization</span>
+            <span>Real-time delivery updates</span>
           </div>
         </div>
 

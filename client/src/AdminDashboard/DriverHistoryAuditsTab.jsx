@@ -383,7 +383,7 @@ export default function DriverHistoryAuditsTab({ onNavigate }) {
         <div className="p-6 bg-[#efeeea] border border-[#ded9d1] flex flex-col justify-between">
           <div className="flex items-center justify-between pb-4">
             <span className="font-mono text-xs uppercase tracking-widest text-[#665d52]">Logged Sequences</span>
-            <span className="material-symbols-outlined text-[#4a4238] text-[20px]">database</span>
+            <span className="material-symbols-outlined text-[#4a4238] text-[20px]">history_edu</span>
           </div>
           <div>
             <div className="font-serif text-3xl text-[#1a1a1a] leading-none">{chainMetrics.loggedSequences}</div>
@@ -589,13 +589,13 @@ export default function DriverHistoryAuditsTab({ onNavigate }) {
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-[#665d52] font-mono">
                     <span className="material-symbols-outlined text-3xl animate-spin mb-2 block">sync</span>
-                    Loading immutable cryptographic sequence records from MongoDB...
+                    Loading sequence records...
                   </td>
                 </tr>
               ) : events.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-[#665d52] font-mono">
-                    <span className="material-symbols-outlined text-3xl text-stone-300 mb-2 block">database</span>
+                    <span className="material-symbols-outlined text-3xl text-stone-300 mb-2 block">history_edu</span>
                     No audit records match the applied criteria.
                   </td>
                 </tr>

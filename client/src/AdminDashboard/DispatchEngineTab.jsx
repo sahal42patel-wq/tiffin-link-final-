@@ -95,7 +95,7 @@ export default function DispatchEngineTab({ onNavigate }) {
     statusPill: selectedReq.status,
     events: selectedReq.auditEvents || [],
     raceDelta: selectedReq.winner ? '14.000 ms' : 'AWAITING LOCK',
-    dbIsolation: 'READ COMMITTED 2PC (MongoDB)'
+    dbIsolation: 'STRICT CONSISTENCY'
   } : {
     reqId: 'STANDBY',
     statusPill: 'IDLE',
@@ -103,12 +103,12 @@ export default function DispatchEngineTab({ onNavigate }) {
       {
         time: sweepClock,
         step: 'STEP 1 / STANDBY',
-        desc: 'Broadcasting socket pool active across Ahmedabad geofence nodes.',
-        detail: 'Listening for new provider ready notices on MongoDB stream.'
+        desc: 'Dispatch system active across Ahmedabad geofence nodes.',
+        detail: 'Listening for new kitchen ready notices.'
       }
     ],
     raceDelta: '0.0 ms',
-    dbIsolation: 'READ COMMITTED 2PC (MongoDB)'
+    dbIsolation: 'STRICT CONSISTENCY'
   };
 
   return (
@@ -185,7 +185,7 @@ export default function DispatchEngineTab({ onNavigate }) {
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm text-emerald-700">lock</span>
               <span>MUTEX DRIVER:</span>
-              <span className="text-[#1a1a1a] font-semibold">MongoDB WiredTiger 2PC</span>
+              <span className="text-[#1a1a1a] font-semibold">Protected Dispatch Lock</span>
             </div>
           </div>
           <div className="text-[#665d52]">
@@ -629,7 +629,7 @@ export default function DispatchEngineTab({ onNavigate }) {
                   <span className="text-[#1a1a1a] font-bold">{activeAudit.raceDelta}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#665d52]">DATABASE ISOLATION</span>
+                  <span className="text-[#665d52]">DISPATCH CONSISTENCY</span>
                   <span className="text-[#1a1a1a] font-bold">{activeAudit.dbIsolation}</span>
                 </div>
                 <button
