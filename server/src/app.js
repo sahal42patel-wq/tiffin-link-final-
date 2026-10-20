@@ -56,7 +56,12 @@ app.use(securityAuditLogger);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
+app.use('/api/auth/verify-email-otp', authLimiter);
+app.use('/api/auth/send-otp', authLimiter);
+app.use('/api/auth/send-email-otp', authLimiter);
+app.use('/api/auth/reverify-email', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/otp', authLimiter);
 app.use('/api', apiLimiter);
 
 // 9. Session Security (A04: Cryptographic Failures & A07: Session Management)

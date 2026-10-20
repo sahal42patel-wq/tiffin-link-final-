@@ -484,7 +484,7 @@ const IncentivesBonusesView = () => {
                     ]).map((rule, idx) => (
                       <li key={idx} className="flex items-start gap-2.5">
                         <span className="material-symbols-outlined text-[16px] text-onyx-black mt-0.5 flex-shrink-0">check</span>
-                        <span dangerouslySetInnerHTML={{ __html: rule }}></span>
+                        <span>{rule}</span>
                       </li>
                     ))}
                   </ul>
