@@ -46,13 +46,19 @@ const configureHelmet = () => {
   });
 };
 
+const isLocalhost = (ip) => {
+  return !ip || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
+};
+
 /**
  * A07: General API Rate Limiter
- * 300 requests per 10 minutes per IP
+ * In development / localhost: skipped to prevent blocking multi-tab dashboard live-polling.
+ * In production: 2,500 requests per 10 minutes per IP (allowing for active live tracking & dispatch telemetry).
  */
 const apiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 300,
+  max: 2500,
+  skip: (req) => process.env.NODE_ENV !== 'production' || isLocalhost(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -64,11 +70,14 @@ const apiLimiter = rateLimit({
 
 /**
  * A07: Strict Auth Rate Limiter
- * Prevents brute-force on login, OTP, and registration endpoints (25 attempts per 15 minutes)
+ * Prevents brute-force on login, OTP, and registration endpoints.
+ * In development / localhost: generous limit so development & OTP testing is never blocked.
+ * In production: 60 attempts per 15 minutes.
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 25,
+  max: 60,
+  skip: (req) => process.env.NODE_ENV !== 'production' || isLocalhost(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
