@@ -89,6 +89,15 @@ export default function ReviewsTab({ currentUser }) {
       if (showLoading) setLoading(true);
       setErrorState(false);
 
+      const pId = currentUser?.providerId || currentUser?._id || currentUser?.id || (() => {
+        try {
+          const stored = JSON.parse(localStorage.getItem('tiffinlink_user') || '{}');
+          return stored?.providerId || stored?._id || stored?.id || '';
+        } catch (e) {
+          return '';
+        }
+      })();
+
       const params = new URLSearchParams({
         search: searchQuery.trim(),
         rating: ratingFilter,
@@ -98,6 +107,10 @@ export default function ReviewsTab({ currentUser }) {
         page: currentPage,
         limit: 6
       });
+
+      if (pId) {
+        params.append('providerId', String(pId));
+      }
 
       if (dateRangeFilter === 'Custom Date Range' && customStart && customEnd) {
         params.append('startDate', customStart);
@@ -115,6 +128,12 @@ export default function ReviewsTab({ currentUser }) {
         if (json.data.pagination) {
           setPagination(json.data.pagination);
         }
+        setErrorState(false);
+      } else if (json && json.data && Array.isArray(json.data.reviews)) {
+        setReviews(json.data.reviews);
+        if (json.data.stats) setStats(prev => ({ ...prev, ...json.data.stats }));
+        if (json.data.pagination) setPagination(json.data.pagination);
+        setErrorState(false);
       } else {
         setErrorState(true);
       }
@@ -129,9 +148,7 @@ export default function ReviewsTab({ currentUser }) {
 
   // Trigger fetch when filters or pagination change
   useEffect(() => {
-    if (currentUser) {
-      fetchReviewsFromDb(true);
-    }
+    fetchReviewsFromDb(true);
   }, [
     currentUser,
     ratingFilter,
@@ -146,10 +163,8 @@ export default function ReviewsTab({ currentUser }) {
   // Debounced search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (currentUser) {
-        setCurrentPage(1);
-        fetchReviewsFromDb(false);
-      }
+      setCurrentPage(1);
+      fetchReviewsFromDb(false);
     }, 350);
     return () => clearTimeout(timer);
   }, [searchQuery]);

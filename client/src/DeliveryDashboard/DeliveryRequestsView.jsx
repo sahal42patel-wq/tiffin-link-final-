@@ -209,11 +209,6 @@ export default function DeliveryRequestsView({ activeDelivery, onAcceptDelivery,
     if (!socket) return;
 
     const handleNewRequest = (data) => {
-      const reqObj = data?.request || data || {};
-      const seconds = Math.max(10, Number(reqObj.secondsLeft || reqObj.timeoutSeconds || 45));
-      if (soundEnabled) {
-        playDeliveryRequestSound(seconds);
-      }
       fetchRequests(false);
     };
 

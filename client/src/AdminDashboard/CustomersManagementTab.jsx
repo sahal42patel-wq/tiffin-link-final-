@@ -414,7 +414,7 @@ export default function CustomersManagementTab({ subTab = 'customers-all', onNav
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#fbf9f5] text-[#1b1c1a] antialiased flex flex-col font-sans select-text">
+    <div className="w-full min-h-screen bg-[#fbf9f5] text-[#1b1c1a] antialiased flex flex-col font-sans select-none">
 
       {/* Floating Notification Toast */}
       {toastMessage && (
@@ -3092,7 +3092,7 @@ export default function CustomersManagementTab({ subTab = 'customers-all', onNav
                   .length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-[#665d52]">
-                      No customers found in database matching criteria.
+                      No customers found matching criteria.
                     </td>
                   </tr>
                 ) : (

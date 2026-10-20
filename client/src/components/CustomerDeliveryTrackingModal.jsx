@@ -132,11 +132,11 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
         {/* Header */}
         <div className="p-5 bg-white border-b border-[#E5ECE8] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#E8F0EC] text-[#0A8B5F] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-surface-container text-onyx-black flex items-center justify-center">
               <Truck size={20} />
             </div>
             <div>
-              <div className="text-[10px] font-black text-[#0A8B5F] uppercase tracking-wider">CUSTOMER LIVE DELIVERY TRACKER</div>
+              <div className="text-[10px] font-black text-onyx-black uppercase tracking-wider">CUSTOMER LIVE DELIVERY TRACKER</div>
               <h2 className="text-lg font-black text-[#111827]">Track Your Tiffin Order</h2>
             </div>
           </div>
@@ -158,12 +158,12 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
               placeholder="Enter your Order ID (e.g. REQ-1001)..."
               value={orderIdInput}
               onChange={(e) => setOrderIdInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-[#E5ECE8] rounded-xl text-xs font-bold text-[#111827] focus:outline-none focus:border-[#0A8B5F]"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-[#E5ECE8] rounded-xl text-xs font-bold text-[#111827] focus:outline-none focus:border-onyx-black"
             />
           </div>
           <button 
             onClick={() => fetchCustomerDelivery()}
-            className="px-4 py-2 bg-[#0A8B5F] hover:bg-[#08734e] text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs"
+            className="px-4 py-2 bg-onyx-black hover:bg-neutral-800 text-bone-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs"
           >
             Track
           </button>
@@ -173,7 +173,7 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
           {loading ? (
             <div className="p-12 text-center text-gray-500 space-y-2">
-              <div className="w-8 h-8 border-4 border-[#0A8B5F] border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-4 border-onyx-black border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-xs font-bold">Fetching real-time GPS tracking data...</p>
             </div>
           ) : error ? (
@@ -241,14 +241,14 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
             <div className="space-y-4">
               
               {/* Status Header */}
-              <div className="p-4 rounded-2xl bg-[#E8F0EC] border border-[#0A8B5F]/30 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-surface-container border border-sand-neutral/40 flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] text-[#0A8B5F] font-black uppercase">DELIVERY STATUS</div>
+                  <div className="text-[10px] text-secondary font-black uppercase">DELIVERY STATUS</div>
                   <div className="text-base font-black text-[#111827]">{activeDelivery.status || 'Out for Delivery'}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-[#6B7280] font-extrabold">ESTIMATED ETA</div>
-                  <div className="text-xl font-black text-[#0A8B5F]">{activeDelivery.etaMinutes || 12} mins</div>
+                  <div className="text-xl font-black text-onyx-black">{activeDelivery.etaMinutes || 12} mins</div>
                 </div>
               </div>
 
@@ -272,7 +272,7 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
               {activeDelivery.assignedDriver?.name && (
                 <div className="p-4 bg-white rounded-2xl border border-[#E5ECE8] flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#0A8B5F] flex items-center justify-center font-black text-sm">
+                    <div className="w-10 h-10 rounded-full bg-surface-container text-onyx-black flex items-center justify-center font-black text-sm">
                       {activeDelivery.assignedDriver.name.charAt(0)}
                     </div>
                     <div>
@@ -284,7 +284,7 @@ export default function CustomerDeliveryTrackingModal({ isOpen, onClose, initial
                   {activeDelivery.assignedDriver.phone && (
                     <a 
                       href={`tel:${activeDelivery.assignedDriver.phone}`}
-                      className="px-4 py-2 bg-[#0A8B5F] text-white text-xs font-extrabold rounded-xl hover:bg-[#08734e] transition-all flex items-center gap-1.5 shadow-xs"
+                      className="px-4 py-2 bg-onyx-black text-bone-white text-xs font-extrabold rounded-xl hover:bg-neutral-800 transition-all flex items-center gap-1.5 shadow-xs"
                     >
                       <Phone size={13} />
                       <span>Call Driver</span>

@@ -1086,7 +1086,7 @@ export default function AccountSettingsView({ currentUser, onNavigateTab, onShow
           {/* Account Created Date */}
           <div className="bg-surface-container-lowest p-6 space-y-2 border border-sand-neutral/60">
             <span className="font-label-caps text-label-caps text-clay-earth uppercase tracking-wider text-[11px]">Account Enlistment</span>
-            <div className="font-mono text-xl text-onyx-black font-bold">12 Jan 2024</div>
+            <div className="font-mono text-xl text-onyx-black font-bold">12 Jan 2026</div>
             <div className="font-body-md text-xs text-clay-earth">986 active courier days completed with flawless fulfillment.</div>
           </div>
 

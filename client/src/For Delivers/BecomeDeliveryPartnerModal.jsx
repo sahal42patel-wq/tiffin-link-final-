@@ -27,7 +27,7 @@ const getMax18Dob = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function BecomeDeliveryPartnerModal({ isOpen, onClose, onSubmitSuccess }) {
+export default function BecomeDeliveryPartnerModal({ isOpen, onClose, onSubmitSuccess, onOpenLegalModal }) {
   // Initial state structure matching all form fields
   const getInitialFormState = () => ({
     fullName: '',
@@ -1243,7 +1243,23 @@ export default function BecomeDeliveryPartnerModal({ isOpen, onClose, onSubmitSu
                       required
                     />
                     <span className="text-sm text-secondary group-hover:text-primary transition-colors select-none">
-                      I agree to the TiffinLink Partner Privacy Policy and Data Collection Terms.
+                      I agree to the{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenLegalModal && onOpenLegalModal('delivery-partner-agreement'); }} 
+                        className="text-onyx-black underline underline-offset-2 hover:text-clay-earth cursor-pointer inline font-medium"
+                      >
+                        Delivery Partner Agreement
+                      </button>
+                      ,{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenLegalModal && onOpenLegalModal('privacy-policy'); }} 
+                        className="text-onyx-black underline underline-offset-2 hover:text-clay-earth cursor-pointer inline font-medium"
+                      >
+                        Privacy Policy
+                      </button>
+                      , and Data Collection Terms.
                     </span>
                   </label>
                   <label className="flex items-start gap-4 cursor-pointer group">
@@ -1284,7 +1300,7 @@ export default function BecomeDeliveryPartnerModal({ isOpen, onClose, onSubmitSu
       )}
 
       {/* Website Footer */}
-      <Footer onOpenBecomeProviderModal={() => { onClose(); }} />
+      <Footer onOpenBecomeProviderModal={() => { onClose(); }} onOpenLegalModal={onOpenLegalModal} />
     </div>
   );
 }

@@ -61,6 +61,8 @@ router.post('/:id/accept', providerAuthWithFallback, acceptOrder);
 router.put('/:id/accept', providerAuthWithFallback, acceptOrder);
 router.post('/:id/reject', providerAuthWithFallback, rejectOrder);
 router.put('/:id/reject', providerAuthWithFallback, rejectOrder);
+router.post('/:id/decline', providerAuthWithFallback, rejectOrder);
+router.put('/:id/decline', providerAuthWithFallback, rejectOrder);
 
 router.post('/:id/prepare', providerAuthWithFallback, prepareOrder);
 router.put('/:id/prepare', providerAuthWithFallback, prepareOrder);

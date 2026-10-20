@@ -16,6 +16,17 @@ import EmergencyMealModal from '../components/EmergencyMealModal';
 import AuctionAndMatchingModal from '../components/AuctionAndMatchingModal';
 import HostelBulkPoolModal from '../components/HostelBulkPoolModal';
 import HyperlocalBroadcastBanner from '../components/HyperlocalBroadcastBanner';
+import { 
+  Zap, 
+  Scale, 
+  Building2, 
+  Users, 
+  ChefHat, 
+  HeartPulse, 
+  Package, 
+  RefreshCw, 
+  ShieldCheck 
+} from 'lucide-react';
 
 
 const AHMEDABAD_LOCALITIES = {
@@ -677,92 +688,92 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
       {/* Real-time Hyperlocal Broadcast Notifications (Feature 9) */}
       <HyperlocalBroadcastBanner />
 
-      {/* Advanced Food Tech Innovations Quick Launch Bar */}
-      <section className="w-full bg-[#f4f1ea] border-b border-[#ded9d1]/80 py-2.5 px-4 sm:px-6 lg:px-20 overflow-x-auto no-scrollbar">
-        <div className="max-w-[1440px] mx-auto flex items-center gap-2 min-w-max text-xs">
-          <span className="font-label-caps text-[10px] uppercase font-bold text-[#665d52] tracking-wider shrink-0 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping" />
-            Marketplace Features:
+      {/* Advanced Food Tech Innovations Quick Launch Bar - Artisanal Editorial Setup */}
+      <section className="w-full bg-surface-container-low dark:bg-stone-900 border-b border-sand-neutral/80 dark:border-stone-800 py-3 px-4 sm:px-6 lg:px-20 overflow-x-auto no-scrollbar">
+        <div className="max-w-[1440px] mx-auto flex items-center gap-2.5 min-w-max text-xs">
+          <span className="font-label-caps text-[10px] uppercase font-bold text-[#6B4B2B] dark:text-[#D4AF37] tracking-[0.2em] shrink-0 flex items-center gap-1.5 pr-2.5 border-r border-sand-neutral/80 dark:border-stone-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#6B4B2B] dark:bg-[#D4AF37] animate-pulse" />
+            Marketplace Services:
           </span>
 
           <button
             type="button"
             onClick={() => setIsEmergencyModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🚨</span>
+            <Zap className="w-3.5 h-3.5 text-[#C25E34] dark:text-[#E07A5F]" />
             <span>Emergency Meal Dispatch</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsAuctionModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>⚖️</span>
+            <Scale className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Multi-Kitchen Auction</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsCorporateModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🏢</span>
+            <Building2 className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Corporate Catering</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsHostelPoolModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>👥</span>
+            <Users className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Hostel / PG Bulk Pool</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsCommunityRecipeModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🍲</span>
+            <ChefHat className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Community Chef Spotlight</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsNutritionModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🥗</span>
-            <span>Dietitian & Macros</span>
+            <HeartPulse className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
+            <span>Dietitian &amp; Macros</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsDabbaDepositModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>♻️</span>
-            <span>Eco-Dabba Deposit & Return</span>
+            <Package className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
+            <span>Eco-Dabba Deposit &amp; Return</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsMealSwapModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🔄</span>
+            <RefreshCw className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>1-Click Meal Swap</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsTasteGuaranteeModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-bold transition shadow-2xs active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest dark:bg-stone-800 hover:bg-surface-container text-onyx-black dark:text-stone-200 border border-sand-neutral/90 dark:border-stone-700 rounded-full font-label-caps text-[11px] font-semibold tracking-wider transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer shrink-0 group"
           >
-            <span>🛡️</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Taste Guarantee Claim</span>
           </button>
         </div>

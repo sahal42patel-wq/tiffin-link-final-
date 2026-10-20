@@ -41,38 +41,43 @@ export default function KitchenCamAuditModal({ isOpen, onClose, kitchenName = 'R
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-xl bg-white dark:bg-stone-900 rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-xl bg-bone-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-sand-neutral dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-teal-700 via-emerald-700 to-green-800 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <Video className="w-6 h-6 text-white" />
+        <div className="bg-surface-container dark:bg-stone-900 p-6 sm:p-7 border-b border-sand-neutral/80 dark:border-stone-800 flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-surface-container-lowest dark:bg-stone-800 border border-sand-neutral/90 dark:border-stone-700 flex items-center justify-center shrink-0 text-[#6B4B2B] dark:text-[#D4AF37] shadow-2xs">
+              <Video className="w-6 h-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Kitchen Cam & Hygiene Audit</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-slate-950 uppercase tracking-widest">
-                  Live Feed
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="font-label-caps text-[11px] font-bold tracking-[0.25em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase">
+                  TRANSPARENCY &amp; HYGIENE
+                </span>
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#6B4B2B]/10 dark:bg-[#D4AF37]/15 text-[#6B4B2B] dark:text-[#D4AF37] tracking-widest uppercase border border-[#6B4B2B]/20">
+                  Live Stream
                 </span>
               </div>
-              <p className="text-xs text-teal-100">
-                100% Transparent Cooking: Watch how your meal is prepped & packed
+              <h3 className="font-headline-md font-serif text-2xl sm:text-3xl text-onyx-black dark:text-stone-100 font-normal tracking-tight">
+                Kitchen Cam &amp; Hygiene Audit
+              </h3>
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-sans leading-relaxed">
+                100% Transparent Cooking: Watch how your meal is prepped &amp; packed
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white transition"
+            className="w-8 h-8 rounded-lg bg-surface-container-lowest dark:bg-stone-800 hover:bg-sand-neutral dark:hover:bg-stone-700 border border-sand-neutral/80 dark:border-stone-700 flex items-center justify-center text-onyx-black dark:text-stone-200 transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1 text-stone-900 dark:text-stone-100">
+        <div className="p-6 overflow-y-auto space-y-4 flex-1 text-onyx-black dark:text-stone-100">
           {/* Simulated CCTV Stream Display */}
-          <div className="relative rounded-2xl overflow-hidden aspect-video bg-stone-950 border border-stone-800 shadow-inner group">
+          <div className="relative rounded-xl overflow-hidden aspect-video bg-stone-950 border border-stone-800 shadow-inner group">
             {/* Background Kitchen Cam Simulation */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-stone-800 via-stone-900 to-black flex items-center justify-center">
               <div className="text-center p-6 space-y-2">
@@ -100,7 +105,7 @@ export default function KitchenCamAuditModal({ isOpen, onClose, kitchenName = 'R
               Temp: 24°C &bull; Kitchen Air Purified
             </div>
 
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] text-white/80 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl">
+            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] text-white/80 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg">
               <span className="font-semibold">{kitchenName}</span>
               <span className="font-mono text-[10px] text-stone-400">FPS: 30 &bull; Encryption: AES-256</span>
             </div>
@@ -108,53 +113,53 @@ export default function KitchenCamAuditModal({ isOpen, onClose, kitchenName = 'R
 
           {/* Hygiene Telemetry Grid */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-800">
-              <div className="flex items-center gap-2 text-stone-500 text-[10px] uppercase font-bold">
-                <Thermometer className="w-3.5 h-3.5 text-amber-500" />
+            <div className="p-4 rounded-xl bg-surface-container-lowest dark:bg-stone-800/70 border border-sand-neutral dark:border-stone-800">
+              <div className="flex items-center gap-2 text-[#6B4B2B] dark:text-[#D4AF37] text-[10px] uppercase font-label-caps tracking-wider font-bold">
+                <Thermometer className="w-3.5 h-3.5 text-[#C25E34]" />
                 <span>Oil Freshness (TPM)</span>
               </div>
-              <div className="text-sm font-black text-stone-900 dark:text-stone-100 mt-1">
+              <div className="text-sm font-bold text-onyx-black dark:text-stone-100 mt-1 font-serif">
                 {data.oilQualityTpm}
               </div>
-              <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+              <div className="text-[10px] text-stone-500 dark:text-stone-400 font-sans mt-0.5">
                 Safe limit is &lt;25% &bull; Grade A
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-800">
-              <div className="flex items-center gap-2 text-stone-500 text-[10px] uppercase font-bold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="p-4 rounded-xl bg-surface-container-lowest dark:bg-stone-800/70 border border-sand-neutral dark:border-stone-800">
+              <div className="flex items-center gap-2 text-[#6B4B2B] dark:text-[#D4AF37] text-[10px] uppercase font-label-caps tracking-wider font-bold">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
                 <span>Water Purity Index</span>
               </div>
-              <div className="text-sm font-black text-stone-900 dark:text-stone-100 mt-1">
+              <div className="text-sm font-bold text-onyx-black dark:text-stone-100 mt-1 font-serif">
                 {data.waterPurityTds}
               </div>
-              <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+              <div className="text-[10px] text-stone-500 dark:text-stone-400 font-sans mt-0.5">
                 Lab Tested Mineral Balance
               </div>
             </div>
           </div>
 
           {/* Checklist */}
-          <div className="p-4 rounded-2xl border border-stone-200 dark:border-stone-800 space-y-2">
-            <h4 className="text-xs font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-surface-container-low dark:bg-stone-800/40 border border-sand-neutral dark:border-stone-800 space-y-2.5">
+            <h4 className="font-label-caps text-[11px] font-bold text-[#6B4B2B] dark:text-[#D4AF37] uppercase tracking-[0.2em]">
               Daily Cleanliness Audit Passed
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300 font-sans">
+                <CheckCircle2 className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
                 <span>FSSAI Lic: #{data.fssaiLicense}</span>
               </div>
-              <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300 font-sans">
+                <CheckCircle2 className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
                 <span>{data.staffSanitation}</span>
               </div>
-              <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300 font-sans">
+                <CheckCircle2 className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
                 <span>UV Sterilized Utensils</span>
               </div>
-              <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300 font-sans">
+                <CheckCircle2 className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
                 <span>Pest-Control Certified</span>
               </div>
             </div>

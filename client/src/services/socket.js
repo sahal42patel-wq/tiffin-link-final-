@@ -201,6 +201,29 @@ export const subscribeToEarnings = (callback) => {
   };
 };
 
+export const subscribeToDriverReviews = (callback) => {
+  const s = getSocket();
+  const handler = (data) => callback && callback(data);
+
+  s.on('review:new', handler);
+  s.on('review:updated', handler);
+  s.on('review:replied', handler);
+  s.on('driver:rating:updated', handler);
+  s.on('delivery:status:updated', handler);
+  s.on('delivery:completed', handler);
+  s.on('delivery:dashboard:refresh', handler);
+
+  return () => {
+    s.off('review:new', handler);
+    s.off('review:updated', handler);
+    s.off('review:replied', handler);
+    s.off('driver:rating:updated', handler);
+    s.off('delivery:status:updated', handler);
+    s.off('delivery:completed', handler);
+    s.off('delivery:dashboard:refresh', handler);
+  };
+};
+
 export const subscribeToConnectionStatus = (onConnectOrStatus, onDisconnect) => {
   const s = getSocket();
   const isSingleCallback = typeof onConnectOrStatus === 'function' && typeof onDisconnect !== 'function';

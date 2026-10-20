@@ -742,70 +742,70 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
 
       {/* Real-Time Incoming Request / Order Persistent Modal Banner */}
       {newOrderAlert && (
-        <div className="fixed top-20 right-4 sm:right-8 z-[9999] animate-in slide-in-from-top-4 duration-300 max-w-lg w-[calc(100vw-2rem)] sm:w-full bg-onyx-black/95 backdrop-blur-md text-white p-5 rounded-2xl shadow-2xl border-2 border-clay-earth/70 space-y-4">
+        <div className="fixed top-20 right-4 sm:right-8 z-[9999] animate-in slide-in-from-top-4 duration-300 max-w-lg w-[calc(100vw-2rem)] sm:w-full bg-white text-stone-900 p-6 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.25)] border-2 border-stone-800 space-y-4">
           {/* Header Row */}
-          <div className="flex items-start justify-between gap-3 border-b border-sand-neutral/20 pb-3">
+          <div className="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-clay-earth/25 text-clay-earth flex items-center justify-center animate-pulse shrink-0 border border-clay-earth/40">
-                <span className="material-symbols-outlined text-[22px]">notifications_active</span>
+              <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center animate-pulse shrink-0 border border-emerald-300">
+                <span className="material-symbols-outlined text-[24px]">notifications_active</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-button-text font-bold text-sm text-sand-neutral tracking-tight">
+                  <span className="font-sans font-bold text-base text-stone-900 tracking-tight">
                     {newOrderAlert.orderId ? '🛎️ New Customer Order' : '🚨 New Incoming Live Request'}
                   </span>
-                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold animate-pulse">
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider animate-pulse">
                     PENDING ACTION
                   </span>
                 </div>
-                <div className="text-xs text-secondary mt-0.5">
+                <div className="text-xs text-stone-600 mt-0.5 font-medium">
                   Action required • Remains on screen until Accepted or Declined
                 </div>
               </div>
             </div>
 
             <div className="text-right shrink-0">
-              <span className="font-label-caps text-[10px] text-secondary uppercase block">Order Value</span>
-              <span className="text-lg font-bold text-emerald-400 font-mono">
+              <span className="text-[10px] text-stone-500 uppercase tracking-wider font-bold block">Order Value</span>
+              <span className="text-xl font-black text-emerald-700 font-mono">
                 ₹{newOrderAlert.totalAmount || (newOrderAlert.quantity || 1) * (newOrderAlert.budget || 0) || newOrderAlert.budget || newOrderAlert.amount || '0'}
               </span>
             </div>
           </div>
 
-          {/* Details Grid */}
-          <div className="bg-surface-container-lowest/10 border border-sand-neutral/15 rounded-xl p-3 text-xs space-y-2">
+          {/* Details Card */}
+          <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5 text-xs space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-secondary font-medium">Meal Item:</span>
-              <span className="font-semibold text-white truncate text-right">
+              <span className="text-stone-600 font-semibold text-xs">Meal Item:</span>
+              <span className="font-bold text-stone-900 truncate text-right text-xs">
                 {newOrderAlert.mealType || newOrderAlert.tiffinName || (newOrderAlert.items && newOrderAlert.items[0]?.name) || 'Homestyle Tiffin'} • {newOrderAlert.quantity || 1} Box(es)
               </span>
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-secondary font-medium">Customer:</span>
-              <span className="text-white truncate text-right">
+              <span className="text-stone-600 font-semibold text-xs">Customer:</span>
+              <span className="font-bold text-stone-900 truncate text-right text-xs">
                 {newOrderAlert.customerName || 'Direct Customer'} {newOrderAlert.customerPhone ? `(${newOrderAlert.customerPhone})` : ''}
               </span>
             </div>
 
             <div className="flex items-start justify-between gap-2">
-              <span className="text-secondary font-medium shrink-0">Delivery Location:</span>
-              <span className="text-sand-neutral/90 text-right truncate max-w-[260px]">
+              <span className="text-stone-600 font-semibold text-xs shrink-0">Delivery Location:</span>
+              <span className="font-medium text-stone-800 text-right truncate max-w-[280px] text-xs">
                 {newOrderAlert.customerAddress || newOrderAlert.location || newOrderAlert.deliveryAddress?.street || 'Customer address on file'}
               </span>
             </div>
 
             {newOrderAlert.specialInstructions && (
-              <div className="pt-1 border-t border-sand-neutral/15 text-sand-neutral italic text-[11px] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] text-clay-earth">info</span>
+              <div className="pt-2 border-t border-stone-200 text-stone-700 italic text-[11px] flex items-center gap-1.5 font-medium">
+                <span className="material-symbols-outlined text-[15px] text-amber-600">info</span>
                 <span>Note: "{newOrderAlert.specialInstructions}"</span>
               </div>
             )}
 
             {typeof newOrderAlert.secondsLeft === 'number' && (
-              <div className="flex items-center justify-between pt-1 border-t border-sand-neutral/15 text-[11px]">
-                <span className="text-secondary">Auto-expires in:</span>
-                <span className="text-amber-400 font-bold font-mono">
+              <div className="flex items-center justify-between pt-2 border-t border-stone-200 text-xs">
+                <span className="text-stone-600 font-medium">Auto-expires in:</span>
+                <span className="text-amber-700 font-black font-mono">
                   {Math.floor(newOrderAlert.secondsLeft / 60)}:{(newOrderAlert.secondsLeft % 60).toString().padStart(2, '0')}s
                 </span>
               </div>
@@ -813,14 +813,14 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
           </div>
 
           {/* Action Decision Buttons */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-3 pt-1">
             <button
               type="button"
               disabled={isAcceptingAlert || isDecliningAlert}
               onClick={() => handleAcceptIncomingAlert(newOrderAlert)}
-              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-button-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-sans font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              <span className="material-symbols-outlined text-[18px]">check_circle</span>
               <span>{isAcceptingAlert ? 'Accepting...' : 'Accept Request'}</span>
             </button>
 
@@ -828,9 +828,9 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
               type="button"
               disabled={isAcceptingAlert || isDecliningAlert}
               onClick={() => handleDeclineIncomingAlert(newOrderAlert)}
-              className="py-2.5 px-4 bg-neutral-800 hover:bg-rose-900/60 text-sand-neutral hover:text-white border border-neutral-700 font-button-text font-semibold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="py-3 px-5 bg-stone-100 hover:bg-rose-100 hover:border-rose-400 hover:text-rose-800 text-stone-800 border border-stone-300 font-sans font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[16px]">cancel</span>
+              <span className="material-symbols-outlined text-[18px]">cancel</span>
               <span>{isDecliningAlert ? 'Declining...' : 'Decline'}</span>
             </button>
 
@@ -843,10 +843,10 @@ export default function ProviderDashboard({ currentUser, onLogout, onUpdateUser 
                   setActiveTab('live-requests');
                 }
               }}
-              className="p-2.5 bg-neutral-800/80 hover:bg-neutral-700 text-secondary hover:text-white rounded-xl text-xs transition-colors cursor-pointer"
+              className="p-3 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
               title="View full details in dashboard tab"
             >
-              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+              <span className="material-symbols-outlined text-[20px]">open_in_new</span>
             </button>
           </div>
         </div>

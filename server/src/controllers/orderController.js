@@ -163,7 +163,20 @@ const getOrders = async (req, res) => {
           if (ordIdStr && seenOrderIds.has(ordIdStr)) continue;
           if (idStr) seenIds.add(idStr);
           if (ordIdStr) seenOrderIds.add(ordIdStr);
-          result.push(enrichOrderFinancials({ ...o, id: idStr || o.id }));
+
+          // Proactively ensure pickupOtp and deliveryOtp exist
+          let pickupOtp = o.pickupOtp;
+          if (!pickupOtp || !/^\d{4}$/.test(String(pickupOtp).trim())) {
+            pickupOtp = String(Math.floor(1000 + Math.random() * 9000));
+            Order.updateOne({ _id: o._id }, { $set: { pickupOtp } }).catch(() => {});
+          }
+          let deliveryOtp = o.deliveryOtp;
+          if (!deliveryOtp || !/^\d{6}$/.test(String(deliveryOtp).trim())) {
+            deliveryOtp = String(Math.floor(100000 + Math.random() * 900000));
+            Order.updateOne({ _id: o._id }, { $set: { deliveryOtp } }).catch(() => {});
+          }
+
+          result.push(enrichOrderFinancials({ ...o, pickupOtp, deliveryOtp, id: idStr || o.id }));
         }
         return result;
       };
@@ -331,7 +344,9 @@ const createOrder = async (req, res) => {
       ...bill,
       paymentStatus: paymentStatus || 'Paid',
       status: status || 'New',
-      deliveryStatus: 'Unassigned'
+      deliveryStatus: 'Unassigned',
+      pickupOtp: String(Math.floor(1000 + Math.random() * 9000)),
+      deliveryOtp: String(Math.floor(100000 + Math.random() * 900000))
     };
 
     if (await isDbConnected()) {
@@ -985,6 +1000,8 @@ const createCustomerOrder = async (req, res) => {
         : 'Paid',
       status: 'New',
       deliveryStatus: 'Unassigned',
+      pickupOtp: String(Math.floor(1000 + Math.random() * 9000)),
+      deliveryOtp: String(Math.floor(100000 + Math.random() * 900000)),
       pickupAddress: providerDoc?.address?.street 
         ? `${providerDoc.address.street}, ${providerDoc.address.locality || ''}, ${providerDoc.address.city || 'Ahmedabad'}`
         : 'Kitchen Hub, Ahmedabad'

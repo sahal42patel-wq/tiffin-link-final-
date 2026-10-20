@@ -1,24 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Home,
   Users,
-  Percent,
-  Sparkles,
   Clock,
   CheckCircle2,
   X,
-  Plus,
-  Send,
-  Award,
   ChevronRight,
-  TrendingUp
+  Sparkles,
+  UtensilsCrossed
 } from 'lucide-react';
 import {
   getHostels,
-  createHostel,
-  createHostelGroupOrder,
   submitResidentSelection,
-  getGroupOrderById,
   finalizeHostelGroupOrder
 } from '../services/advancedFeaturesApi';
 
@@ -48,6 +40,7 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
         }
       }
     } catch (e) {
+      console.warn('Error loading hostels:', e);
     } finally {
       setLoading(false);
     }
@@ -62,12 +55,9 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!selectedHostelId) return;
 
-    // Check active group order or mock/create one for the hostel
     const fetchActiveGroup = async () => {
-      // Find hostel
       const h = hostels.find(x => x.hostelId === selectedHostelId);
       if (h) {
-        // Set an active pool state
         setActiveGroupOrder({
           groupOrderId: `grp-${selectedHostelId}`,
           hostelName: h.name,
@@ -123,7 +113,7 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
           ]
         }));
 
-        setMessage(`🎉 Awesome ${residentName}! You joined room pool #${roomNumber}. Discount applied!`);
+        setMessage(`Awesome ${residentName}! You joined room pool #${roomNumber}. Collective discount applied!`);
         setResidentName('');
         setRoomNumber('');
       }
@@ -145,43 +135,48 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-stone-900 rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-green-700 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <Home className="w-6 h-6 text-white" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-onyx-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-bone-white dark:bg-[#18181B] rounded-2xl shadow-2xl border border-sand-neutral/80 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
+        
+        {/* Header - Editorial Artisanal Theme */}
+        <div className="p-6 bg-surface-container dark:bg-stone-900 border-b border-sand-neutral/80 dark:border-stone-800 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-label-caps text-[11px] font-bold tracking-[0.25em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase flex items-center gap-1.5">
+                <UtensilsCrossed className="w-3.5 h-3.5" />
+                COLLECTIVE DINING CONCIERGE
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-label-caps tracking-wider uppercase bg-sand-neutral/80 dark:bg-stone-800 text-onyx-black dark:text-stone-300 border border-sand-neutral">
+                BULK SAVINGS
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Hostel & PG Bulk Meal Pools</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-widest">
-                  Bulk Discounts
-                </span>
-              </div>
-              <p className="text-xs text-emerald-100">
-                Pool with hostel mates to unlock up to 25% OFF and 0 delivery fees
-              </p>
-            </div>
+            <h3 className="font-headline-md font-serif text-2xl sm:text-3xl text-onyx-black dark:text-bone-white font-normal leading-tight">
+              Hostel &amp; PG Bulk Meal Pools
+            </h3>
+            <p className="font-body-md text-xs sm:text-sm text-secondary dark:text-stone-400">
+              Pool orders with your campus mates to unlock up to 25% dining savings &amp; ₹0 delivery fees.
+            </p>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white transition"
+            aria-label="Close modal"
+            className="w-9 h-9 rounded-full bg-surface-container-low hover:bg-sand-neutral/80 dark:bg-stone-800 dark:hover:bg-stone-700 border border-sand-neutral/80 dark:border-stone-700 flex items-center justify-center text-onyx-black dark:text-stone-200 transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Hostel Selector */}
-        <div className="p-4 border-b border-stone-100 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-800/40 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-stone-600 dark:text-stone-300">Select Campus / PG:</span>
+        {/* Campus / PG Selector Bar */}
+        <div className="px-6 py-3.5 border-b border-sand-neutral/60 dark:border-stone-800 bg-surface-container-low/70 dark:bg-stone-900/50 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="font-label-caps text-[10px] font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase">
+              SELECT CAMPUS / PG:
+            </span>
             <select
               value={selectedHostelId}
               onChange={(e) => setSelectedHostelId(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="px-3 py-1.5 rounded-lg border border-sand-neutral/90 dark:border-stone-700 bg-surface-container-lowest dark:bg-stone-800 text-xs font-semibold text-onyx-black dark:text-stone-200 focus:outline-none focus:border-onyx-black focus:ring-1 focus:ring-onyx-black shadow-2xs cursor-pointer"
             >
               {hostels.map(h => (
                 <option key={h.hostelId} value={h.hostelId}>
@@ -191,66 +186,75 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
             </select>
           </div>
 
-          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-sand-neutral/80 text-[11px] font-label-caps font-bold text-onyx-black dark:text-stone-300">
+            <Users className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>{activeGroupOrder?.currentSelectionsCount || 0} pooled</span>
           </span>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1 text-stone-900 dark:text-stone-100">
+        <div className="p-6 overflow-y-auto space-y-5 flex-1 text-onyx-black dark:text-stone-100">
           {message && (
-            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-surface-container border border-[#6B4B2B]/40 text-onyx-black dark:text-stone-200 text-xs font-semibold flex items-center gap-2 shadow-2xs">
+              <CheckCircle2 className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
               <span>{message}</span>
             </div>
           )}
 
           {/* Discount Tier Progress Card */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30 border border-teal-200 dark:border-teal-900/60 space-y-3">
+          <div className="p-5 rounded-xl bg-surface-container-lowest dark:bg-[#1E1E22] border border-sand-neutral/80 dark:border-stone-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-black uppercase text-teal-700 dark:text-teal-400 tracking-wider">
-                  Live Pool Discount
+                <span className="font-label-caps text-[10px] font-bold tracking-[0.2em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase block mb-0.5">
+                  COMMUNITY BENEFIT UNLOCKED
                 </span>
-                <div className="text-xl font-black text-teal-900 dark:text-teal-200">
-                  {activeGroupOrder?.currentDiscountPercentage || 15}% Discount Unlocked!
+                <div className="text-2xl font-serif text-onyx-black dark:text-bone-white font-normal">
+                  {activeGroupOrder?.currentDiscountPercentage || 15}% Discount Applied!
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] uppercase text-stone-500 font-bold">Cutoff Timer</span>
-                <div className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1 justify-end">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span className="font-label-caps text-[10px] uppercase tracking-widest text-secondary dark:text-stone-400 font-bold block">
+                  CUTOFF TIMER
+                </span>
+                <div className="text-xs font-semibold text-onyx-black dark:text-stone-200 flex items-center gap-1.5 justify-end mt-0.5">
+                  <Clock className="w-3.5 h-3.5 text-[#6B4B2B] dark:text-[#D4AF37]" />
                   <span>45 mins remaining</span>
                 </div>
               </div>
             </div>
 
             {/* Progress bar towards next tier */}
-            <div>
-              <div className="flex justify-between text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+            <div className="space-y-1.5 pt-1">
+              <div className="flex justify-between font-label-caps text-[11px] text-secondary dark:text-stone-400">
                 <span>{activeGroupOrder?.currentSelectionsCount || 7} orders placed</span>
-                <span>Next Tier: 10 orders = 20% OFF</span>
+                <span className="text-[#6B4B2B] dark:text-[#D4AF37] font-bold">
+                  Next Milestone: 10 orders → 20% OFF
+                </span>
               </div>
-              <div className="w-full h-2.5 rounded-full bg-stone-200 dark:bg-stone-700 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-sand-neutral dark:bg-stone-800 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-onyx-black to-[#6B4B2B] dark:from-stone-200 dark:to-[#D4AF37] transition-all duration-500"
                   style={{ width: `${Math.min(100, ((activeGroupOrder?.currentSelectionsCount || 7) / 10) * 100)}%` }}
                 />
               </div>
             </div>
           </div>
 
-          {/* Resident Join Form */}
-          <form onSubmit={handleJoinPool} className="p-4 rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40 space-y-3">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-stone-600 dark:text-stone-300">
-              Join Tonight&apos;s Hostel Group Pool
-            </h4>
+          {/* Resident Join Form - Matched with Website Signature Concierge Style */}
+          <form onSubmit={handleJoinPool} className="p-6 rounded-xl border border-sand-neutral/80 dark:border-stone-800 bg-surface-container-lowest dark:bg-[#1E1E22] shadow-xs space-y-4">
+            <div className="border-b border-sand-neutral/60 dark:border-stone-800 pb-3 flex items-center justify-between">
+              <h4 className="font-label-caps text-xs font-bold tracking-[0.2em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase">
+                Join Tonight&apos;s Hostel Group Pool
+              </h4>
+              <span className="font-label-caps text-[10px] text-secondary dark:text-stone-400 font-medium tracking-wider">
+                BATCH RESERVATION
+              </span>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
-                  Your Full Name
+                <label className="font-label-caps text-[11px] font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1.5">
+                  YOUR FULL NAME
                 </label>
                 <input
                   type="text"
@@ -258,13 +262,13 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
                   onChange={(e) => setResidentName(e.target.value)}
                   placeholder="e.g. Parth Desai"
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-surface-container-low dark:bg-stone-800/80 border border-sand-neutral/90 dark:border-stone-700 focus:border-onyx-black dark:focus:border-sand-neutral focus:ring-1 focus:ring-onyx-black dark:focus:ring-sand-neutral rounded-lg px-3.5 py-2.5 text-onyx-black dark:text-white font-body-md text-xs placeholder:text-stone-400 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
-                  Hostel Room / Wing
+                <label className="font-label-caps text-[11px] font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1.5">
+                  HOSTEL ROOM / WING
                 </label>
                 <input
                   type="text"
@@ -272,20 +276,20 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
                   onChange={(e) => setRoomNumber(e.target.value)}
                   placeholder="e.g. Block B, Room 302"
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-surface-container-low dark:bg-stone-800/80 border border-sand-neutral/90 dark:border-stone-700 focus:border-onyx-black dark:focus:border-sand-neutral focus:ring-1 focus:ring-onyx-black dark:focus:ring-sand-neutral rounded-lg px-3.5 py-2.5 text-onyx-black dark:text-white font-body-md text-xs placeholder:text-stone-400 outline-none transition-all"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
-                  Thali Selection
+                <label className="font-label-caps text-[11px] font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1.5">
+                  THALI SELECTION
                 </label>
                 <select
                   value={mealCategory}
                   onChange={(e) => setMealCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-surface-container-low dark:bg-stone-800/80 border border-sand-neutral/90 dark:border-stone-700 focus:border-onyx-black dark:focus:border-sand-neutral focus:ring-1 focus:ring-onyx-black dark:focus:ring-sand-neutral rounded-lg px-3.5 py-2.5 text-onyx-black dark:text-white font-body-md text-xs outline-none transition-all cursor-pointer"
                 >
                   <option value="Standard Student Thali (₹110)">Standard Student Thali (₹110)</option>
                   <option value="Jain Satvik Special (₹130)">Jain Satvik Special (₹130)</option>
@@ -294,13 +298,13 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
-                  Spice Preference
+                <label className="font-label-caps text-[11px] font-bold tracking-widest text-[#2E1E12] dark:text-[#F3E5AB] uppercase block mb-1.5">
+                  SPICE PREFERENCE
                 </label>
                 <select
                   value={spiceLevel}
                   onChange={(e) => setSpiceLevel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full bg-surface-container-low dark:bg-stone-800/80 border border-sand-neutral/90 dark:border-stone-700 focus:border-onyx-black dark:focus:border-sand-neutral focus:ring-1 focus:ring-onyx-black dark:focus:ring-sand-neutral rounded-lg px-3.5 py-2.5 text-onyx-black dark:text-white font-body-md text-xs outline-none transition-all cursor-pointer"
                 >
                   <option value="Mild">Mild (Low Chili)</option>
                   <option value="Medium">Medium Regular</option>
@@ -312,36 +316,42 @@ export default function HostelBulkPoolModal({ isOpen, onClose }) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs tracking-wide transition shadow"
+              className="w-full py-3.5 px-6 rounded-lg bg-onyx-black hover:bg-[#6B4B2B] text-bone-white font-button-text font-medium text-xs tracking-[0.15em] uppercase transition-all duration-300 shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
             >
-              {submitting ? 'Adding...' : 'Add My Meal to Hostel Pool'}
+              {submitting ? 'ADDING TO POOL...' : 'ADD MY MEAL TO HOSTEL POOL'}
             </button>
           </form>
 
           {/* Current Room Pool Roster */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-stone-600 dark:text-stone-400">
-              <span>Pool Roster ({activeGroupOrder?.selections?.length || 0} residents)</span>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-label-caps text-[11px] font-bold tracking-widest text-secondary dark:text-stone-400 uppercase">
+                POOL ROSTER ({activeGroupOrder?.selections?.length || 0} RESIDENTS)
+              </span>
               <button
                 onClick={handleFinalize}
-                className="text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+                className="font-button-text text-xs font-semibold text-[#6B4B2B] dark:text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Coordinator: Finalize Batch</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               {activeGroupOrder?.selections?.map((sel, idx) => (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-800/60 flex items-center justify-between"
+                  className="p-3 rounded-xl border border-sand-neutral/80 dark:border-stone-800 bg-surface-container-lowest dark:bg-stone-800/50 flex items-center justify-between shadow-2xs"
                 >
                   <div>
-                    <div className="font-bold text-stone-900 dark:text-stone-100">{sel.residentName}</div>
-                    <div className="text-[10px] text-stone-500">Room {sel.roomNumber} &bull; {sel.mealType}</div>
+                    <div className="font-serif text-sm font-medium text-onyx-black dark:text-bone-white">
+                      {sel.residentName}
+                    </div>
+                    <div className="font-body-md text-[11px] text-secondary dark:text-stone-400">
+                      Room {sel.roomNumber} &bull; {sel.mealType}
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
+                  <span className="px-2.5 py-0.5 rounded-full bg-surface-container border border-sand-neutral/80 text-secondary dark:text-stone-300 font-label-caps text-[10px] font-semibold">
                     {sel.spiceLevel || 'Medium'}
                   </span>
                 </div>

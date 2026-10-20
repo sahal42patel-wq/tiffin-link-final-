@@ -85,7 +85,7 @@ export default function DispatchEngineTab({ onNavigate }) {
     const updatedTime = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0') + ' IST';
     setSweepClock(updatedTime);
     setIsSweeping(false);
-    showToast(`Dispatch sweep complete: ${requests.length} database requests synchronized`);
+    showToast(`Dispatch check complete: ${requests.length} requests updated`);
   };
 
   const selectedReq = requests.find((r) => r.reqId === selectedReqId || r._id === selectedReqId) || requests[0] || null;

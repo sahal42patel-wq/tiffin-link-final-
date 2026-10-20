@@ -55,6 +55,7 @@ const {
   deleteDriverPayoutMethod,
   getDriverPerformance,
   getDriverReviews,
+  simulateDriverReview,
   getDriverAccount,
   updateDriverAccount,
   changeDriverPassword,
@@ -138,6 +139,7 @@ router.get('/performance', driverAuthWithFallback, getDriverPerformance);
 router.get('/driver/performance', driverAuthWithFallback, getDriverPerformance);
 router.get('/reviews', driverAuthWithFallback, getDriverReviews);
 router.get('/driver/reviews', driverAuthWithFallback, getDriverReviews);
+router.post('/driver/reviews/simulate', driverAuthWithFallback, simulateDriverReview);
 router.get('/reviews/summary', driverAuthWithFallback, getDriverReviews);
 router.get('/driver/reviews/summary', driverAuthWithFallback, getDriverReviews);
 router.get('/earnings/overview', driverAuthWithFallback, getDriverEarningsOverview);
@@ -182,14 +184,14 @@ router.get('/payout-methods', protect, requireDriver, getDriverPayoutMethods);
 router.post('/payout-methods', protect, requireDriver, createDriverPayoutMethod);
 router.patch('/payout-methods/:id/primary', protect, requireDriver, setPrimaryPayoutMethod);
 router.delete('/payout-methods/:id', protect, requireDriver, deleteDriverPayoutMethod);
-router.get('/active-delivery', protect, requireDriver, getActiveDelivery);
-router.get('/driver/deliveries/active', protect, requireDriver, getActiveDelivery);
-router.get('/upcoming', protect, requireDriver, getUpcomingDeliveries);
-router.get('/driver/deliveries/upcoming', protect, requireDriver, getUpcomingDeliveries);
-router.get('/completed', protect, requireDriver, getCompletedDeliveries);
-router.get('/driver/deliveries/completed', protect, requireDriver, getCompletedDeliveries);
-router.get('/history', protect, requireDriver, getDeliveryHistory);
-router.get('/driver/deliveries/history', protect, requireDriver, getDeliveryHistory);
+router.get('/active-delivery', driverAuthWithFallback, getActiveDelivery);
+router.get('/driver/deliveries/active', driverAuthWithFallback, getActiveDelivery);
+router.get('/upcoming', driverAuthWithFallback, getUpcomingDeliveries);
+router.get('/driver/deliveries/upcoming', driverAuthWithFallback, getUpcomingDeliveries);
+router.get('/completed', driverAuthWithFallback, getCompletedDeliveries);
+router.get('/driver/deliveries/completed', driverAuthWithFallback, getCompletedDeliveries);
+router.get('/history', driverAuthWithFallback, getDeliveryHistory);
+router.get('/driver/deliveries/history', driverAuthWithFallback, getDeliveryHistory);
 router.get('/driver-requests', driverAuthWithFallback, getEligibleRequestsForDriver);
 router.post('/requests/:requestId/accept', driverAuthWithFallback, acceptDeliveryRequestAtomic);
 router.post('/requests/:requestId/decline', driverAuthWithFallback, declineDeliveryRequest);

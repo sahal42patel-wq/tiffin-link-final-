@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, ChevronRight, ChevronLeft, Star, MapPin, Phone, ShieldCheck, X, Utensils } from 'lucide-react';
 import use3DTilt from '../components/use3DTilt';
+import { apiRequest } from '../services/api';
 
 function ProviderCard({ provider, onSelect, onOrder }) {
   const tiltRef = use3DTilt(8, 1.01);
@@ -108,15 +109,9 @@ export default function TopProviders({ onExplore, onSelectProvider }) {
 
   const fetchProviders = async () => {
     try {
-      let response;
-      try {
-        response = await fetch('/api/providers');
-        if (!response.ok) throw new Error('Vite proxy failed');
-      } catch {
-        response = await fetch('http://localhost:5000/api/providers');
-      }
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
+      const res = await apiRequest('/providers');
+      const data = typeof res?.json === 'function' ? await res.json() : res;
+      if (data && data.success && Array.isArray(data.data)) {
         setProviders(data.data);
       }
     } catch (error) {

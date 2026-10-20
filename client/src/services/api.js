@@ -71,12 +71,12 @@ export const clearAuthTokens = () => {
   removeCookie('tiffinlink_token');
 };
 
-export const cleanErrorMessage = (msg, fallback = 'Something went wrong. Please try again.') => {
+export const cleanErrorMessage = (msg, fallback = 'Connection interrupted. Please check your internet connection and try again.') => {
   if (!msg || typeof msg !== 'string') return fallback;
 
   const lower = msg.toLowerCase();
 
-  // Check for database, mongo, or internal backend leakage
+  // Check for database, mongo, internal backend, or server errors
   const hasDbOrBackendLeak =
     lower.includes('mongo') ||
     lower.includes('e11000') ||
@@ -86,17 +86,23 @@ export const cleanErrorMessage = (msg, fallback = 'Something went wrong. Please 
     lower.includes('validation failed') ||
     lower.includes('bson') ||
     lower.includes('econnrefused') ||
+    lower.includes('econnreset') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
     lower.includes('database') ||
     lower.includes('replica') ||
     lower.includes('collection') ||
     lower.includes('topology') ||
     lower.includes('buffering timed out') ||
+    lower.includes('timed out') ||
     lower.includes('index:') ||
     lower.includes('syntaxerror') ||
     lower.includes('typeerror') ||
     lower.includes('referenceerror') ||
-    lower.includes('server error:') ||
-    lower.includes('internal server error');
+    lower.includes('server error') ||
+    lower.includes('internal server error') ||
+    lower.includes('backend') ||
+    lower.includes('sync');
 
   if (hasDbOrBackendLeak) {
     if (lower.includes('e11000') || lower.includes('duplicate key')) {
@@ -105,13 +111,10 @@ export const cleanErrorMessage = (msg, fallback = 'Something went wrong. Please 
     if (lower.includes('cast to objectid') || lower.includes('casterror')) {
       return 'The requested record could not be found.';
     }
-    if (lower.includes('econnrefused') || lower.includes('connect')) {
-      return 'Unable to reach the server. Please check your connection and try again.';
-    }
     if (lower.includes('validation')) {
       return 'Please make sure all required fields are filled out correctly.';
     }
-    return 'Unable to process your request at this time. Please try again.';
+    return 'Connection interrupted. Please check your internet connection and try again.';
   }
 
   return msg;
@@ -138,12 +141,58 @@ export const apiRequest = async (endpoint, options = {}) => {
     });
   } catch (fetchErr) {
     console.warn('Network request error in apiRequest:', fetchErr);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tiffinlink:network-offline', { detail: { endpoint, error: fetchErr } }));
+      window.dispatchEvent(new CustomEvent('tiffinlink:app-error', { 
+        detail: { 
+          status: 500, 
+          title: 'Server Is Currently Unreachable',
+          message: 'Our culinary kitchen servers are currently not responding. Our engineering team is actively attending to this.',
+          error: fetchErr 
+        } 
+      }));
+    }
     return {
       success: false,
       ok: false,
       status: 0,
+      code: 'OFFLINE_OR_NETWORK_ERROR',
       message: 'Unable to connect to the server. Please check your internet connection.'
     };
+  }
+
+  // Dispatch genuine server runtime errors
+  if (response.status === 503) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tiffinlink:app-error', {
+        detail: {
+          status: 503,
+          errorId: response.headers?.get('x-error-id'),
+          title: 'TiffinLink Is Under Maintenance',
+          message: 'We are currently performing routine upgrades to our meal routing and dispatch engine.'
+        }
+      }));
+    }
+  } else if (response.status === 500) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tiffinlink:app-error', {
+        detail: {
+          status: 500,
+          errorId: response.headers?.get('x-error-id'),
+          title: 'Server Is Currently Unreachable',
+          message: 'Our culinary kitchen servers are currently not responding. Our engineering team is actively attending to this.'
+        }
+      }));
+    }
+  } else if (response.status === 403) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tiffinlink:app-error', {
+        detail: {
+          status: 403,
+          errorId: response.headers?.get('x-error-id')
+        }
+      }));
+    }
   }
 
   // Automatically attempt token refresh if 401 Unauthorized occurs
@@ -165,16 +214,29 @@ export const apiRequest = async (endpoint, options = {}) => {
           response = await fetch(url, { ...options, headers });
         } else {
           clearAuthTokens();
-          window.location.reload();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tiffinlink:session-expired', { detail: { endpoint } }));
+            window.dispatchEvent(new CustomEvent('tiffinlink:app-error', { detail: { status: 401 } }));
+          }
         }
       } catch (err) {
         clearAuthTokens();
-        window.location.reload();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tiffinlink:session-expired', { detail: { endpoint } }));
+          window.dispatchEvent(new CustomEvent('tiffinlink:app-error', { detail: { status: 401 } }));
+        }
+      }
+    } else {
+      clearAuthTokens();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tiffinlink:session-expired', { detail: { endpoint } }));
+        window.dispatchEvent(new CustomEvent('tiffinlink:app-error', { detail: { status: 401 } }));
       }
     }
   }
 
   try {
+    const errorId = response.headers.get('x-error-id');
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const jsonBody = await response.json();
@@ -185,12 +247,16 @@ export const apiRequest = async (endpoint, options = {}) => {
         if (typeof jsonBody.error === 'string') {
           jsonBody.error = cleanErrorMessage(jsonBody.error);
         }
+        if (errorId && !jsonBody.errorId) {
+          jsonBody.errorId = errorId;
+        }
         return {
           ...jsonBody,
           ok: response.ok,
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,
+          errorId: jsonBody.errorId || errorId,
           json: async () => jsonBody
         };
       }
@@ -203,3 +269,14 @@ export const apiRequest = async (endpoint, options = {}) => {
   return response;
 };
 
+export const triggerAppError = (detail) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tiffinlink:app-error', { detail }));
+  }
+};
+
+export const clearAppError = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tiffinlink:clear-app-error'));
+  }
+};

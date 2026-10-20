@@ -1344,7 +1344,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
 
         {/* COMMON TOP SUB-NAVIGATION (Exact 5-tab bar with Dynamic Badges) */}
         <header className="w-full bg-surface/90 border-b border-sand-neutral mb-8">
-          <div className="h-14 flex items-center justify-between overflow-x-auto">
+          <div className="h-14 flex items-center justify-between overflow-x-auto no-scrollbar">
             <nav className="flex items-center gap-6 sm:gap-8 h-full whitespace-nowrap">
               {/* Active Orders */}
               <button
@@ -1497,57 +1497,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                 </p>
               </div>
             ) : activeOrders.length === 0 ? (
-              <div className="space-y-4">
-                {cancelledOrders.some(o => o.cancelledBy === 'Provider') && (
-                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-5 shadow-sm text-left">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="material-symbols-outlined text-[22px]">store</span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
-                              Recent Order Declined by Restaurant
-                            </span>
-                            <span className="text-xs text-gray-500 font-semibold">
-                              {cancelledOrders.find(o => o.cancelledBy === 'Provider')?.orderId}
-                            </span>
-                          </div>
-                          <h4 className="text-sm font-bold text-gray-900 mt-1">
-                            {cancelledOrders.find(o => o.cancelledBy === 'Provider')?.providerName || 'Kitchen'} was unable to prepare your meal
-                          </h4>
-                          <p className="text-xs text-gray-700 italic mt-1 pl-3 border-l-2 border-rose-300">
-                            &ldquo;{cancelledOrders.find(o => o.cancelledBy === 'Provider')?.cancellationReason || 'Kitchen at full preparation capacity.'}&rdquo;
-                          </p>
-                          <div className="mt-2 text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
-                            <span>100% Escrow Refund Recredited to Source Account (Zero Cancellation Fee)</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => switchTab('cancelled')}
-                          className="px-3.5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                        >
-                          View Refund Dossier
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (onNavigate) onNavigate('#find-tiffin');
-                            else window.location.hash = '#find-tiffin';
-                          }}
-                          className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                        >
-                          Find Alternative Kitchen
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-surface-container-lowest rounded-xl border border-sand-neutral/70 p-12 text-center space-y-4 shadow-sm">
+              <div className="bg-surface-container-lowest rounded-xl border border-sand-neutral/70 p-12 text-center space-y-4 shadow-sm">
                   <span className="material-symbols-outlined text-[48px] text-secondary">lunch_dining</span>
                   <h3 className="font-headline-md text-headline-md text-onyx-black">No Active Consignments</h3>
                   <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
@@ -1574,7 +1524,6 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                     </button>
                   </div>
                 </div>
-              </div>
             ) : (
               <div className="w-full bg-surface-container-lowest rounded-xl border border-sand-neutral/70 shadow-sm overflow-hidden flex flex-col">
                 {/* Consignment Header with Provider, ETA, and Handover OTP */}

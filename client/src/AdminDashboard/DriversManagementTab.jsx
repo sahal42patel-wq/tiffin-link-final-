@@ -169,7 +169,7 @@ export default function DriversManagementTab({ onOpenDriver360, subTab = 'driver
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-[#665d52]">
-                    Loading driver fleet database...
+                    Loading driver fleet...
                   </td>
                 </tr>
               ) : drivers.length === 0 ? (

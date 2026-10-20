@@ -193,7 +193,7 @@ export default function OrderHistoryTab({ currentUser }) {
 
           <button 
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-[#0A8B5F] hover:bg-[#08734E] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-4 py-2 bg-onyx-black hover:bg-neutral-800 text-bone-white text-xs font-button-text font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
           >
             <Download size={14} />
             <span>Export CSV</span>
@@ -212,7 +212,7 @@ export default function OrderHistoryTab({ currentUser }) {
             placeholder="Search orders, customers, or tiffins..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#F7FAF8] border border-[#E5ECE8] rounded-xl text-xs font-semibold text-[#1A2E26] focus:outline-none focus:border-[#0A8B5F]"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#F7FAF8] border border-[#E5ECE8] rounded-xl text-xs font-semibold text-[#1A2E26] focus:outline-none focus:border-onyx-black"
           />
         </div>
 
@@ -237,7 +237,7 @@ export default function OrderHistoryTab({ currentUser }) {
               <tbody className="divide-y divide-[#E5ECE8] text-[#1A2E26] font-medium">
                 {filteredOrders.map(order => (
                   <tr key={order._id || order.orderId} className="hover:bg-[#F9FBF9] transition-colors">
-                    <td className="py-4 px-3 font-bold text-[#0A8B5F]">{order.orderId}</td>
+                    <td className="py-4 px-3 font-bold text-onyx-black">{order.orderId}</td>
                     <td className="py-4 px-3 text-[#5B7067] font-bold">
                       {formatDateDisplay(order.createdAt || order.date)}
                     </td>

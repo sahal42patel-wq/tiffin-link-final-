@@ -384,7 +384,7 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-[9999] bg-onyx-black text-bone-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 font-button-text text-button-text animate-bounce border border-sand-neutral/40">
-          <span className="material-symbols-outlined text-[18px] text-[#0A8B5F]">check_circle</span>
+          <span className="material-symbols-outlined text-[18px] text-bone-white">check_circle</span>
           <span className="font-bold">{toastMsg}</span>
         </div>
       )}
@@ -395,19 +395,10 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
           <span onClick={() => onNavigateTab && onNavigateTab('dashboard')} className="hover:text-on-surface transition-colors cursor-pointer">Provider</span>
           <span className="text-sand-neutral font-bold">•</span>
           <span className="text-on-surface font-semibold">Live Requests</span>
-          <span className="text-sand-neutral font-bold">•</span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-surface-container-low text-clay-earth border border-sand-neutral/30 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-onyx-black animate-ping"></span>
-            Live Kitchen Feed Active
-          </span>
         </div>
 
-        {/* Auto-sync & Manual Refresh Control */}
+        {/* Refresh Control */}
         <div className="flex items-center gap-3 self-start md:self-auto">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container-low border border-sand-neutral/30">
-            <span className="w-2 h-2 rounded-full bg-onyx-black animate-pulse"></span>
-            <span className="font-label-caps text-[11px] text-secondary tracking-widest uppercase">Auto-sync: 4s</span>
-          </div>
           <button
             type="button"
             onClick={() => {
@@ -808,7 +799,7 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
                       </button>
 
                       {sentOffers.has(reqItem.dbId || reqItem.id) ? (
-                        <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-surface-container text-[#0A8B5F] font-button-text text-xs font-bold border border-[#0A8B5F]/30">
+                        <span className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-surface-container text-onyx-black font-button-text text-xs font-bold border border-sand-neutral/40">
                           <span className="material-symbols-outlined text-[16px]">check_circle</span>
                           Quote Sent
                         </span>
@@ -1011,7 +1002,7 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
                 <div className="flex justify-between"><span>Platform Fee & Transit</span><span className="text-on-surface font-semibold">- ₹{selectedModalRequest.platformFee}</span></div>
                 <div className="flex justify-between border-t border-sand-neutral/40 pt-2 font-bold text-on-surface text-sm">
                   <span>Estimated Kitchen Earnings</span>
-                  <span className="text-[#0A8B5F]">₹{selectedModalRequest.estimatedPayout}</span>
+                  <span className="text-onyx-black">₹{selectedModalRequest.estimatedPayout}</span>
                 </div>
               </div>
 

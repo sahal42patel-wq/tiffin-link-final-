@@ -74,7 +74,7 @@ export default function ActiveDeliveryView({
       } catch (e) {}
 
       const email = currentUser?.email || storedUser?.email || localStorage.getItem('user_email') || '';
-      const driverId = currentUser?.id || currentUser?._id || storedUser?.id || storedUser?._id || localStorage.getItem('driver_id') || '';
+      const driverId = currentUser?.driverId || currentUser?.id || currentUser?._id || storedUser?.driverId || storedUser?.id || storedUser?._id || localStorage.getItem('driver_id') || '';
       const phone = currentUser?.phone || storedUser?.phone || '';
 
       const token = localStorage.getItem('tiffinlink_access_token') || localStorage.getItem('token') || localStorage.getItem('tiffinlink_token') || '';
@@ -90,10 +90,12 @@ export default function ActiveDeliveryView({
       if (json.success && json.activeDelivery) {
         setActiveDelivery(json.activeDelivery);
       } else {
-        setActiveDelivery(null);
+        // If query failed or returned no active delivery, do not overwrite if we already have initialActiveDelivery or active state
+        setActiveDelivery(prev => prev || initialActiveDelivery || null);
       }
     } catch (err) {
       console.error('Error fetching active delivery:', err);
+      setActiveDelivery(prev => prev || initialActiveDelivery || null);
     } finally {
       setLoading(false);
     }
@@ -101,7 +103,7 @@ export default function ActiveDeliveryView({
 
   useEffect(() => {
     fetchActiveDelivery();
-  }, [currentUser]);
+  }, [currentUser, initialActiveDelivery]);
 
   // Sync with prop updates without downgrading local active state
   useEffect(() => {

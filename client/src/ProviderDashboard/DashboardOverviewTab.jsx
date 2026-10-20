@@ -58,6 +58,7 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
   });
 
   const [liveRequest, setLiveRequest] = useState(null);
+  const [liveInquiries, setLiveInquiries] = useState([]);
 
   const [acceptingOrders, setAcceptingOrders] = useState(() => {
     return localStorage.getItem('tiffinlink_provider_accepting_orders') !== 'false';
@@ -68,6 +69,14 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
   // Report & Export Modal State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportFilter, setReportFilter] = useState('today'); // 'today' | 'yesterday' | '7days' | 'all'
+
+  // Dynamic Time Greeting Helper
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   // Date Check Helper Functions
   const isTodayDate = (dateInput) => {
@@ -218,8 +227,14 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
         }
 
         if (reqJson && reqJson.success && Array.isArray(reqJson.data)) {
-          const pendingList = reqJson.data.filter(r => r.status === 'pending');
+          const now = Date.now();
+          const pendingList = reqJson.data.filter(r => {
+            if (r.status && r.status !== 'pending') return false;
+            if (r.expiresAt && new Date(r.expiresAt).getTime() <= now) return false;
+            return true;
+          });
           setStats(prev => ({ ...prev, liveRequestsCount: pendingList.length }));
+          setLiveInquiries(pendingList);
 
           if (pendingList.length > 0) {
             const req = pendingList[0];
@@ -273,6 +288,10 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
           socket.on('order:cancelled', handleRealtimeSync);
           socket.on('capacity:updated', handleRealtimeSync);
           socket.on('delivery:status:updated', handleRealtimeSync);
+          socket.on('request:new', handleRealtimeSync);
+          socket.on('request:accepted', handleRealtimeSync);
+          socket.on('request:declined', handleRealtimeSync);
+          socket.on('request:cancelled', handleRealtimeSync);
 
           return () => {
             socket.off('order:created', handleRealtimeSync);
@@ -282,6 +301,10 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
             socket.off('order:cancelled', handleRealtimeSync);
             socket.off('capacity:updated', handleRealtimeSync);
             socket.off('delivery:status:updated', handleRealtimeSync);
+            socket.off('request:new', handleRealtimeSync);
+            socket.off('request:accepted', handleRealtimeSync);
+            socket.off('request:declined', handleRealtimeSync);
+            socket.off('request:cancelled', handleRealtimeSync);
           };
         }
       } catch (err) {
@@ -382,6 +405,26 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
     }, 1000);
   };
 
+  const handleAcceptSpecificRequest = async (inq) => {
+    if (!inq) return;
+    const targetId = inq._id || inq.id || inq.dbId;
+    setToastMessage('✓ Request Accepted! Adding order to kitchen queue...');
+    try {
+      if (targetId) {
+        await apiRequest(`/requests/${targetId}/accept`, {
+          method: 'POST'
+        });
+      }
+    } catch (err) {
+      console.error('Error accepting meal request:', err);
+    }
+    fetchDashboardDataFromDb();
+    setTimeout(() => {
+      setToastMessage(null);
+      if (onNavigateTab) onNavigateTab('orders-preparing');
+    }, 1000);
+  };
+
   return (
     <div className="space-y-6 animate-slide-up relative text-on-surface">
       
@@ -398,7 +441,7 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="font-headline-md text-headline-md text-on-surface font-normal">
-              Good afternoon, {providerName} 👋
+              {getGreeting()}, {providerName} 👋
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed-variant font-label-caps text-label-caps font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-onyx-black animate-pulse"></span>
@@ -565,7 +608,7 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
           </div>
           <div className="mt-4 pt-3 bg-surface-container-low -mx-5 -mb-5 px-5 py-2.5 flex items-center justify-between">
             <span className="font-label-caps text-[10px] text-secondary">
-              Based on {stats.reviewCount || 6} authentic reviews
+              Based on {stats.reviewCount !== undefined ? stats.reviewCount : 0} authentic reviews
             </span>
             <button 
               onClick={() => onNavigateTab && onNavigateTab('reviews')}
@@ -606,7 +649,7 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
             {/* Filter Pill Chips */}
             <div className="px-5 py-2.5 bg-surface-container-low flex items-center gap-2 overflow-x-auto border-b border-sand-neutral/30">
               <button className="px-3 py-1 rounded bg-onyx-black text-bone-white font-label-caps text-[11px] font-semibold whitespace-nowrap cursor-pointer">
-                All Today ({todaysOrders.length || stats.todaysOrdersCount || 2})
+                All Today ({todaysOrders.length})
               </button>
               <button 
                 onClick={() => onNavigateTab && onNavigateTab('orders-preparing')}
@@ -624,7 +667,7 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
                 onClick={() => onNavigateTab && onNavigateTab('orders-completed')}
                 className="px-3 py-1 rounded bg-surface-container hover:bg-surface-container-highest text-secondary hover:text-on-surface font-label-caps text-[11px] font-semibold transition-colors whitespace-nowrap cursor-pointer"
               >
-                Completed ({todaysOrders.filter(o => o.status === 'Completed').length || 2})
+                Completed ({todaysOrders.filter(o => o.status === 'Completed').length})
               </button>
             </div>
 
@@ -712,47 +755,83 @@ export default function DashboardOverviewTab({ currentUser, onNavigateTab }) {
                 <h3 className="font-headline-md text-[20px] text-on-surface font-normal">Live Meal Inquiries &amp; Nearby Demands</h3>
               </div>
               <span className="px-2 py-0.5 rounded bg-surface-container text-secondary font-label-caps text-[10px] font-semibold uppercase">
-                Bodakdev &amp; Satellite Radar
+                {currentUser?.address?.locality || currentUser?.address?.city || 'Local Area'} Radar
               </span>
             </div>
 
             <div className="space-y-3">
-              {/* Inquiry Request 1 */}
-              <div className="p-4 rounded-xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-sand-neutral/30">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-button-text text-[14px] font-semibold text-on-surface">Jain Swaminarayan Thali Request (4 pax)</span>
-                    <span className="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-label-caps text-[10px]">1.8 km</span>
-                  </div>
-                  <p className="font-body-md text-[13px] text-secondary">Bodakdev High St · Require 1:30 PM delivery · No onion/garlic strict</p>
-                </div>
-                <button 
-                  onClick={handleAcceptLiveRequest}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-onyx-black text-bone-white hover:bg-stone-800 transition-colors font-button-text text-button-text cursor-pointer"
-                >
-                  <span>Send Offer</span>
-                  <span className="material-symbols-outlined text-[16px]">send</span>
-                </button>
-              </div>
+              {liveInquiries.length > 0 ? (
+                liveInquiries.slice(0, 3).map((inq) => {
+                  const reqTitle = inq.mealType
+                    ? `${inq.mealType}${inq.category ? ` (${inq.category})` : ''}`
+                    : 'Custom Meal Request';
+                  const distDisplay = inq.distance || (inq.distanceKm ? `${inq.distanceKm} km` : '1.8 km');
+                  const descParts = [
+                    inq.customerAddress || inq.location || inq.deliveryArea,
+                    inq.time ? `Require ${inq.time} delivery` : null,
+                    inq.specialInstructions || null,
+                    inq.budget ? `Budget: ₹${inq.budget}` : null
+                  ].filter(Boolean);
 
-              {/* Inquiry Request 2 */}
-              <div className="p-4 rounded-xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-sand-neutral/30">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-button-text text-[14px] font-semibold text-on-surface">Healthy Low-Oil Dinner Plan (Monthly Subscription)</span>
-                    <span className="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-label-caps text-[10px]">2.4 km</span>
+                  return (
+                    <div 
+                      key={inq._id || inq.id}
+                      className="p-4 rounded-xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-sand-neutral/30 hover:border-sand-neutral/60 transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-button-text text-[14px] font-semibold text-on-surface">
+                            {reqTitle} {inq.quantity > 1 ? `(${inq.quantity} pax)` : ''}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-label-caps text-[10px]">
+                            {distDisplay}
+                          </span>
+                        </div>
+                        <p className="font-body-md text-[13px] text-secondary">
+                          {descParts.length > 0 ? descParts.join(' · ') : 'Direct meal inquiry from local diner'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={() => {
+                            if (onNavigateTab) {
+                              onNavigateTab('requests');
+                            } else {
+                              handleAcceptSpecificRequest(inq);
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-onyx-black text-bone-white hover:bg-stone-800 transition-colors font-button-text text-button-text cursor-pointer"
+                        >
+                          <span>Send Offer</span>
+                          <span className="material-symbols-outlined text-[16px]">send</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-6 rounded-xl bg-surface-container-low/60 border border-sand-neutral/30 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-surface-container mx-auto flex items-center justify-center text-clay-earth">
+                    <span className="material-symbols-outlined text-[20px] animate-pulse">radar</span>
                   </div>
-                  <p className="font-body-md text-[13px] text-secondary">Satellite Towers · Starting Tomorrow dinner · Trial requested</p>
+                  <p className="font-button-text text-sm font-semibold text-on-surface">Radar Active • Listening for Demands</p>
+                  <p className="font-body-md text-xs text-secondary max-w-md mx-auto">
+                    No open meal inquiries in your delivery zone at this moment. When diners submit requests, they will appear here in real time.
+                  </p>
                 </div>
-                <button 
-                  onClick={handleAcceptLiveRequest}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-onyx-black text-bone-white hover:bg-stone-800 transition-colors font-button-text text-button-text cursor-pointer"
+              )}
+            </div>
+
+            {liveInquiries.length > 3 && (
+              <div className="pt-1 text-center">
+                <button
+                  onClick={() => onNavigateTab && onNavigateTab('requests')}
+                  className="font-label-caps text-xs text-clay-earth font-bold hover:underline cursor-pointer"
                 >
-                  <span>Send Offer</span>
-                  <span className="material-symbols-outlined text-[16px]">send</span>
+                  View All {liveInquiries.length} Inquiries in Live Requests Tab →
                 </button>
               </div>
-            </div>
+            )}
           </div>
 
         </div>

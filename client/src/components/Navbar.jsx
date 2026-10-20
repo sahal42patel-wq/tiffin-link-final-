@@ -175,7 +175,8 @@ export default function Navbar({
     window.location.hash.includes('order-history') ||
     window.location.hash.includes('cancelled-orders')
   );
-  const showSolidNav = isScrolled || forceSolid || isMobileMenuOpen || isLightPage || isHashLight;
+  const isMinimalErrorNav = currentView === '500' || currentView === '503';
+  const showSolidNav = isScrolled || forceSolid || isMobileMenuOpen || isLightPage || isHashLight || isMinimalErrorNav;
 
   const handleProfileItemClick = (tab) => {
     setIsUserMenuOpen(false);
@@ -200,49 +201,62 @@ export default function Navbar({
       >
         {/* Brand Logo */}
         <div className="flex items-center gap-8">
-          <a 
-            className={`font-headline-md text-2xl md:text-headline-md tracking-tighter cursor-pointer ${
-              showSolidNav ? 'text-[#1a1a1a]' : 'text-bone-white'
-            }`} 
-            href={!currentUser ? '#' : (userRole === 'provider' ? '#provider' : ((userRole === 'delivery' || userRole === 'driver') ? '#delivery' : ((userRole === 'admin' || userRole === 'superadmin') ? '#admin' : '#')))} 
-            onClick={isFormOpen ? onCloseForm : () => setIsMobileMenuOpen(false)}
-          >
-            TiffinLink
-          </a>
+          {isMinimalErrorNav ? (
+            <span 
+              className={`font-headline-md text-2xl md:text-headline-md tracking-tighter select-none ${
+                showSolidNav ? 'text-[#1a1a1a]' : 'text-bone-white'
+              }`}
+            >
+              TiffinLink
+            </span>
+          ) : (
+            <a 
+              className={`font-headline-md text-2xl md:text-headline-md tracking-tighter cursor-pointer ${
+                showSolidNav ? 'text-[#1a1a1a]' : 'text-bone-white'
+              }`} 
+              href={!currentUser ? '#' : (userRole === 'provider' ? '#provider' : ((userRole === 'delivery' || userRole === 'driver') ? '#delivery' : ((userRole === 'admin' || userRole === 'superadmin') ? '#admin' : '#')))} 
+              onClick={isFormOpen ? onCloseForm : () => setIsMobileMenuOpen(false)}
+            >
+              TiffinLink
+            </a>
+          )}
 
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex space-x-8 lg:space-x-10 items-center">
-            {navLinks.map((link) => {
-              const isActive = (currentView === link.id) || (link.id === 'home' && currentView === 'home') || (window.location.hash === link.href);
-              return (
-                <a 
-                  key={link.label}
-                  className={`font-label-caps text-label-caps relative transition-colors cursor-pointer ${
-                    showSolidNav 
-                      ? (isActive ? 'text-[#1a1a1a] font-bold border-b-2 border-[#a0522d] pb-1' : 'text-[#4a4238] hover:text-[#1a1a1a]') 
-                      : (isActive ? 'text-white font-bold border-b-2 border-white pb-1' : 'text-bone-white/80 hover:text-white')
-                  }`} 
-                  href={link.href}
-                  onClick={(e) => {
-                    try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch { window.scrollTo(0, 0); }
-                    if (document.documentElement) document.documentElement.scrollTop = 0;
-                    if (document.body) document.body.scrollTop = 0;
-                    if (isFormOpen && onCloseForm) onCloseForm();
-                    if (link.id === 'admin-login') {
-                      e.preventDefault();
-                      if (onOpenLogin) onOpenLogin('login', 'admin');
-                    }
-                  }}
-                >
-                  {link.label}
-                </a>
-              );
-            })}
-          </div>
+          {/* Desktop Navigation Links (Completely Hidden on 500 & 503) */}
+          {!isMinimalErrorNav && (
+            <div className="hidden md:flex space-x-8 lg:space-x-10 items-center">
+              {navLinks.map((link) => {
+                const isActive = (currentView === link.id) || (link.id === 'home' && currentView === 'home') || (window.location.hash === link.href);
+                return (
+                  <a 
+                    key={link.label}
+                    className={`font-label-caps text-label-caps relative transition-colors cursor-pointer ${
+                      showSolidNav 
+                        ? (isActive ? 'text-[#1a1a1a] font-bold border-b-2 border-[#a0522d] pb-1' : 'text-[#4a4238] hover:text-[#1a1a1a]') 
+                        : (isActive ? 'text-white font-bold border-b-2 border-white pb-1' : 'text-bone-white/80 hover:text-white')
+                    }`} 
+                    href={link.href}
+                    onClick={(e) => {
+                      try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch { window.scrollTo(0, 0); }
+                      if (document.documentElement) document.documentElement.scrollTop = 0;
+                      if (document.body) document.body.scrollTop = 0;
+                      if (isFormOpen && onCloseForm) onCloseForm();
+                      if (link.id === 'admin-login') {
+                        e.preventDefault();
+                        if (onOpenLogin) onOpenLogin('login', 'admin');
+                      }
+                    }}
+                  >
+                    {link.label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Right Section: Public Auth Buttons OR Role-specific Authenticated Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        {/* Right Section: Public Auth Buttons OR Role-specific Authenticated Controls (Hidden on 500 & 503) */}
+        {!isMinimalErrorNav && (
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
           
           {/* Universal Theme Mode Quick Switcher (System Default, Light, Dark) */}
           <div className="relative" ref={themeMenuRef}>
@@ -664,10 +678,11 @@ export default function Navbar({
             )}
           </button>
         </div>
+        )}
       </nav>
 
-      {/* Mobile Off-Canvas Navigation Drawer */}
-      {isMobileMenuOpen && (
+      {/* Mobile Off-Canvas Navigation Drawer (Hidden on 500 & 503) */}
+      {!isMinimalErrorNav && isMobileMenuOpen && (
         <div className="fixed inset-0 top-[72px] bg-[#fbf9f5] text-[#1a1a1a] z-40 md:hidden flex flex-col p-6 overflow-y-auto animate-in fade-in slide-in-from-top-4 duration-200 border-b border-[#ded9d1] shadow-2xl">
           <div className="flex flex-col space-y-2 pt-2">
             

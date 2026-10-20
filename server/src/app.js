@@ -5,7 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const dotenv = require('dotenv');
 const routes = require('./routes');
-const { errorHandler } = require('./middleware/errorMiddleware');
+const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
 
 dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -50,6 +50,10 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// API 404 Handler for undefined routes (returns JSON, not HTML)
+app.use('/api', notFoundHandler);
+app.use(notFoundHandler);
 
 // Centralized Error Handling Middleware
 app.use(errorHandler);

@@ -10,6 +10,13 @@ let isDeliveryAlertActive = false;
 let kitchenTimer = null;
 let isKitchenAlertActive = false;
 
+// Track active oscillator nodes to stop them immediately without dangling tones
+const activeOscillators = new Set();
+
+// Debounce & deduplication timestamps
+let lastKitchenAlertTime = 0;
+let lastDeliveryAlertTime = 0;
+
 const STORAGE_KEY = 'tiffinlink_sound_enabled';
 
 export const isSoundEnabled = () => {
@@ -27,7 +34,17 @@ export const setSoundEnabled = (enabled) => {
   }
 };
 
-const getAudioContext = () => {
+const stopAllActiveOscillators = () => {
+  activeOscillators.forEach(osc => {
+    try {
+      osc.stop();
+      osc.disconnect();
+    } catch (e) {}
+  });
+  activeOscillators.clear();
+};
+
+const getAudioContext = async () => {
   if (typeof window === 'undefined') return null;
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -36,7 +53,7 @@ const getAudioContext = () => {
       audioCtx = new AudioContextClass();
     }
     if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
+      await audioCtx.resume();
     }
     return audioCtx;
   } catch (e) {
@@ -47,12 +64,9 @@ const getAudioContext = () => {
 
 // Automatic user interaction unlock for browser autoplay policies
 if (typeof window !== 'undefined') {
-  const unlockAudio = () => {
+  const unlockAudio = async () => {
     try {
-      const ctx = getAudioContext();
-      if (ctx && ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-      }
+      await getAudioContext();
     } catch (e) {}
     window.removeEventListener('click', unlockAudio);
     window.removeEventListener('touchstart', unlockAudio);
@@ -66,14 +80,11 @@ if (typeof window !== 'undefined') {
 /**
  * Play pleasant multi-tone chime for Kitchen Providers when a new customer order arrives
  */
-export const playKitchenOrderSound = () => {
+export const playKitchenOrderSound = async () => {
   if (!isSoundEnabled()) return;
   try {
-    const ctx = getAudioContext();
+    const ctx = await getAudioContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
 
     const now = ctx.currentTime;
 
@@ -101,6 +112,11 @@ export const playKitchenOrderSound = () => {
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
 
+      activeOscillators.add(osc);
+      osc.onended = () => {
+        activeOscillators.delete(osc);
+      };
+
       osc.start(now + start);
       osc.stop(now + start + dur);
     });
@@ -115,6 +131,14 @@ export const playKitchenOrderSound = () => {
  */
 export const playKitchenAlertLoop = () => {
   if (!isSoundEnabled()) return;
+
+  const now = Date.now();
+  // Deduplicate triggers within 600ms (prevent double-ringing from twin socket events)
+  if (isKitchenAlertActive && (now - lastKitchenAlertTime < 600)) {
+    return;
+  }
+  lastKitchenAlertTime = now;
+
   stopKitchenAlertSound();
 
   isKitchenAlertActive = true;
@@ -138,21 +162,27 @@ export const stopKitchenAlertSound = () => {
     clearInterval(kitchenTimer);
     kitchenTimer = null;
   }
+  stopAllActiveOscillators();
 };
 
 /**
  * Play repeating urgent alert chime for Delivery Drivers when a new delivery request is broadcast
  */
-export const playDeliveryRequestSound = (durationSeconds = 60, onComplete) => {
+export const playDeliveryRequestSound = async (durationSeconds = 60, onComplete) => {
   if (!isSoundEnabled()) return;
+
+  const nowMs = Date.now();
+  // Prevent double-ringing within 750ms when twin socket broadcasts arrive
+  if (isDeliveryAlertActive && (nowMs - lastDeliveryAlertTime < 750)) {
+    return;
+  }
+  lastDeliveryAlertTime = nowMs;
+
   stopDeliveryRequestSound();
 
   try {
-    const ctx = getAudioContext();
+    const ctx = await getAudioContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
 
     isDeliveryAlertActive = true;
     let iteration = 0;
@@ -178,6 +208,8 @@ export const playDeliveryRequestSound = (durationSeconds = 60, onComplete) => {
       gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
       osc1.connect(gain1);
       gain1.connect(ctx.destination);
+      activeOscillators.add(osc1);
+      osc1.onended = () => activeOscillators.delete(osc1);
       osc1.start(now);
       osc1.stop(now + 0.28);
 
@@ -189,6 +221,8 @@ export const playDeliveryRequestSound = (durationSeconds = 60, onComplete) => {
       gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
+      activeOscillators.add(osc2);
+      osc2.onended = () => activeOscillators.delete(osc2);
       osc2.start(now + 0.14);
       osc2.stop(now + 0.48);
 
@@ -210,4 +244,5 @@ export const stopDeliveryRequestSound = () => {
     clearTimeout(deliveryTimer);
     deliveryTimer = null;
   }
+  stopAllActiveOscillators();
 };

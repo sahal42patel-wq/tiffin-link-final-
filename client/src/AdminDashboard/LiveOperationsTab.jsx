@@ -384,8 +384,8 @@ export default function LiveOperationsTab({ data: initialData, onNavigate }) {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="font-serif text-3xl md:text-4xl text-[#1a1a1a] tracking-tight">Live Operations</h1>
-                <span className="px-2.5 py-1 font-mono text-[11px] bg-[#1a1a1a] text-white uppercase tracking-widest">
-                  Real-time Sync
+                <span className="px-2.5 py-1 text-[11px] bg-[#1a1a1a] text-white uppercase tracking-widest font-semibold rounded">
+                  Active
                 </span>
               </div>
               <p className="text-[#665d52] text-[15px] mt-1 max-w-2xl">

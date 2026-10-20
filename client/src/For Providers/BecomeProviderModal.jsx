@@ -26,7 +26,7 @@ const getMax18Dob = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess }) {
+export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess, onOpenLegalModal }) {
   const getInitialFormState = () => ({
     fullName: '',
     email: '',
@@ -1770,7 +1770,30 @@ export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess }
                       required
                     />
                     <span className="font-body-md text-secondary group-hover:text-primary transition-colors select-none text-sm leading-relaxed">
-                      I have read and accepted the <span className="text-onyx-black underline underline-offset-2">Terms of Service</span> and <span className="text-onyx-black underline underline-offset-2">Privacy Policy</span>.
+                      I have read and accepted the{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenLegalModal && onOpenLegalModal('terms'); }} 
+                        className="text-onyx-black underline underline-offset-2 hover:text-clay-earth cursor-pointer inline font-medium"
+                      >
+                        Terms of Service
+                      </button>
+                      ,{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenLegalModal && onOpenLegalModal('provider-agreement'); }} 
+                        className="text-onyx-black underline underline-offset-2 hover:text-clay-earth cursor-pointer inline font-medium"
+                      >
+                        Provider Agreement & FSSAI Standards
+                      </button>
+                      , and{' '}
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenLegalModal && onOpenLegalModal('privacy-policy'); }} 
+                        className="text-onyx-black underline underline-offset-2 hover:text-clay-earth cursor-pointer inline font-medium"
+                      >
+                        Privacy Policy
+                      </button>.
                     </span>
                   </label>
                 </div>
@@ -1811,7 +1834,7 @@ export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess }
       )}
 
       {/* Website Footer */}
-      <Footer onOpenBecomeProviderModal={() => { onClose(); }} />
+      <Footer onOpenBecomeProviderModal={() => { onClose(); }} onOpenLegalModal={onOpenLegalModal} />
     </div>
   );
 }

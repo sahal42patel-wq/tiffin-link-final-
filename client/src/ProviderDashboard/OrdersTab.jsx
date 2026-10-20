@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, cleanErrorMessage } from '../services/api';
 import { getSocket } from '../services/socket';
 import { playKitchenOrderSound, stopKitchenAlertSound } from '../services/soundNotifier';
 const isDeliveryStatus = (st) => {
   const s = String(st || '').toLowerCase().trim();
-  return ['delivery', 'out for delivery', 'dispatched', 'in transit', 'driver assigned', 'picked up', 'arrived at customer', 'arrived at provider', 'searching drivers', 'delivery_requested'].includes(s);
+  return [
+    'delivery', 'out for delivery', 'dispatched', 'in transit', 
+    'driver assigned', 'picked up', 'arrived at customer', 
+    'arrived at provider', 'arrived_provider', 'arrived at pickup', 
+    'at kitchen', 'at_kitchen', 'searching drivers', 'delivery_requested'
+  ].includes(s);
 };
 
 const isPreparingStatus = (st) => {
@@ -86,7 +91,6 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             return;
           }
           fetchOrders(false);
-          playKitchenOrderSound();
         };
 
         const handleRealtimeOrderEvent = (data) => {
@@ -254,11 +258,11 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
           });
         }
       } else {
-        setError(json?.message || 'Unable to load orders');
+        setError(cleanErrorMessage(json?.message, 'Connection interrupted. Please check your internet connection and try again.'));
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
-      setError('Unable to load orders. Please check your connection.');
+      setError('Connection interrupted. Please check your internet connection and try again.');
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -687,7 +691,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
       {/* Toast Notification Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-[9999] bg-onyx-black text-bone-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 font-button-text text-button-text animate-bounce border border-sand-neutral/40">
-          <span className="material-symbols-outlined text-[18px] text-[#0A8B5F]">check_circle</span>
+          <span className="material-symbols-outlined text-[18px] text-bone-white">check_circle</span>
           <span className="font-bold">{toastMessage}</span>
         </div>
       )}
@@ -703,12 +707,6 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             <span className="text-onyx-black font-extrabold">
               {isReadyTab ? 'Ready' : isPreparingTab ? 'Preparing' : isNewOrdersTab ? 'New Orders' : `${activeStatusTab} Orders`}
             </span>
-          </div>
-          <div className="hidden xl:flex items-center gap-2 pl-3 border-l border-sand-neutral/60 text-[11px] font-mono text-secondary">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-            <span className="text-emerald-800 font-semibold uppercase">Live Updates Active</span>
-            <span className="text-sand-neutral">•</span>
-            <span>Real-Time Sync</span>
           </div>
         </div>
 
@@ -727,7 +725,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             <span>Alert Chime: {chimeEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
-          {/* Auto Refresh */}
+          {/* Refresh Orders */}
           <button
             type="button"
             onClick={() => {
@@ -736,8 +734,8 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-highest transition-colors text-xs font-label-caps text-on-surface border border-sand-neutral/40 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[16px]">sync</span>
-            <span>Auto-Sync (3s)</span>
+            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Refresh</span>
           </button>
 
           {/* Accepting Orders Status Badge */}
@@ -1508,9 +1506,8 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
             </div>
           )}
 
-          <div className="text-[11px] font-mono text-secondary flex items-center gap-1.5 font-semibold">
-            <span className="material-symbols-outlined text-[14px] text-emerald-700">sync</span>
-            <span>Real-time Order Feed Active</span>
+          <div className="text-[11px] font-label-caps text-secondary font-medium">
+            <span>{filteredOrders.length} {filteredOrders.length === 1 ? 'Order' : 'Orders'}</span>
           </div>
         </div>
       </div>
@@ -1855,7 +1852,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
 
                             {/* Quick Action */}
                             <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                              {ord.status === 'Completed' ? (
+                              {ord.status === 'Completed' || ord.status === 'Delivered' ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                   ✓ Completed
                                 </span>
@@ -1863,15 +1860,34 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                                   ✕ Cancelled
                                 </span>
-                              ) : ord.status === 'Delivery' || ord.status === 'Out for Delivery' || ord.status === 'In Transit' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateOrderStatus(ord.orderId, 'Completed')}
-                                  className="px-3 py-1.5 bg-onyx-black text-bone-white rounded-lg text-xs font-button-text hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer font-bold"
-                                >
-                                  Mark Delivered
-                                </button>
-                              ) : ord.status === 'Ready' || isReadyTab ? (
+                              ) : isDeliveryStatus(ord.status) || isDeliveryTab ? (
+                                ord.status === 'At Kitchen' || (ord.deliveryStatus || '').toLowerCase().includes('kitchen') || (ord.deliveryStatus || '').toLowerCase().includes('arrived') ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs" title="Driver is at kitchen waiting for pickup">
+                                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                      OTP: {ord.pickupOtp || '----'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      disabled={updatingOrderId === ord.orderId}
+                                      onClick={() => handleUpdateOrderStatus(ord.orderId, 'Completed')}
+                                      className="px-2.5 py-1 bg-onyx-black text-bone-white rounded-lg text-xs font-button-text hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer font-bold disabled:opacity-60"
+                                      title="Confirm Driver Handover & Delivery"
+                                    >
+                                      Delivered
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={updatingOrderId === ord.orderId}
+                                    onClick={() => handleUpdateOrderStatus(ord.orderId, 'Completed')}
+                                    className="px-3 py-1.5 bg-onyx-black text-bone-white rounded-lg text-xs font-button-text hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer font-bold disabled:opacity-60"
+                                  >
+                                    Mark Delivered
+                                  </button>
+                                )
+                              ) : isReadyStatus(ord.status) || isReadyTab ? (
                                 ord.deliveryMode.toLowerCase().includes('pickup') ? (
                                   <button
                                     type="button"
@@ -1897,7 +1913,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                     )}
                                   </button>
                                 )
-                              ) : ord.status === 'Preparing' || ord.status === 'In Prep' || isPreparingTab ? (
+                              ) : isPreparingStatus(ord.status) || isPreparingTab ? (
                                 <>
                                   <button
                                     type="button"
@@ -1915,7 +1931,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                     ✕
                                   </button>
                                 </>
-                              ) : (
+                              ) : isNewStatus(ord.status) || isNewOrdersTab ? (
                                 <>
                                   <button
                                     type="button"
@@ -1933,6 +1949,10 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                     ✕
                                   </button>
                                 </>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-surface-container text-secondary border border-sand-neutral/40">
+                                  {ord.status}
+                                </span>
                               )}
                             </td>
                           </>
@@ -2019,13 +2039,15 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                   ? 'Order fulfilled and completed.'
                   : selectedOrder.status === 'Cancelled' || selectedOrder.status === 'Rejected'
                     ? 'Order cancelled and archived.'
-                    : selectedOrder.status === 'Delivery' || selectedOrder.status === 'Out for Delivery' || selectedOrder.status === 'In Transit'
+                    : selectedOrder.status === 'At Kitchen' || (selectedOrder.deliveryStatus || '').toLowerCase().includes('kitchen') || (selectedOrder.deliveryStatus || '').toLowerCase().includes('arrived')
+                      ? 'Courier partner has arrived at your kitchen. Hand over tiffin packages using Courier Pickup OTP.'
+                    : selectedOrder.status === 'Delivery' || selectedOrder.status === 'Out for Delivery' || selectedOrder.status === 'In Transit' || isDeliveryStatus(selectedOrder.status)
                       ? 'Dispatched with delivery partner for customer dropoff.'
-                      : selectedOrder.status === 'Ready'
-                        ? 'Staged in Bay 1 / Bay 2. Heat-sealed and ready for courier pickup or customer takeaway.'
-                        : selectedOrder.status === 'Preparing' || selectedOrder.status === 'In Prep'
-                          ? 'Active in kitchen prep. Mark ready once all compartments are sealed.'
-                          : 'Auto-reject fallback if no confirmation within window to avoid kitchen bottleneck.'
+                    : selectedOrder.status === 'Ready' || isReadyStatus(selectedOrder.status)
+                      ? 'Staged in Bay 1 / Bay 2. Heat-sealed and ready for courier pickup or customer takeaway.'
+                    : selectedOrder.status === 'Preparing' || selectedOrder.status === 'In Prep' || isPreparingStatus(selectedOrder.status)
+                      ? 'Active in kitchen prep. Mark ready once all compartments are sealed.'
+                      : 'Auto-reject fallback if no confirmation within window to avoid kitchen bottleneck.'
                 }
               </p>
             </div>
@@ -2375,7 +2397,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                     <span>Cancel</span>
                   </button>
                 </div>
-              ) : (
+              ) : isNewStatus(selectedOrder.status) || isNewOrdersTab ? (
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -2394,7 +2416,12 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                     <span className="material-symbols-outlined text-[16px]">cancel</span>
                     <span>Decline</span>
                   </button>
-                  {/* Rejection Modal */}
+                </div>
+              ) : (
+                <div className="p-3 bg-surface-container-low border border-sand-neutral/40 rounded-xl text-center">
+                  <span className="text-xs font-bold text-secondary">
+                    Active Order Status: {selectedOrder.status}
+                  </span>
                 </div>
               )}
             </div>

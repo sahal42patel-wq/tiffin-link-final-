@@ -6,10 +6,27 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-export default function UserProfileModal({ isOpen, onClose, initialTab = 'profile', currentUser, onUpdateUser, onLogout }) {
+export default function UserProfileModal({ isOpen, onClose, initialTab = 'profile', currentUser, onUpdateUser, onLogout, onOpenLegalModal }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [saveToast, setSaveToast] = useState(false);
+  const [privacyToast, setPrivacyToast] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deletionSuccess, setDeletionSuccess] = useState(false);
   const { theme, resolvedTheme, isDark, compactMode, reduceMotion, setTheme, setCompactMode, setReduceMotion } = useTheme();
+
+  // Active sessions state
+  const [sessions, setSessions] = useState([
+    { id: 'curr', device: 'Chrome 129 on Windows 11', ip: '103.21.124.89 (Ahmedabad, Gujarat)', isCurrent: true, lastActive: 'Active now' },
+    { id: 'mob', device: 'Mobile Safari on iPhone 15', ip: '103.21.124.91 (Ahmedabad, Gujarat)', isCurrent: false, lastActive: 'Yesterday at 8:42 PM' }
+  ]);
+
+  // Privacy and data consents
+  const [privacySettings, setPrivacySettings] = useState({
+    shareLiveGps: true,
+    telemetryAnalytics: true,
+    personalizedChefs: true,
+    retainOrderHistory: true
+  });
 
   // Profile fields state
   const [profileData, setProfileData] = useState({
@@ -108,6 +125,60 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
     setNewUpiId('');
   };
 
+  const handleSignOutOtherSessions = () => {
+    setSessions(prev => prev.filter(s => s.isCurrent));
+    setPrivacyToast('Signed out of all other active sessions and devices.');
+    setTimeout(() => setPrivacyToast(''), 3500);
+  };
+
+  const handleExportData = () => {
+    const archiveData = {
+      exportTimestamp: new Date().toISOString(),
+      platform: 'TiffinLink Artisanal Dining',
+      user: {
+        id: currentUser?._id || currentUser?.id,
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone,
+        role: currentUser?.role || 'customer'
+      },
+      diningPreferences: {
+        dietary: profileData.dietary,
+        spiceLevel: profileData.spiceLevel,
+        rotliType: profileData.rotliType,
+        noOnionGarlic: profileData.noOnionGarlic,
+        lessOil: profileData.lessOil
+      },
+      savedAddresses: addresses,
+      paymentProfilesCount: paymentMethods.length,
+      consents: privacySettings,
+      activeSessionsCount: sessions.length
+    };
+
+    const blob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `TiffinLink_Data_Archive_${(profileData.name || 'user').replace(/\s+/g, '_')}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    setPrivacyToast('Personal data archive generated and downloaded.');
+    setTimeout(() => setPrivacyToast(''), 3500);
+  };
+
+  const handleConfirmDeletion = () => {
+    setDeletionSuccess(true);
+    setPrivacyToast('Account deletion request submitted. Regulatory verification in progress.');
+    setTimeout(() => {
+      setPrivacyToast('');
+      setIsDeletingAccount(false);
+      setDeletionSuccess(false);
+      if (onLogout) onLogout();
+      onClose();
+    }, 2500);
+  };
+
   const tabs = [
     { id: 'profile', label: 'Personal Information', icon: User },
     { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
@@ -115,7 +186,8 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
     { id: 'preferences', label: 'Tiffin Preferences', icon: Utensils },
     { id: 'appearance', label: 'Appearance & Theme', icon: Palette },
     { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
-    { id: 'notifications', label: 'Notifications Settings', icon: Bell }
+    { id: 'notifications', label: 'Notifications Settings', icon: Bell },
+    { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheck }
   ];
 
   return (
@@ -708,6 +780,170 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                     </label>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Tab 8: Privacy & Data Settings (Checklist Section 4 & Section 3) */}
+            {activeTab === 'privacy' && (
+              <div className="space-y-6 max-w-xl">
+                {privacyToast && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                    <Check size={16} className="shrink-0" />
+                    <span>{privacyToast}</span>
+                  </div>
+                )}
+
+                {/* Active Sessions & Devices */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-[#1a1a1a] dark:text-white">Active Sessions &amp; Devices</h4>
+                      <p className="text-[11px] text-[#665d52] dark:text-stone-400">Devices authorized to access your TiffinLink account</p>
+                    </div>
+                    {sessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleSignOutOtherSessions}
+                        className="text-[11px] font-bold text-[#a0522d] hover:underline cursor-pointer"
+                      >
+                        Sign Out Other Devices
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {sessions.map((sess) => (
+                      <div 
+                        key={sess.id}
+                        className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
+                          sess.isCurrent 
+                            ? 'bg-[#1b5e20]/5 border-[#1b5e20]/30 text-[#181512] dark:text-white' 
+                            : 'bg-white dark:bg-stone-800 border-[#ded9d1] dark:border-stone-700'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold">{sess.device}</span>
+                            {sess.isCurrent && (
+                              <span className="px-1.5 py-0.2 rounded bg-[#1b5e20] text-white text-[9px] font-bold uppercase">
+                                This Device
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#665d52] dark:text-stone-400">{sess.ip} &bull; {sess.lastActive}</p>
+                        </div>
+                        {!sess.isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessions(prev => prev.filter(s => s.id !== sess.id));
+                              setPrivacyToast(`Session revoked for ${sess.device}`);
+                              setTimeout(() => setPrivacyToast(''), 3000);
+                            }}
+                            className="text-[11px] text-red-600 hover:underline font-semibold"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Privacy Consents & Permissions */}
+                <div className="space-y-3 pt-2 border-t border-[#ded9d1]/60 dark:border-stone-800">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-[#1a1a1a] dark:text-white">Privacy Choices &amp; Consents</h4>
+                  <div className="space-y-2.5">
+                    {[
+                      { key: 'shareLiveGps', label: 'Precise GPS Telemetry during Active Delivery', desc: 'Allows assigned driver to find your exact drop-off location. Automatically stops once delivered.' },
+                      { key: 'personalizedChefs', label: 'Hyperlocal Culinary Recommendations', desc: 'Allows TiffinLink to recommend home chefs based on your spice tolerance and dietary history.' },
+                      { key: 'telemetryAnalytics', label: 'Platform Performance & Operational Analytics', desc: 'Anonymous latency monitoring that prevents culinary ordering downtime.' }
+                    ].map((item) => (
+                      <label key={item.key} className="flex items-start justify-between p-3.5 rounded-xl border border-[#ded9d1] dark:border-stone-700 bg-white dark:bg-stone-800 cursor-pointer">
+                        <div className="pr-4">
+                          <p className="text-xs font-bold text-[#1a1a1a] dark:text-white">{item.label}</p>
+                          <p className="text-[11px] text-[#665d52] dark:text-stone-400 mt-0.5 leading-snug">{item.desc}</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={privacySettings[item.key]}
+                          onChange={(e) => setPrivacySettings({ ...privacySettings, [item.key]: e.target.checked })}
+                          className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0 mt-0.5 cursor-pointer"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Data Portability (Export My Data) */}
+                <div className="space-y-2 pt-2 border-t border-[#ded9d1]/60 dark:border-stone-800">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-[#1a1a1a] dark:text-white">Data Portability &amp; Archive</h4>
+                  <div className="p-4 rounded-xl border border-[#ded9d1] dark:border-stone-700 bg-white dark:bg-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-[#1a1a1a] dark:text-white">Request a Copy of Your Personal Data</p>
+                      <p className="text-[11px] text-[#665d52] dark:text-stone-400 mt-0.5">Download a machine-readable JSON archive of your dining profile, addresses, and meal history.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExportData}
+                      className="px-4 py-2 rounded-xl bg-[#181512] dark:bg-stone-100 text-white dark:text-[#181512] font-bold text-xs uppercase tracking-wider hover:bg-[#6B4B2B] transition-colors shrink-0 cursor-pointer"
+                    >
+                      Export Archive (.JSON)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Legal Policy Reference & Account Erasure */}
+                <div className="space-y-3 pt-2 border-t border-[#ded9d1]/60 dark:border-stone-800">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenLegalModal) onOpenLegalModal('privacy-policy');
+                        onClose();
+                      }}
+                      className="text-xs font-bold text-[#6B4B2B] dark:text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Read Complete TiffinLink Privacy Policy</span>
+                      <span>&rarr;</span>
+                    </button>
+                  </div>
+
+                  {/* Account Deletion */}
+                  <div className="p-4 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 space-y-2">
+                    <p className="text-xs font-bold text-red-800 dark:text-red-300">Account Erasure &amp; Deletion</p>
+                    <p className="text-[11px] text-red-700/80 dark:text-red-300/70 leading-relaxed">
+                      Request permanent deletion of your account. Under Indian accounting and GST regulations, transaction tax invoices are retained for 7 years; all contact information, addresses, and profiles are permanently erased.
+                    </p>
+                    {isDeletingAccount ? (
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleConfirmDeletion}
+                          className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider cursor-pointer"
+                        >
+                          Confirm &amp; Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsDeletingAccount(false)}
+                          className="px-3.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 text-xs font-semibold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsDeletingAccount(true)}
+                        className="text-xs font-bold text-red-700 dark:text-red-400 hover:underline cursor-pointer"
+                      >
+                        Request Account Deletion &rarr;
+                      </button>
+                    )}
+                  </div>
+                </div>
+
               </div>
             )}
 

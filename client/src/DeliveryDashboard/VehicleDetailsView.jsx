@@ -34,7 +34,7 @@ export default function VehicleDetailsView({ currentUser, onNavigateTab, onShowT
     brand: '',
     model: '',
     fuelType: 'Petrol',
-    manufacturingYear: '2024',
+    manufacturingYear: '2026',
     color: '',
     status: 'ACTIVE FLEET VEHICLE',
     rcStatus: 'PENDING',

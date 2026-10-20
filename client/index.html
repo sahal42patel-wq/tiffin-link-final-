@@ -38,6 +38,60 @@
         }
       } catch (e) {}
     })();
+
+    // ─── COMPLETE DEVTOOLS & INSPECT MODE SHIELD ───
+    (function blockInspectMode() {
+      // 1. Block Mouse Right-Click (Context Menu across all browsers)
+      document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }, { capture: true });
+
+      // 2. Block Keyboard Shortcuts (Windows, Linux, macOS)
+      document.addEventListener('keydown', function (e) {
+        var key = (e.key || '').toUpperCase();
+        var code = e.keyCode || e.which;
+        var isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+        // F12 key (Windows, Linux, macOS)
+        if (key === 'F12' || code === 123) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
+        // Ctrl + Shift + [I, C, J, K, Z, F] or Cmd + Option + [I, C, J, K, Z, F] or Cmd + Shift + [C, I, K, Z]
+        if (isCtrlOrCmd && (e.shiftKey || e.altKey)) {
+          if (['I', 'C', 'J', 'K', 'Z', 'F'].includes(key) || [73, 67, 74, 75, 90, 70].includes(code)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+
+        // View Page Source: Ctrl + U / Cmd + U / Cmd + Option + U
+        if (isCtrlOrCmd && (key === 'U' || code === 85)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
+        // Save Page Source: Ctrl + S / Cmd + S
+        if (isCtrlOrCmd && (key === 'S' || code === 83)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, { capture: true });
+
+      // 3. Block Drag-to-Inspect / Dropping media into browser tabs
+      document.addEventListener('dragstart', function (e) {
+        if (e.target && (e.target.nodeName === 'IMG' || e.target.nodeName === 'VIDEO')) {
+          e.preventDefault();
+        }
+      }, { capture: true });
+    })();
   </script>
   <script id="tailwind-config">
     tailwind.config = {
@@ -480,6 +534,25 @@
           }
         }
 
+        // Ctrl/Cmd + (C = Copy, V = Paste, X = Cut, A = Select All)
+        if (isCtrlOrCmd && !e.shiftKey && !e.altKey) {
+          var kCopy = (e.key || '').toUpperCase();
+          var cCopy = e.keyCode;
+          if (kCopy === 'C' || kCopy === 'V' || kCopy === 'X' || kCopy === 'A' ||
+              cCopy === 67 || cCopy === 86 || cCopy === 88 || cCopy === 65) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+
+        // Windows alternate Copy/Paste (Ctrl+Insert / Shift+Insert)
+        if ((e.ctrlKey || e.shiftKey) && (e.key === 'Insert' || e.keyCode === 45)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
         // macOS Alt + Cmd + (I, J, C)
         if (e.altKey && (e.metaKey || e.ctrlKey)) {
           var k3 = (e.key || '').toUpperCase();
@@ -510,12 +583,44 @@
           e.preventDefault();
         }
       }, { passive: false });
+
+      // 5. Turn off copy, cut, paste, and text selecting website-wide
+      var blockCopyPaste = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      };
+      window.addEventListener('copy', blockCopyPaste, true);
+      document.addEventListener('copy', blockCopyPaste, true);
+      window.addEventListener('cut', blockCopyPaste, true);
+      document.addEventListener('cut', blockCopyPaste, true);
+      window.addEventListener('paste', blockCopyPaste, true);
+      document.addEventListener('paste', blockCopyPaste, true);
+
+      window.addEventListener('selectstart', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+          return true;
+        }
+        e.preventDefault();
+        return false;
+      }, true);
+      document.addEventListener('selectstart', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+          return true;
+        }
+        e.preventDefault();
+        return false;
+      }, true);
     })();
   </script>
 </head>
 
 <body
-  class="bg-bone-white text-onyx-black font-body-md overflow-x-hidden selection:bg-onyx-black selection:text-bone-white dark:bg-[#111113] dark:text-[#F4F4F6] transition-colors duration-200">
+  oncopy="return false;"
+  oncut="return false;"
+  onpaste="return false;"
+  onselectstart="return false;"
+  class="bg-bone-white text-onyx-black font-body-md overflow-x-hidden select-none selection:bg-transparent selection:text-inherit dark:bg-[#111113] dark:text-[#F4F4F6] transition-colors duration-200">
   <div class="custom-cursor hidden md:block" id="cursor"></div>
   <div class="custom-cursor-follower hidden md:block" id="cursor-follower">
     <span class="custom-cursor-text" id="cursor-text"></span>

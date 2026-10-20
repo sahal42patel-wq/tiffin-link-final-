@@ -685,23 +685,34 @@ const getProviderDashboardStats = async (req, res) => {
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const activeKitchenStatuses = [
+      // Active kitchen statuses for orders currently in progress
+      const inProgressStatuses = [
         'New', 'PENDING', 'Pending', 'CONFIRMED', 'Confirmed',
         'ACCEPTED', 'Accepted', 'PREPARING', 'Preparing',
         'READY_FOR_PICKUP', 'Ready', 'DELIVERY_REQUESTED',
         'Delivery', 'Dispatched', 'In Transit', 'At Kitchen',
         'DRIVER_ASSIGNED', 'PICKED_UP', 'Picked Up',
-        'OUT_FOR_DELIVERY', 'Out for Delivery', 'ARRIVED', 'DELIVERED', 'Completed'
+        'OUT_FOR_DELIVERY', 'Out for Delivery', 'ARRIVED'
       ];
 
+      // Strictly orders placed today (excluding cancelled / rejected)
       const todayOrderMatch = {
+        providerId,
+        status: { $nin: ['Cancelled', 'CANCELLED', 'REJECTED', 'Rejected', 'PAYMENT_FAILED', 'DELIVERY_FAILED'] },
+        createdAt: { $gte: startOfDay, $lte: endOfDay }
+      };
+
+      // Orders for Today's Active Orders board:
+      // Orders created today OR orders currently still active in progress
+      const todaysOrdersQuery = {
         providerId,
         status: { $nin: ['Cancelled', 'CANCELLED', 'REJECTED', 'Rejected', 'PAYMENT_FAILED', 'DELIVERY_FAILED'] },
         $or: [
           { createdAt: { $gte: startOfDay, $lte: endOfDay } },
-          { createdAt: { $gte: twentyFourHoursAgo } },
-          { status: { $in: activeKitchenStatuses } }
+          { 
+            status: { $in: inProgressStatuses },
+            createdAt: { $gte: new Date(now.getTime() - 48 * 60 * 60 * 1000) }
+          }
         ]
       };
 
@@ -717,9 +728,9 @@ const getProviderDashboardStats = async (req, res) => {
       ] = await Promise.all([
         Provider.findById(providerId).select('isAcceptingOrders maxMeals').lean(),
         Tiffin.countDocuments({ providerId }),
-        Order.find({ providerId })
+        Order.find(todaysOrdersQuery)
           .sort({ createdAt: -1 })
-          .limit(10)
+          .limit(20)
           .select('orderId customerName totalAmount quantity tiffinName status deliveryPartnerName createdAt items deliverySlot')
           .lean(),
         Order.aggregate([
@@ -822,13 +833,15 @@ const getProviderDashboardStats = async (req, res) => {
         if (o.status === 'Preparing') statusBg = 'bg-indigo-50 text-indigo-700 border-indigo-200';
         if (o.status === 'Ready') statusBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         if (o.status === 'New') statusBg = 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        if (o.status === 'Completed' || o.status === 'Delivered') statusBg = 'bg-secondary-container text-on-secondary-fixed-variant';
 
         return {
           id: o.orderId || `#${1024 + i}`,
           customer: o.customerName || 'Customer',
-          amount: o.totalAmount || 240,
+          amount: o.totalAmount !== undefined ? o.totalAmount : 0,
           qtyText: `${o.quantity || 1} x ${o.tiffinName || 'Tiffin'}`,
-          status: o.status || 'Preparing',
+          status: o.status || 'New',
+          createdAt: o.createdAt,
           statusBg
         };
       });

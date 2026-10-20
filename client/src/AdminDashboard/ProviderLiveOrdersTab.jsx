@@ -173,7 +173,7 @@ export default function ProviderLiveOrdersTab({ onNavigate, onOpenProvider360 })
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f5f3ef] border border-[#ded9d1]/50">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#665d52]">Auto-sync</span>
+              <span className="text-[11px] font-label-caps uppercase tracking-wider text-[#665d52]">Live Feed</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"

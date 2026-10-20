@@ -3,45 +3,73 @@
 /* Global text selection reset */
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-body,
+/* Complete Website-wide Text Selection & Copy-Paste Restriction */
+*,
+*::before,
+*::after,
 html,
+body,
 #root {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
   user-select: none !important;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  -webkit-touch-callout: none !important;
 }
 
-/* Re-enable text selection for form inputs and textareas */
+/* Allow text typing in form inputs, but disable text selection highlighting */
 input,
 textarea,
 [contenteditable="true"] {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
+  -webkit-user-select: auto !important;
+  -moz-user-select: auto !important;
+  -ms-user-select: auto !important;
+  user-select: auto !important;
 }
 
-/* Premium Scrollbar */
+/* Strip selection background and color everywhere */
+::selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* Premium Scrollbar - Neutral Artisanal Stone */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F4F7F5;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C5DDD2;
+  background: #ded9d1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0A8B5F;
+  background: #1b1c1a;
+}
+
+/* Hide scrollbar completely on tabs, navs, and horizontal scroll containers */
+.no-scrollbar::-webkit-scrollbar,
+nav::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+nav,
+.overflow-x-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Visible Custom Scrollbar for Admin Sidebar Nav */
@@ -172,16 +200,16 @@ video::-webkit-media-controls {
 
 .food-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -6px rgba(10, 139, 95, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.03);
-  border-color: #C5DDD2;
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.05), 0 4px 8px -4px rgba(0, 0, 0, 0.02);
+  border-color: #ded9d1;
 }
 
 /* Premium Focus Rings */
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #0A8B5F !important;
-  box-shadow: 0 0 0 3px rgba(10, 139, 95, 0.12) !important;
+  border-color: #1b1c1a !important;
+  box-shadow: 0 0 0 2px rgba(27, 28, 26, 0.08) !important;
 }
 
 /* ===================================================

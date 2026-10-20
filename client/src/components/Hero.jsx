@@ -22,7 +22,7 @@ export default function Hero() {
       </div>
       <div className="relative z-10 text-center px-4 sm:px-6 md:px-margin-desktop animate-fade-in" id="hero-content">
         <p className="font-label-caps text-xs sm:text-sm mb-4 sm:mb-6 text-[#F3E5AB] font-semibold tracking-[0.25em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-          EST. 2024 — ARTISANAL DINING
+          EST. 2026 — ARTISANAL DINING
         </p>
         <h1 className="font-display-lg text-4xl sm:text-7xl lg:text-display-lg text-white max-w-5xl mb-6 lg:mb-12 leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
           Home-cooked meals, exactly when you need.

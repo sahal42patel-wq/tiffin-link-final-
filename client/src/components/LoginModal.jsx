@@ -8,7 +8,8 @@ export default function LoginModal({
   initialMode = 'login',
   onOpenBecomeProviderModal,
   onOpenBecomeDeliveryPartnerModal,
-  onLoginSuccess
+  onLoginSuccess,
+  onOpenLegalModal
 }) {
   // Active Role Tab: 'customer' | 'provider' | 'delivery'
   const [activeRole, setActiveRole] = useState(initialRole);
@@ -1118,11 +1119,29 @@ export default function LoginModal({
               <p>By continuing, you agree to our</p>
             </div>
             <div className="flex justify-center gap-4 text-[11px] font-label-caps text-primary">
-              <a className="underline-animate text-[11px]" href="#terms">Terms of service</a>
+              <button 
+                type="button" 
+                onClick={() => onOpenLegalModal ? onOpenLegalModal(activeRole === 'provider' ? 'provider-agreement' : (activeRole === 'delivery' ? 'delivery-partner-agreement' : 'customer-terms')) : null}
+                className="underline-animate text-[11px] cursor-pointer bg-transparent border-none p-0 text-primary font-semibold"
+              >
+                Terms of Service
+              </button>
               <span className="opacity-40">|</span>
-              <a className="underline-animate text-[11px]" href="#privacy">Privacy Policy</a>
+              <button 
+                type="button" 
+                onClick={() => onOpenLegalModal ? onOpenLegalModal('privacy-policy') : null}
+                className="underline-animate text-[11px] cursor-pointer bg-transparent border-none p-0 text-primary font-semibold"
+              >
+                Privacy Policy
+              </button>
               <span className="opacity-40">|</span>
-              <a className="underline-animate text-[11px]" href="#conduct">Code of Conduct</a>
+              <button 
+                type="button" 
+                onClick={() => onOpenLegalModal ? onOpenLegalModal('community-guidelines') : null}
+                className="underline-animate text-[11px] cursor-pointer bg-transparent border-none p-0 text-primary font-semibold"
+              >
+                Community Standards
+              </button>
             </div>
           </div>
         </div>

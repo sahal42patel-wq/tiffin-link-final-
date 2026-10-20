@@ -47,32 +47,34 @@ export default function CommunityRecipeModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-lg bg-white dark:bg-stone-900 rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <ChefHat className="w-6 h-6 text-white" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-onyx-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-bone-white dark:bg-[#18181B] rounded-2xl shadow-2xl border border-sand-neutral/80 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header - Editorial Artisanal Theme */}
+        <div className="p-6 bg-surface-container dark:bg-stone-900 border-b border-sand-neutral/80 dark:border-stone-800 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-label-caps text-[11px] font-bold tracking-[0.25em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase flex items-center gap-1.5">
+                <ChefHat className="w-3.5 h-3.5" />
+                CULINARY CREATOR VAULT
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-label-caps tracking-wider uppercase bg-sand-neutral/80 dark:bg-stone-800 text-onyx-black dark:text-stone-300 border border-sand-neutral">
+                EARN ROYALTIES
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Community Chef Spotlight</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-widest">
-                  Earn Royalties
-                </span>
-              </div>
-              <p className="text-xs text-amber-100">
-                Share your family heirloom recipe & earn credits whenever kitchens cook it
-              </p>
-            </div>
+            <h3 className="font-headline-md font-serif text-2xl sm:text-3xl text-onyx-black dark:text-bone-white font-normal leading-tight">
+              Community Chef Spotlight
+            </h3>
+            <p className="font-body-md text-xs sm:text-sm text-secondary dark:text-stone-400">
+              Share your family heirloom recipe &amp; earn royalty credits whenever partner kitchens cook it.
+            </p>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white transition"
+            aria-label="Close modal"
+            className="w-9 h-9 rounded-full bg-surface-container-low hover:bg-sand-neutral/80 dark:bg-stone-800 dark:hover:bg-stone-700 border border-sand-neutral/80 dark:border-stone-700 flex items-center justify-center text-onyx-black dark:text-stone-200 transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -96,12 +98,12 @@ export default function CommunityRecipeModal({ isOpen, onClose }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-center gap-3">
-                <Coins className="w-6 h-6 text-amber-600 shrink-0" />
-                <div className="text-xs">
-                  <span className="font-bold text-amber-900 dark:text-amber-200">Earn ₹5 - ₹10 Per Tiffin:</span>{' '}
-                  <span className="text-amber-700 dark:text-amber-300">
-                    Over ₹45,000 paid out this month to grandmother & home-chef contributors across Gujarat!
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest dark:bg-[#1E1E22] border border-sand-neutral/80 dark:border-stone-800 flex items-center gap-3 shadow-2xs">
+                <Coins className="w-5 h-5 text-[#6B4B2B] dark:text-[#D4AF37] shrink-0" />
+                <div className="text-xs font-body-md">
+                  <span className="font-bold text-onyx-black dark:text-stone-200">Earn ₹5 - ₹10 Per Tiffin:</span>{' '}
+                  <span className="text-secondary dark:text-stone-400">
+                    Over ₹45,000 paid out this month to grandmother &amp; home-chef contributors across Gujarat!
                   </span>
                 </div>
               </div>
@@ -201,9 +203,9 @@ export default function CommunityRecipeModal({ isOpen, onClose }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs tracking-wider transition shadow"
+                className="w-full py-3.5 px-6 rounded-lg bg-onyx-black hover:bg-[#6B4B2B] text-bone-white font-button-text font-medium text-xs tracking-[0.15em] uppercase transition-all duration-300 shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
               >
-                {loading ? 'Submitting Recipe...' : 'Submit Recipe & Register for Royalties'}
+                {loading ? 'SUBMITTING RECIPE...' : 'SUBMIT RECIPE & REGISTER FOR ROYALTIES'}
               </button>
             </form>
           )}

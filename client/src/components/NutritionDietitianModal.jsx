@@ -81,58 +81,59 @@ export default function NutritionDietitianModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-xl bg-white dark:bg-stone-900 rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <HeartPulse className="w-6 h-6 text-white" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-onyx-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-xl bg-bone-white dark:bg-[#18181B] rounded-2xl shadow-2xl border border-sand-neutral/80 dark:border-stone-800 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header - Editorial Artisanal Theme */}
+        <div className="p-6 bg-surface-container dark:bg-stone-900 border-b border-sand-neutral/80 dark:border-stone-800 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-label-caps text-[11px] font-bold tracking-[0.25em] text-[#6B4B2B] dark:text-[#D4AF37] uppercase flex items-center gap-1.5">
+                <HeartPulse className="w-3.5 h-3.5" />
+                SATVIK WELLNESS CONCIERGE
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-label-caps tracking-wider uppercase bg-sand-neutral/80 dark:bg-stone-800 text-onyx-black dark:text-stone-300 border border-sand-neutral">
+                CERTIFIED EXPERTS
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Nutrition & Wellness Hub</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-widest">
-                  Satvik Fit
-                </span>
-              </div>
-              <p className="text-xs text-emerald-100">
-                Live macro breakdown & 1-on-1 consultations with verified Satvik dietitians
-              </p>
-            </div>
+            <h3 className="font-headline-md font-serif text-2xl sm:text-3xl text-onyx-black dark:text-bone-white font-normal leading-tight">
+              Nutrition &amp; Wellness Hub
+            </h3>
+            <p className="font-body-md text-xs sm:text-sm text-secondary dark:text-stone-400">
+              Live nutritional breakdown &amp; 1-on-1 consultations with verified Satvik dietitians.
+            </p>
           </div>
-
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white transition"
+            aria-label="Close modal"
+            className="w-9 h-9 rounded-full bg-surface-container-low hover:bg-sand-neutral/80 dark:bg-stone-800 dark:hover:bg-stone-700 border border-sand-neutral/80 dark:border-stone-700 flex items-center justify-center text-onyx-black dark:text-stone-200 transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-stone-100 dark:border-stone-800 px-5 pt-3 bg-white dark:bg-stone-900">
+        <div className="flex border-b border-sand-neutral/80 dark:border-stone-800 px-6 pt-3 bg-surface-container-low/60 dark:bg-stone-900/40">
           <button
             onClick={() => setTab('tracker')}
-            className={`pb-3 px-3 text-xs font-bold transition flex items-center gap-2 relative ${
+            className={`pb-3 px-3 text-xs font-bold transition flex items-center gap-2 relative cursor-pointer ${
               tab === 'tracker'
-                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'
+                ? 'text-onyx-black dark:text-bone-white border-b-2 border-onyx-black dark:border-sand-neutral font-label-caps'
+                : 'text-secondary hover:text-onyx-black dark:text-stone-400 font-label-caps'
             }`}
           >
-            <Activity className="w-4 h-4" />
+            <Activity className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Today&apos;s Meal Nutrition</span>
           </button>
 
           <button
             onClick={() => setTab('consult')}
-            className={`pb-3 px-3 text-xs font-bold transition flex items-center gap-2 relative ${
+            className={`pb-3 px-3 text-xs font-bold transition flex items-center gap-2 relative cursor-pointer ${
               tab === 'consult'
-                ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'
+                ? 'text-onyx-black dark:text-bone-white border-b-2 border-onyx-black dark:border-sand-neutral font-label-caps'
+                : 'text-secondary hover:text-onyx-black dark:text-stone-400 font-label-caps'
             }`}
           >
-            <UserCheck className="w-4 h-4" />
+            <UserCheck className="w-4 h-4 text-[#6B4B2B] dark:text-[#D4AF37]" />
             <span>Expert Dietitian Consult</span>
           </button>
         </div>
@@ -302,9 +303,9 @@ export default function NutritionDietitianModal({ isOpen, onClose }) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs tracking-wider transition shadow"
+                    className="w-full py-3.5 px-6 rounded-lg bg-onyx-black hover:bg-[#6B4B2B] text-bone-white font-button-text font-medium text-xs tracking-[0.15em] uppercase transition-all duration-300 shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                   >
-                    {loading ? 'Confirming...' : 'Schedule 1-on-1 Nutritionist Consult'}
+                    {loading ? 'CONFIRMING...' : 'SCHEDULE 1-ON-1 NUTRITIONIST CONSULT'}
                   </button>
                 </form>
               )}
