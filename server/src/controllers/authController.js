@@ -140,8 +140,12 @@ const login = async (req, res) => {
   try {
     let { email, password } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Please provide email' });
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email address' });
+    }
+
+    if (password !== undefined && typeof password !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid password format' });
     }
 
     email = email.trim().toLowerCase();

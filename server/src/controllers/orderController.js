@@ -569,7 +569,7 @@ const deleteOrder = async (req, res) => {
   }
 };
 
-// @desc    Get single order by ID with authoritative financial snapshot
+// @desc    Get single order by ID with authoritative financial snapshot & ownership authorization
 // @route   GET /api/orders/:id
 const getOrderById = async (req, res) => {
   try {
@@ -581,6 +581,37 @@ const getOrderById = async (req, res) => {
       if (!ord) {
         return res.status(404).json({ success: false, message: 'Order not found or unauthorized' });
       }
+
+      // A01 Broken Access Control Enforcement:
+      // Verify that caller has legitimate business relationship with this order
+      if (req.user) {
+        const userRole = req.user.role;
+        const userId = String(req.user._id || req.user.id || '');
+        const userEmail = (req.user.email || '').toLowerCase().trim();
+        const userPhone = (req.user.phone || '').trim();
+
+        const isSuperAdmin = userRole === 'admin';
+        const isOrderProvider = providerId && String(ord.providerId) === String(providerId);
+        const isOrderCustomer = (
+          (ord.customerId && String(ord.customerId) === userId) ||
+          (ord.customerEmail && ord.customerEmail.toLowerCase().trim() === userEmail) ||
+          (ord.customerPhone && userPhone && ord.customerPhone.replace(/\D/g, '').endsWith(userPhone.replace(/\D/g, '')))
+        );
+        const isOrderDriver = (
+          userRole === 'driver' && (
+            (ord.driverId && String(ord.driverId) === String(req.user.driverId || userId)) ||
+            (ord.deliveryPartnerPhone && userPhone && ord.deliveryPartnerPhone.replace(/\D/g, '').endsWith(userPhone.replace(/\D/g, '')))
+          )
+        );
+
+        if (!isSuperAdmin && !isOrderProvider && !isOrderCustomer && !isOrderDriver) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied: You do not have permission to view this order.'
+          });
+        }
+      }
+
       return res.json({ success: true, data: enrichOrderFinancials(ord) });
     }
     return res.status(500).json({ success: false, message: 'Database connection error' });

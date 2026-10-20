@@ -200,9 +200,27 @@ const updateProviderSettings = async (req, res) => {
     const pId = req.providerId.toString();
 
     if (await isDbConnected()) {
+      // Mass Assignment Protection (A01 & A08):
+      // Prevent caller from overriding protected security flags, tier status, or kycStatus
+      const safeData = { ...updatedData };
+      delete safeData.providerId;
+      delete safeData._id;
+      delete safeData.role;
+      if (safeData.security) {
+        delete safeData.security.tierStatus;
+        delete safeData.security.kycStatus;
+        delete safeData.security.securityScore;
+        delete safeData.security.accountSecurityStatus;
+      }
+      if (safeData.account) {
+        delete safeData.account.accountStatus;
+        delete safeData.account.emailVerified;
+        delete safeData.account.phoneVerified;
+      }
+
       const settings = await ProviderSetting.findOneAndUpdate(
         { providerId: pId },
-        { $set: { ...updatedData, providerId: pId, updatedAt: Date.now() } },
+        { $set: { ...safeData, providerId: pId, updatedAt: Date.now() } },
         { new: true, upsert: true }
       );
 

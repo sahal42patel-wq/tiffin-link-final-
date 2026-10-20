@@ -124,35 +124,51 @@ const initSocket = (server) => {
       }
     }
 
-    // Join Provider Room explicitly
+    // Join Provider Room with Identity Authorization (A01 Broken Access Control Protection)
     socket.on('join:provider', ({ providerId }) => {
-      if (providerId) {
+      if (!providerId) return;
+      // Allow only if authenticated user is admin OR their resolved providerId matches
+      if (socket.role === 'admin' || (socket.providerId && String(socket.providerId) === String(providerId))) {
         const roomName = `provider:${providerId}`;
         socket.join(roomName);
-        console.log(`📡 Socket ${socket.id} explicitly joined room: ${roomName}`);
+        console.log(`📡 Socket ${socket.id} authorized & joined room: ${roomName}`);
+      } else {
+        console.warn(`🚨 [SECURITY] Unauthorized room join attempt rejected: socket ${socket.id} tried to join provider:${providerId}`);
+        socket.emit('error', { message: 'Unauthorized room access.' });
       }
     });
 
-    // Join Driver Room explicitly
+    // Join Driver Room with Identity Authorization (A01 Broken Access Control Protection)
     socket.on('join:driver', ({ driverId }) => {
-      if (driverId) {
+      if (!driverId) return;
+      if (socket.role === 'admin' || (socket.driverId && String(socket.driverId) === String(driverId))) {
         const roomName = `driver:${driverId}`;
         socket.join(roomName);
-        console.log(`📡 Socket ${socket.id} explicitly joined room: ${roomName}`);
+        console.log(`📡 Socket ${socket.id} authorized & joined room: ${roomName}`);
+      } else {
+        console.warn(`🚨 [SECURITY] Unauthorized room join attempt rejected: socket ${socket.id} tried to join driver:${driverId}`);
+        socket.emit('error', { message: 'Unauthorized room access.' });
       }
     });
 
-    // Join Customer Room explicitly
+    // Join Customer Room with Identity Authorization (A01 Broken Access Control Protection)
     socket.on('join:customer', ({ customerId, email }) => {
-      if (customerId) {
-        const roomName = `customer:${customerId}`;
-        socket.join(roomName);
-        console.log(`📡 Socket ${socket.id} explicitly joined room: ${roomName}`);
-      }
-      if (email) {
-        const emailRoom = `customer:${email.toLowerCase()}`;
-        socket.join(emailRoom);
-        console.log(`📡 Socket ${socket.id} joined email room: ${emailRoom}`);
+      const uEmail = (socket.user?.email || '').toLowerCase().trim();
+      const uId = socket.userId;
+      const isAuthorized = socket.role === 'admin' || 
+        (customerId && String(customerId) === String(uId)) ||
+        (email && email.toLowerCase().trim() === uEmail);
+
+      if (isAuthorized) {
+        if (customerId) {
+          socket.join(`customer:${customerId}`);
+        }
+        if (email) {
+          socket.join(`customer:${email.toLowerCase().trim()}`);
+        }
+      } else {
+        console.warn(`🚨 [SECURITY] Unauthorized customer room join attempt rejected: socket ${socket.id}`);
+        socket.emit('error', { message: 'Unauthorized room access.' });
       }
     });
 

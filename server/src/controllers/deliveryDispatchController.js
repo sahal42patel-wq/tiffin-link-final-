@@ -699,8 +699,57 @@ const resolveAuthUser = async (req) => {
  */
 const isAuthorizedForDelivery = async (req, delivery) => {
   if (!delivery) return false;
-  // Always authorize valid delivery requests so driver / provider OTP verification and status updates are never blocked
-  return true;
+
+  const user = req.user;
+  if (!user) {
+    // If no session/user, fallback to query / body identifiers if available
+    const driverParam = req.body?.driverId || req.query?.driverId;
+    if (driverParam && delivery.assignedDriver?.driverId) {
+      return String(delivery.assignedDriver.driverId) === String(driverParam);
+    }
+    return false;
+  }
+
+  // Super Admin has full platform override
+  if (user.role === 'admin') return true;
+
+  const userId = String(user._id || user.id || '');
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const userPhone = (user.phone || '').trim();
+
+  // 1. Driver verification
+  if (user.role === 'driver' || user.role === 'delivery') {
+    const assignedId = String(delivery.assignedDriver?.driverId || '');
+    const assignedPhone = String(delivery.assignedDriver?.phone || '').trim();
+    const assignedEmail = String(delivery.assignedDriver?.email || '').toLowerCase().trim();
+
+    const isMatch = (
+      (assignedId && (assignedId === userId || assignedId === String(user.driverId || ''))) ||
+      (assignedPhone && userPhone && assignedPhone.replace(/\D/g, '').endsWith(userPhone.replace(/\D/g, ''))) ||
+      (assignedEmail && assignedEmail === userEmail)
+    );
+    if (isMatch) return true;
+  }
+
+  // 2. Kitchen Provider verification
+  if (user.role === 'provider') {
+    const provId = String(delivery.providerId || '');
+    const reqProvId = String(req.providerId || '');
+    if (provId && (provId === userId || provId === reqProvId)) return true;
+    if (delivery.providerEmail && delivery.providerEmail.toLowerCase().trim() === userEmail) return true;
+  }
+
+  // 3. Customer verification
+  if (delivery.orderId) {
+    const ord = await Order.findOne(buildIdQuery(delivery.orderId)).select('customerId customerEmail customerPhone');
+    if (ord) {
+      if (ord.customerId && String(ord.customerId) === userId) return true;
+      if (ord.customerEmail && ord.customerEmail.toLowerCase().trim() === userEmail) return true;
+      if (ord.customerPhone && userPhone && ord.customerPhone.replace(/\D/g, '').endsWith(userPhone.replace(/\D/g, ''))) return true;
+    }
+  }
+
+  return false;
 };
 
 // @desc    Verify Kitchen Pickup Email OTP (Strictly 4-Digit Synchronized OTP)
@@ -1202,8 +1251,8 @@ const updateDriverLocation = async (req, res) => {
 
     if (await isDbConnected()) {
       const cleanReqId = requestId ? String(requestId).trim().replace(/^#+/, '') : '';
-      const request = await DeliveryRequest.findOneAndUpdate(
-        { $or: [
+      const lookupQuery = {
+        $or: [
           { requestId },
           { requestId: `#${cleanReqId}` },
           { requestId: cleanReqId },
@@ -1211,7 +1260,38 @@ const updateDriverLocation = async (req, res) => {
           { orderId: `#${cleanReqId}` },
           { orderId: cleanReqId },
           { _id: (requestId && requestId.match(/^[0-9a-fA-F]{24}$/)) ? requestId : undefined }
-        ].filter(Boolean) },
+        ].filter(Boolean)
+      };
+
+      const existingReq = await DeliveryRequest.findOne(lookupQuery);
+      if (!existingReq) {
+        return res.status(404).json({ success: false, message: 'Delivery request not found.' });
+      }
+
+      // A01 & A11 Location Spoofing / Broken Access Control Prevention:
+      // Verify that caller is the legitimately assigned driver for this delivery run
+      if (req.user && req.user.role !== 'admin') {
+        const uId = String(req.user._id || req.user.id || '');
+        const dId = String(req.user.driverId || uId);
+        const uPhone = (req.user.phone || '').trim();
+        const assignedDriverId = String(existingReq.assignedDriver?.driverId || '');
+        const assignedPhone = String(existingReq.assignedDriver?.phone || '').trim();
+
+        const isAssigned = (
+          (assignedDriverId && (assignedDriverId === dId || assignedDriverId === uId)) ||
+          (assignedPhone && uPhone && assignedPhone.replace(/\D/g, '').endsWith(uPhone.replace(/\D/g, '')))
+        );
+
+        if (!isAssigned) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied: You are not the driver assigned to this delivery run.'
+          });
+        }
+      }
+
+      const request = await DeliveryRequest.findOneAndUpdate(
+        lookupQuery,
         { 
           $set: { 
             'assignedDriver.location': locationObj,
@@ -2609,10 +2689,16 @@ const acceptDeliveryRequestAtomic = async (req, res) => {
         console.warn('Socket broadcast warning on accept:', sErr.message);
       }
 
+      // Security Hardening (A01 & A04):
+      // The driver must NOT receive the kitchen pickup OTP in their accept API response.
+      // The pickup OTP is exclusively verified by the kitchen provider and held by the kitchen.
+      const sanitizedReq = acceptedReq.toObject ? acceptedReq.toObject() : { ...acceptedReq };
+      delete sanitizedReq.pickupOtp;
+
       return res.json({
         success: true,
         message: '✓ Delivery request accepted successfully! Trip locked into Active Dispatch.',
-        request: acceptedReq
+        request: sanitizedReq
       });
     }
 
@@ -2734,6 +2820,7 @@ const getActiveDelivery = async (req, res) => {
         const calculatedDriverEarning = obj.driverEarning || obj.deliveryFee || 51;
         obj.tiffinPayment = totalTiffinAmount;
         obj.driverEarning = calculatedDriverEarning;
+        delete obj.pickupOtp; // Security: Driver must obtain OTP physically from Kitchen Provider
         return res.json({ success: true, activeDelivery: obj });
       }
     }
@@ -8713,7 +8800,7 @@ const resendDriverEmailOtp = async (req, res) => {
 };
 
 
-// @desc    Get live delivery tracking by orderId or deliveryId
+// @desc    Get live delivery tracking by orderId or deliveryId with ownership authorization
 // @route   GET /api/delivery/track/:id
 const getDeliveryTrackingById = async (req, res) => {
   try {
@@ -8736,8 +8823,10 @@ const getDeliveryTrackingById = async (req, res) => {
         ]
       };
       let delivery = await DeliveryRequest.findOne(q).lean();
+      let parentOrder = null;
+
       if (!delivery) {
-        const ord = await Order.findOne({
+        parentOrder = await Order.findOne({
           $or: [
             { orderId: id },
             { orderId: cleanId },
@@ -8745,30 +8834,74 @@ const getDeliveryTrackingById = async (req, res) => {
             ...(isValidObjectId(id) ? [{ _id: id }] : [])
           ]
         }).lean();
-        if (ord) {
+        if (parentOrder) {
           delivery = {
-            orderId: ord.orderId,
-            requestId: ord.orderId,
-            status: ord.deliveryStatus === 'Delivered' ? 'Delivered' : (ord.status === 'Delivery' ? (ord.deliveryStatus || 'Searching Drivers') : ord.status),
-            etaMinutes: ord.estimatedTime ? parseInt(ord.estimatedTime) || 15 : 15,
-            distanceKm: ord.deliveryDistance ? parseFloat(ord.deliveryDistance) || 2.4 : 2.4,
-            pickupAddress: { street: ord.pickupAddress || 'Kitchen Hub, Ahmedabad' },
-            deliveryAddress: { street: ord.customerAddress || 'Customer Address, Ahmedabad' },
+            orderId: parentOrder.orderId,
+            requestId: parentOrder.orderId,
+            status: parentOrder.deliveryStatus === 'Delivered' ? 'Delivered' : (parentOrder.status === 'Delivery' ? (parentOrder.deliveryStatus || 'Searching Drivers') : parentOrder.status),
+            etaMinutes: parentOrder.estimatedTime ? parseInt(parentOrder.estimatedTime) || 15 : 15,
+            distanceKm: parentOrder.deliveryDistance ? parseFloat(parentOrder.deliveryDistance) || 2.4 : 2.4,
+            pickupAddress: { street: parentOrder.pickupAddress || 'Kitchen Hub, Ahmedabad' },
+            deliveryAddress: { street: parentOrder.customerAddress || 'Customer Address, Ahmedabad' },
             assignedDriver: {
-              name: ord.deliveryPartnerName || ord.driverName || '',
-              phone: ord.deliveryPartnerPhone || ord.driverPhone || '',
+              name: parentOrder.deliveryPartnerName || parentOrder.driverName || '',
+              phone: parentOrder.deliveryPartnerPhone || parentOrder.driverPhone || '',
               rating: 4.8,
-              vehicleNo: ord.driverVehicle || ''
+              vehicleNo: parentOrder.driverVehicle || ''
             },
-            pickupOtp: ord.pickupOtp || '',
-            deliveryOtp: ord.deliveryOtp || ''
+            pickupOtp: parentOrder.pickupOtp || '',
+            deliveryOtp: parentOrder.deliveryOtp || ''
           };
         }
+      } else if (delivery.orderId) {
+        parentOrder = await Order.findOne(buildIdQuery(delivery.orderId)).lean();
       }
-      if (delivery) {
-        return res.json({ success: true, request: delivery, delivery });
+
+      if (!delivery) {
+        return res.status(404).json({ success: false, message: 'Delivery tracking not found for this ID' });
       }
-      return res.status(404).json({ success: false, message: 'Delivery tracking not found for this ID' });
+
+      // A01 & A04 Access Control & Privacy Check
+      if (req.user) {
+        const uRole = req.user.role;
+        const uId = String(req.user._id || req.user.id || '');
+        const uEmail = (req.user.email || '').toLowerCase().trim();
+        const uPhone = (req.user.phone || '').trim();
+
+        const isSuperAdmin = uRole === 'admin';
+        const isDriver = (
+          uRole === 'driver' && (
+            (delivery.assignedDriver?.driverId && String(delivery.assignedDriver.driverId) === String(req.user.driverId || uId)) ||
+            (parentOrder?.driverId && String(parentOrder.driverId) === String(req.user.driverId || uId))
+          )
+        );
+        const isProvider = (
+          uRole === 'provider' && (
+            (parentOrder?.providerId && String(parentOrder.providerId) === String(req.providerId || uId)) ||
+            (delivery.providerId && String(delivery.providerId) === String(req.providerId || uId))
+          )
+        );
+        const isCustomer = (
+          (parentOrder?.customerId && String(parentOrder.customerId) === uId) ||
+          (parentOrder?.customerEmail && parentOrder.customerEmail.toLowerCase().trim() === uEmail) ||
+          (parentOrder?.customerPhone && uPhone && parentOrder.customerPhone.replace(/\D/g, '').endsWith(uPhone.replace(/\D/g, ''))) ||
+          (delivery.customerEmail && delivery.customerEmail.toLowerCase().trim() === uEmail)
+        );
+
+        if (!isSuperAdmin && !isDriver && !isProvider && !isCustomer) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied: You are not authorized to track this delivery.'
+          });
+        }
+
+        // Privacy Redaction: Customers should only see pickupOtp if relevant, never see driver's secret OTP or internal documents
+        if (isCustomer && !isSuperAdmin) {
+          delete delivery.pickupOtp; // Only kitchen and driver need pickupOtp
+        }
+      }
+
+      return res.json({ success: true, request: delivery, delivery });
     }
     return res.status(503).json({ success: false, message: 'Database offline' });
   } catch (err) {

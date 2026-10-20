@@ -48,7 +48,7 @@ router.post('/customer-order', protect, createCustomerOrder);
 router.get('/', providerAuthWithFallback, getOrders);
 router.get('/provider', providerAuthWithFallback, getOrders);
 router.get('/history', providerAuthWithFallback, getOrders);
-router.get('/:id', optionalProtect, getOrderById);
+router.get('/:id', protect, getOrderById);
 router.post('/', protect, (req, res, next) => {
   if (req.user && req.user.role === 'provider' && req.providerId) {
     return createOrder(req, res, next);
