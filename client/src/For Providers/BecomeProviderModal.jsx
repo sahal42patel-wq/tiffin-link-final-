@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { safeSetItem } from '../services/api';
 
 const calculateAge = (dobString) => {
   if (!dobString) return 0;
@@ -399,8 +400,18 @@ export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess, 
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('tiffinlink_provider_draft', JSON.stringify(formData));
-    alert('Draft saved successfully! You can resume completion anytime.');
+    try {
+      const draftData = { ...formData };
+      for (const prop of ['fssaiCert', 'kitchenPhoto', 'kitchenPhotos', 'mealPhoto', 'ownerId']) {
+        if (typeof draftData[prop] === 'string' && draftData[prop].length > 1000) {
+          draftData[prop] = null;
+        }
+      }
+      safeSetItem('tiffinlink_provider_draft', JSON.stringify(draftData));
+      alert('Draft saved successfully! You can resume completion anytime.');
+    } catch (err) {
+      console.warn('Draft save error:', err);
+    }
   };
 
   const handleSkipMenu = () => {
@@ -638,21 +649,28 @@ export default function BecomeProviderModal({ isOpen, onClose, onSubmitSuccess, 
             if (data.user) {
               Object.assign(userObj, data.user);
             }
-            if (kPhoto) {
-              userObj.kitchenPhoto = kPhoto;
-              userObj.image = kPhoto;
+            const storageUser = { ...userObj };
+            if (kPhoto && kPhoto.length < 1000) {
+              storageUser.kitchenPhoto = kPhoto;
+              storageUser.image = kPhoto;
+            } else {
+              storageUser.kitchenPhoto = '';
+              storageUser.image = '';
             }
-            localStorage.setItem('tiffinlink_user', JSON.stringify(userObj));
-            localStorage.setItem('user', JSON.stringify(userObj));
+            safeSetItem('tiffinlink_user', JSON.stringify(storageUser));
+            safeSetItem('user', JSON.stringify(storageUser));
           } catch(err) {}
         } else if (data.user) {
           const userObj = { ...data.user };
-          if (kPhoto) {
+          if (kPhoto && kPhoto.length < 1000) {
             userObj.kitchenPhoto = kPhoto;
             userObj.image = kPhoto;
+          } else {
+            userObj.kitchenPhoto = '';
+            userObj.image = '';
           }
-          localStorage.setItem('tiffinlink_user', JSON.stringify(userObj));
-          localStorage.setItem('user', JSON.stringify(userObj));
+          safeSetItem('tiffinlink_user', JSON.stringify(userObj));
+          safeSetItem('user', JSON.stringify(userObj));
         }
 
         if (onSubmitSuccess) {

@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { saveUserSession } from '../services/api';
+import { saveUserSession, safeSetItem } from '../services/api';
 
 const calculateAge = (dobString) => {
   if (!dobString) return 0;
@@ -242,8 +242,18 @@ export default function BecomeDeliveryPartnerModal({ isOpen, onClose, onSubmitSu
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('tiffinlink_delivery_partner_draft', JSON.stringify(formData));
-    alert('Draft saved successfully! You can resume completion anytime.');
+    try {
+      const draftData = { ...formData };
+      for (const prop of ['licenseCopy', 'idFront', 'idBack']) {
+        if (typeof draftData[prop] === 'string' && draftData[prop].length > 1000) {
+          draftData[prop] = null;
+        }
+      }
+      safeSetItem('tiffinlink_delivery_partner_draft', JSON.stringify(draftData));
+      alert('Draft saved successfully! You can resume completion anytime.');
+    } catch (err) {
+      console.warn('Draft save error:', err);
+    }
   };
 
   const handleSubmit = async (e) => {

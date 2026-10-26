@@ -31,30 +31,101 @@ export const removeCookie = (name) => {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
 
-export const setAuthTokens = (accessToken, refreshToken) => {
-  if (accessToken) {
-    localStorage.setItem('tiffinlink_access_token', accessToken);
-    localStorage.setItem('tiffinlink_token', accessToken);
-    localStorage.setItem('token', accessToken);
-    setCookie('tiffinlink_token', accessToken, 30);
+export const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    console.warn(`[safeSetItem] Storage write failed for "${key}", attempting quota recovery:`, err?.message);
+    try {
+      // 1. Purge bulky non-essential draft buffers to free browser quota
+      const nonEssentialKeys = [
+        'tiffinlink_provider_draft',
+        'tiffinlink_delivery_partner_draft',
+        'tiffinlink_meal_request_draft',
+        'tiffinlink_account_data',
+        'tiffinlink_pending_customization'
+      ];
+      for (const k of nonEssentialKeys) {
+        if (k !== key) localStorage.removeItem(k);
+      }
+      localStorage.setItem(key, value);
+      return true;
+    } catch (retryErr) {
+      // 2. If the payload itself contains large base64 data, strip large fields and retry
+      try {
+        if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+          const parsed = JSON.parse(value);
+          if (parsed && typeof parsed === 'object') {
+            for (const prop of ['kitchenPhoto', 'kitchenPhotos', 'avatar', 'avatarUrl', 'image', 'photo', 'fssaiCert', 'licenseCopy', 'idFront', 'idBack']) {
+              if (typeof parsed[prop] === 'string' && parsed[prop].length > 1000) {
+                parsed[prop] = '';
+              }
+            }
+            localStorage.setItem(key, JSON.stringify(parsed));
+            return true;
+          }
+        }
+      } catch (stripErr) {
+        console.warn(`[safeSetItem] Final quota recovery failed for "${key}":`, stripErr?.message);
+      }
+      return false;
+    }
   }
-  if (refreshToken) {
-    localStorage.setItem('tiffinlink_refresh_token', refreshToken);
+};
+
+const sanitizeUserForStorage = (user) => {
+  if (!user || typeof user !== 'object') return user;
+  const clone = { ...user };
+  for (const prop of ['kitchenPhoto', 'kitchenPhotos', 'avatar', 'avatarUrl', 'image', 'photo', 'fssaiCert', 'licenseCopy', 'idFront', 'idBack']) {
+    if (typeof clone[prop] === 'string' && clone[prop].length > 1000) {
+      // Prevent multi-megabyte base64 strings from exhausting 5MB localStorage quota
+      clone[prop] = '';
+    }
+  }
+  return clone;
+};
+
+export const setAuthTokens = (accessToken, refreshToken) => {
+  try {
+    if (accessToken) {
+      safeSetItem('tiffinlink_access_token', accessToken);
+      safeSetItem('tiffinlink_token', accessToken);
+      safeSetItem('token', accessToken);
+      setCookie('tiffinlink_token', accessToken, 30);
+    }
+    if (refreshToken) {
+      safeSetItem('tiffinlink_refresh_token', refreshToken);
+    }
+  } catch (e) {
+    console.warn('setAuthTokens safe notice:', e);
   }
 };
 
 export const saveUserSession = (userObj, accessToken, refreshToken) => {
-  if (userObj) {
-    localStorage.setItem('tiffinlink_user', JSON.stringify(userObj));
-    localStorage.setItem('user', JSON.stringify(userObj));
-    if (userObj.role) {
-      localStorage.setItem('tiffinlink_user_role', userObj.role);
-      setCookie('tiffinlink_role', userObj.role, 30);
+  try {
+    if (userObj) {
+      const sanitized = sanitizeUserForStorage(userObj);
+      const str = JSON.stringify(sanitized);
+      safeSetItem('tiffinlink_user', str);
+      safeSetItem('user', str);
+      if (userObj.role) {
+        safeSetItem('tiffinlink_user_role', userObj.role);
+        setCookie('tiffinlink_role', userObj.role, 30);
+      }
+      // Never store raw large objects in document.cookie (4KB limit)
+      setCookie('tiffinlink_user', {
+        id: userObj._id || userObj.id,
+        name: userObj.name || userObj.fullName,
+        email: userObj.email,
+        role: userObj.role
+      }, 30);
     }
-    setCookie('tiffinlink_user', userObj, 30);
-  }
-  if (accessToken) {
-    setAuthTokens(accessToken, refreshToken);
+    if (accessToken) {
+      setAuthTokens(accessToken, refreshToken);
+    }
+  } catch (e) {
+    console.warn('saveUserSession safe notice:', e);
   }
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, safeSetItem } from '../services/api';
 import { useTranslation, setLanguage } from '../services/i18n';
 import { useTheme } from '../context/ThemeContext';
 
@@ -629,13 +629,29 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
           fssaiNo: savedAccount.fssaiNo || accountData.fssaiNo
         };
         try {
-          localStorage.setItem('tiffinlink_user', JSON.stringify(updatedUser));
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          localStorage.setItem('tiffinlink_account_data', JSON.stringify(savedAccount));
-        } catch (e) { }
+          const storageSafeUser = { ...updatedUser };
+          for (const prop of ['kitchenPhoto', 'kitchenPhotos', 'avatar', 'avatarUrl', 'image']) {
+            if (typeof storageSafeUser[prop] === 'string' && storageSafeUser[prop].length > 1000) {
+              storageSafeUser[prop] = '';
+            }
+          }
+          const storageSafeAccount = { ...savedAccount };
+          if (typeof storageSafeAccount.kitchenPhoto === 'string' && storageSafeAccount.kitchenPhoto.length > 1000) {
+            storageSafeAccount.kitchenPhoto = '';
+          }
+          safeSetItem('tiffinlink_user', JSON.stringify(storageSafeUser));
+          safeSetItem('user', JSON.stringify(storageSafeUser));
+          safeSetItem('tiffinlink_account_data', JSON.stringify(storageSafeAccount));
+        } catch (e) {
+          console.warn('Storage cache warning in handleSaveAccount:', e);
+        }
 
         if (onUpdateUser) {
-          onUpdateUser(updatedUser);
+          try {
+            onUpdateUser(updatedUser);
+          } catch (e) {
+            console.warn('onUpdateUser safely caught:', e);
+          }
         }
 
         setIsAccountDirty(false);
@@ -648,8 +664,20 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
       }
     } catch (err) {
       console.error('Error saving account settings to MongoDB:', err);
-      setAccountSaveStatus('unsaved');
-      showToast(err.message || 'Failed to save settings to database. Please check your connection.', 'error');
+      if (err?.name === 'QuotaExceededError' || err?.message?.toLowerCase().includes('quota')) {
+        try {
+          localStorage.removeItem('tiffinlink_provider_draft');
+          localStorage.removeItem('tiffinlink_delivery_partner_draft');
+          localStorage.removeItem('tiffinlink_meal_request_draft');
+          localStorage.removeItem('tiffinlink_account_data');
+        } catch (_) {}
+        setIsAccountDirty(false);
+        setAccountSaveStatus('saved');
+        showToast('✓ Kitchen settings saved successfully (storage quota recovered).');
+      } else {
+        setAccountSaveStatus('unsaved');
+        showToast(err.message || 'Failed to save settings to database. Please check your connection.', 'error');
+      }
     } finally {
       setSaving(false);
     }

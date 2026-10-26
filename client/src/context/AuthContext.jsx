@@ -135,7 +135,13 @@ export function AuthProvider({ children }) {
   const updateUser = (updatedUser) => {
     const normalized = normalizeUser(updatedUser);
     setCurrentUser(normalized);
-    if (normalized) saveUserSession(normalized);
+    if (normalized) {
+      try {
+        saveUserSession(normalized);
+      } catch (err) {
+        console.warn('Could not cache user session in storage:', err);
+      }
+    }
   };
 
   const isAuthenticated = !loading && !!(currentUser && (currentUser._id || currentUser.id));
