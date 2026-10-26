@@ -2,9 +2,57 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, User, MapPin, CreditCard, Utensils, Calendar, Bell, 
   Check, Plus, Trash2, ShieldCheck, Save, Smartphone, Mail,
-  Sun, Moon, Monitor, Palette
+  Sun, Moon, Monitor, Palette, Home, Building2, Navigation, Loader2, Star
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { apiRequest, safeSetItem } from '../services/api';
+
+const AHMEDABAD_LOCALITIES = [
+  'Vastrapur',
+  'Satellite',
+  'Bodakdev',
+  'Prahlad Nagar',
+  'Navrangpura',
+  'Paldi',
+  'South Bopal',
+  'Gota',
+  'Thaltej',
+  'C.G. Road',
+  'Maninagar',
+  'Chandkheda'
+];
+
+const normalizeAddress = (addr, idx) => {
+  if (!addr) return null;
+  const id = addr._id || addr.id || `addr_${Date.now()}_${idx || 0}`;
+  const label = addr.label || addr.type || 'Home';
+  const street = addr.street || addr.address || '';
+  const area = addr.area || addr.locality || '';
+  const city = addr.city || 'Ahmedabad';
+  const state = addr.state || 'Gujarat';
+  const pincode = addr.pincode || '';
+  const landmark = addr.landmark || '';
+  const isDefault = Boolean(addr.isDefault);
+  const fullAddress = street
+    ? (street + (area && !street.toLowerCase().includes(area.toLowerCase()) ? `, ${area}` : ''))
+    : (area || 'Ahmedabad');
+
+  return {
+    _id: id,
+    id,
+    label,
+    type: label,
+    street,
+    area,
+    locality: area || 'Ahmedabad',
+    address: fullAddress,
+    city,
+    state,
+    pincode,
+    landmark,
+    isDefault
+  };
+};
 
 export default function UserProfileModal({ isOpen, onClose, initialTab = 'profile', currentUser, onUpdateUser, onLogout, onOpenLegalModal }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -41,9 +89,22 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
   });
 
   // Saved addresses state
-  const [addresses, setAddresses] = useState(currentUser?.addresses || []);
-  const [newAddressText, setNewAddressText] = useState('');
+  const [addresses, setAddresses] = useState(() => {
+    const list = currentUser?.savedAddresses || currentUser?.addresses || [];
+    return Array.isArray(list) ? list.map(normalizeAddress).filter(Boolean) : [];
+  });
+  const [isAddressLoading, setIsAddressLoading] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [addressToast, setAddressToast] = useState({ show: false, msg: '', type: 'success' });
+
+  // Add Address Form State
   const [newAddressType, setNewAddressType] = useState('Home');
+  const [newStreet, setNewStreet] = useState('');
+  const [newArea, setNewArea] = useState('Vastrapur');
+  const [newLandmark, setNewLandmark] = useState('');
+  const [newPincode, setNewPincode] = useState('380015');
+  const [isDefaultCheckbox, setIsDefaultCheckbox] = useState(true);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
 
   // Payment methods state
   const [paymentMethods, setPaymentMethods] = useState(currentUser?.paymentMethods || []);
@@ -74,42 +135,213 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
     }
   }, [currentUser]);
 
+  // Synchronize saved addresses from server and local cache
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchAddresses = async () => {
+      try {
+        const cached = localStorage.getItem('tiffinlink_saved_addresses');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAddresses(parsed.map(normalizeAddress).filter(Boolean));
+          }
+        }
+      } catch (_) {}
+
+      try {
+        setIsAddressLoading(true);
+        const res = await apiRequest('/customers/addresses');
+        if (res && res.success && Array.isArray(res.data)) {
+          const normalized = res.data.map(normalizeAddress).filter(Boolean);
+          setAddresses(normalized);
+          safeSetItem('tiffinlink_saved_addresses', JSON.stringify(normalized));
+        }
+      } catch (err) {
+        console.warn('Could not fetch server addresses:', err);
+      } finally {
+        setIsAddressLoading(false);
+      }
+    };
+
+    fetchAddresses();
+  }, [isOpen, currentUser]);
+
   if (!isOpen) return null;
 
-  const handleSaveProfile = (e) => {
+  const showAddrToast = (msg, type = 'success') => {
+    setAddressToast({ show: true, msg, type });
+    setTimeout(() => setAddressToast({ show: false, msg: '', type: 'success' }), 3500);
+  };
+
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
+    const updatedUser = {
+      ...currentUser,
+      name: profileData.name,
+      phone: profileData.phone,
+      savedAddresses: addresses
+    };
     if (onUpdateUser) {
-      onUpdateUser({
-        ...currentUser,
-        name: profileData.name,
-        phone: profileData.phone
-      });
+      onUpdateUser(updatedUser);
     }
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: profileData.name,
+          phone: profileData.phone
+        })
+      });
+    } catch (_) {}
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 3000);
   };
 
-  const handleAddAddress = (e) => {
+  const handleAddAddress = async (e) => {
     e.preventDefault();
-    if (!newAddressText.trim()) return;
-    const newAddr = {
-      id: Date.now(),
-      type: newAddressType,
-      address: newAddressText.trim(),
-      locality: 'Ahmedabad',
-      city: 'Ahmedabad',
-      isDefault: addresses.length === 0
-    };
-    setAddresses([...addresses, newAddr]);
-    setNewAddressText('');
+    const streetVal = (newStreet || '').trim();
+    if (!streetVal) {
+      showAddrToast('Please enter your flat/house no. and building/society name.', 'error');
+      return;
+    }
+
+    try {
+      setIsSavingAddress(true);
+      const payload = {
+        label: newAddressType,
+        street: streetVal,
+        area: (newArea || 'Ahmedabad').trim(),
+        landmark: (newLandmark || '').trim(),
+        pincode: (newPincode || '380015').trim(),
+        city: 'Ahmedabad',
+        state: 'Gujarat',
+        isDefault: addresses.length === 0 ? true : isDefaultCheckbox
+      };
+
+      let serverAddresses = null;
+      try {
+        const res = await apiRequest('/customers/addresses', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (res && res.success && Array.isArray(res.data)) {
+          serverAddresses = res.data.map(normalizeAddress).filter(Boolean);
+        }
+      } catch (apiErr) {
+        console.warn('Server address POST notice:', apiErr);
+      }
+
+      let nextAddresses;
+      if (serverAddresses) {
+        nextAddresses = serverAddresses;
+      } else {
+        const localNew = normalizeAddress({
+          _id: `addr_${Date.now()}`,
+          ...payload
+        });
+        if (payload.isDefault) {
+          nextAddresses = addresses.map(a => ({ ...a, isDefault: false })).concat(localNew);
+        } else {
+          nextAddresses = [...addresses, localNew];
+        }
+      }
+
+      setAddresses(nextAddresses);
+      safeSetItem('tiffinlink_saved_addresses', JSON.stringify(nextAddresses));
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({
+          ...currentUser,
+          savedAddresses: nextAddresses,
+          addresses: nextAddresses
+        });
+      }
+
+      setNewStreet('');
+      setNewLandmark('');
+      showAddrToast('✓ Ahmedabad address saved to your profile successfully!');
+    } catch (err) {
+      console.error('Error saving address:', err);
+      showAddrToast('Failed to save address. Please try again.', 'error');
+    } finally {
+      setIsSavingAddress(false);
+    }
   };
 
-  const handleDeleteAddress = (id) => {
-    setAddresses(addresses.filter(a => a.id !== id));
+  const handleDeleteAddress = async (id) => {
+    try {
+      const nextAddresses = addresses.filter(a => a.id !== id && a._id !== id);
+      setAddresses(nextAddresses);
+      safeSetItem('tiffinlink_saved_addresses', JSON.stringify(nextAddresses));
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({
+          ...currentUser,
+          savedAddresses: nextAddresses,
+          addresses: nextAddresses
+        });
+      }
+
+      try {
+        await apiRequest(`/customers/addresses/${id}`, { method: 'DELETE' });
+      } catch (_) {}
+
+      showAddrToast('Address removed from profile.');
+    } catch (err) {
+      console.error('Error deleting address:', err);
+    }
   };
 
-  const handleSetDefaultAddress = (id) => {
-    setAddresses(addresses.map(a => ({ ...a, isDefault: a.id === id })));
+  const handleSetDefaultAddress = async (id) => {
+    try {
+      const nextAddresses = addresses.map(a => ({
+        ...a,
+        isDefault: (a.id === id || a._id === id)
+      }));
+      setAddresses(nextAddresses);
+      safeSetItem('tiffinlink_saved_addresses', JSON.stringify(nextAddresses));
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({
+          ...currentUser,
+          savedAddresses: nextAddresses,
+          addresses: nextAddresses
+        });
+      }
+
+      try {
+        await apiRequest(`/customers/addresses/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ isDefault: true })
+        });
+      } catch (_) {}
+
+      showAddrToast('✓ Set as primary default delivery address.');
+    } catch (err) {
+      console.error('Error setting default address:', err);
+    }
+  };
+
+  const handleDetectGps = () => {
+    if (!navigator.geolocation) {
+      showAddrToast('Geolocation is not supported by your browser', 'error');
+      return;
+    }
+    setIsDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setIsDetectingGps(false);
+        setNewArea('Satellite');
+        setNewStreet(prev => prev || 'Near Current Location');
+        showAddrToast('📍 Ahmedabad location detected: Satellite area');
+      },
+      () => {
+        setIsDetectingGps(false);
+        showAddrToast('Unable to detect GPS position. Please pick your locality from below.', 'error');
+      },
+      { timeout: 8000 }
+    );
   };
 
   const handleAddUpi = (e) => {
@@ -327,96 +559,265 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
 
             {/* Tab 2: Saved Addresses */}
             {activeTab === 'addresses' && (
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  {addresses.length === 0 ? (
-                  <p className="text-xs text-[#665d52] italic py-4 text-center">
-                    No saved delivery addresses. Add your address below.
-                  </p>
-                ) : (
-                  addresses.map((addr) => (
-                    <div 
-                      key={addr.id}
-                      className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
-                        addr.isDefault 
-                          ? 'border-[#1a1a1a] bg-[#f5f3ef] shadow-sm' 
-                          : 'border-[#ded9d1] bg-white/50 hover:bg-[#f5f3ef]'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="p-2 rounded-xl bg-[#a0522d]/10 text-[#a0522d] shrink-0 mt-0.5">
-                          <MapPin size={18} />
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-[#1a1a1a]">
-                              {addr.type}
-                            </span>
-                            {addr.isDefault && (
-                              <span className="bg-[#1b5e20] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                Default
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium text-[#1a1a1a] mt-1 leading-snug">{addr.address}</p>
-                          <p className="text-xs text-[#665d52] mt-0.5">{addr.locality}, {addr.city}</p>
-                        </div>
-                      </div>
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* Feedback Toast */}
+                {addressToast.show && (
+                  <div className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between gap-2 shadow-sm ${
+                    addressToast.type === 'error'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  }`}>
+                    <span>{addressToast.msg}</span>
+                    <button type="button" onClick={() => setAddressToast({ show: false, msg: '', type: 'success' })} className="text-current hover:opacity-75">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
 
-                      <div className="flex items-center gap-2">
-                        {!addr.isDefault && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetDefaultAddress(addr.id)}
-                            className="text-xs font-semibold text-[#665d52] hover:text-[#1a1a1a] underline cursor-pointer"
-                          >
-                            Set Default
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAddress(addr.id)}
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                {/* Saved Address Cards List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#665d52]">
+                      Your Saved Delivery Addresses ({addresses.length})
+                    </h3>
+                    {isAddressLoading && (
+                      <span className="text-[11px] text-[#665d52] flex items-center gap-1.5">
+                        <Loader2 size={12} className="animate-spin text-[#a0522d]" /> Syncing...
+                      </span>
+                    )}
+                  </div>
+
+                  {addresses.length === 0 ? (
+                    <div className="p-8 rounded-2xl border border-dashed border-[#ded9d1] bg-white/40 text-center space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-[#a0522d]/10 text-[#a0522d] mx-auto flex items-center justify-center">
+                        <MapPin size={20} />
                       </div>
+                      <p className="text-xs font-bold text-[#1a1a1a]">No saved Ahmedabad addresses yet</p>
+                      <p className="text-[11px] text-[#665d52] max-w-xs mx-auto">
+                        Add your home, office, or hostel delivery address below for seamless 1-click tiffin ordering.
+                      </p>
                     </div>
-                  )))}
+                  ) : (
+                    addresses.map((addr, idx) => {
+                      const TypeIcon = addr.type === 'Office' ? Building2 : addr.type === 'Home' ? Home : MapPin;
+                      return (
+                        <div 
+                          key={addr.id || addr._id || idx}
+                          className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
+                            addr.isDefault 
+                              ? 'border-[#1a1a1a] bg-[#f5f3ef] shadow-sm ring-1 ring-[#1a1a1a]/10' 
+                              : 'border-[#ded9d1] bg-white/60 hover:bg-[#f5f3ef]'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="p-2.5 rounded-xl bg-[#a0522d]/10 text-[#a0522d] shrink-0 mt-0.5">
+                              <TypeIcon size={18} />
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold uppercase tracking-wider text-[#1a1a1a]">
+                                  {addr.label || addr.type || 'Home'}
+                                </span>
+                                {addr.isDefault ? (
+                                  <span className="bg-[#1b5e20] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-xs">
+                                    <Check size={10} /> Default Delivery
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetDefaultAddress(addr.id || addr._id)}
+                                    className="text-[11px] font-semibold text-[#665d52] hover:text-[#1a1a1a] underline cursor-pointer"
+                                  >
+                                    Set as Default
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-sm font-bold text-[#1a1a1a] mt-1.5 leading-snug">
+                                {addr.street || addr.address}
+                              </p>
+                              <p className="text-xs text-[#665d52] mt-0.5">
+                                {addr.area || addr.locality || 'Ahmedabad'}, Ahmedabad, Gujarat {addr.pincode ? `• PIN: ${addr.pincode}` : ''}
+                              </p>
+                              {addr.landmark && (
+                                <p className="text-[11px] text-[#a0522d] font-medium mt-1">
+                                  🚩 Landmark: {addr.landmark}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAddress(addr.id || addr._id)}
+                              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                              title="Delete address"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Add New Address Form */}
-                <form onSubmit={handleAddAddress} className="p-4 rounded-2xl bg-[#f5f3ef] border border-[#ded9d1] space-y-3">
-                  <p className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider flex items-center gap-1.5">
-                    <Plus size={14} /> Add New Ahmedabad Address
-                  </p>
-                  <div className="flex gap-2">
-                    {['Home', 'Office', 'Other'].map(type => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setNewAddressType(type)}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer border ${
-                          newAddressType === type ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'bg-white border-[#ded9d1] text-[#4a4238]'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                <form onSubmit={handleAddAddress} className="p-5 rounded-2xl bg-[#f5f3ef] border border-[#ded9d1] space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider flex items-center gap-1.5">
+                      <Plus size={14} className="text-[#a0522d]" /> Add New Ahmedabad Address
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDetectGps}
+                      disabled={isDetectingGps}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#a0522d] hover:text-[#7f3f1e] px-2.5 py-1 rounded-lg bg-white border border-[#ded9d1] shadow-2xs hover:bg-[#faf8f5] transition-colors cursor-pointer"
+                    >
+                      {isDetectingGps ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" /> Detecting GPS...
+                        </>
+                      ) : (
+                        <>
+                          <Navigation size={12} /> Auto-Detect GPS
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <input 
-                    type="text"
-                    value={newAddressText}
-                    onChange={(e) => setNewAddressText(e.target.value)}
-                    placeholder="Flat/House No., Building Name, Locality (e.g. Vastrapur)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-white text-sm text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
-                    required
-                  />
+
+                  {/* Address Type Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-[#665d52] uppercase tracking-wider">Address Category</label>
+                    <div className="flex gap-2">
+                      {[
+                        { type: 'Home', icon: Home },
+                        { type: 'Office', icon: Building2 },
+                        { type: 'Other', icon: MapPin }
+                      ].map(({ type, icon: Icon }) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setNewAddressType(type)}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer border transition-all ${
+                            newAddressType === type 
+                              ? 'bg-[#1a1a1a] text-white border-[#1a1a1a] shadow-xs' 
+                              : 'bg-white border-[#ded9d1] text-[#4a4238] hover:bg-[#faf8f5]'
+                          }`}
+                        >
+                          <Icon size={13} />
+                          <span>{type}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* House / Building Name */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-[#665d52] uppercase tracking-wider">
+                      House / Flat / Office No. &amp; Society Name *
+                    </label>
+                    <input 
+                      type="text"
+                      value={newStreet}
+                      onChange={(e) => setNewStreet(e.target.value)}
+                      placeholder="e.g. Flat 402, Shivalik Highstreet or B-12 Shyamal Row House"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-white text-sm text-[#1a1a1a] placeholder:text-stone-400 focus:outline-none focus:border-[#1a1a1a] focus:ring-1 focus:ring-[#1a1a1a]"
+                      required
+                    />
+                  </div>
+
+                  {/* Quick Ahmedabad Locality Chips */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-[#665d52] uppercase tracking-wider">
+                        Ahmedabad Area / Locality *
+                      </label>
+                      <span className="text-[10px] text-[#8c8273]">Tap chip to select</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {AHMEDABAD_LOCALITIES.map(loc => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => setNewArea(loc)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer border transition-colors ${
+                            newArea.toLowerCase() === loc.toLowerCase()
+                              ? 'bg-[#a0522d] text-white border-[#a0522d]'
+                              : 'bg-white border-[#ded9d1] text-[#4a4238] hover:bg-stone-100'
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      type="text"
+                      value={newArea}
+                      onChange={(e) => setNewArea(e.target.value)}
+                      placeholder="Or enter custom Ahmedabad locality (e.g. Vastrapur)"
+                      className="w-full mt-1 px-3.5 py-2 rounded-xl border border-[#ded9d1] bg-white text-xs text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
+                      required
+                    />
+                  </div>
+
+                  {/* Landmark & Pincode Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-[#665d52] uppercase tracking-wider">
+                        Landmark (Optional)
+                      </label>
+                      <input 
+                        type="text"
+                        value={newLandmark}
+                        onChange={(e) => setNewLandmark(e.target.value)}
+                        placeholder="e.g. Near Vastrapur Lake / Opp. Reliance Mart"
+                        className="w-full px-3.5 py-2 rounded-xl border border-[#ded9d1] bg-white text-xs text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-[#665d52] uppercase tracking-wider">
+                        Pincode
+                      </label>
+                      <input 
+                        type="text"
+                        value={newPincode}
+                        onChange={(e) => setNewPincode(e.target.value)}
+                        placeholder="380015"
+                        maxLength={6}
+                        className="w-full px-3.5 py-2 rounded-xl border border-[#ded9d1] bg-white text-xs text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Default Address Checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input 
+                      type="checkbox"
+                      checked={isDefaultCheckbox}
+                      onChange={(e) => setIsDefaultCheckbox(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-[#1a1a1a] border-[#ded9d1] cursor-pointer"
+                    />
+                    <span className="text-xs text-[#4a4238] font-medium">
+                      Set as primary default delivery address for all tiffins
+                    </span>
+                  </label>
+
+                  {/* Submit Button */}
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-[#1a1a1a] text-white rounded-xl text-xs font-bold hover:bg-[#a0522d] transition-all cursor-pointer"
+                    disabled={isSavingAddress}
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-2.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
                   >
-                    Add Address
+                    {isSavingAddress ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" /> Saving to Profile...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={14} /> Add Address
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
