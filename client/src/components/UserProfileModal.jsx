@@ -22,33 +22,6 @@ const AHMEDABAD_LOCALITIES = [
   'Chandkheda'
 ];
 
-const SAMPLE_PLANS = [
-  {
-    id: 'sub_kathiyawadi',
-    planName: 'Kathiyawadi Executive Lunch Plan',
-    mealsLeft: 26,
-    schedule: 'Mon–Sat (12:30 PM) • Bajra Rotla, Ringna Olo, Dal-Bhat & Chaas',
-    price: '₹3,200/mo',
-    badge: 'Popular'
-  },
-  {
-    id: 'sub_heritage',
-    planName: 'Ahmedabad Heritage Thali Plan',
-    mealsLeft: 6,
-    schedule: 'Mon–Sat (1:00 PM) • 5 Soft Phulka Ghee, 2 Fresh Sabzis, Kadhi-Khichdi',
-    price: '₹850/wk',
-    badge: 'Weekly'
-  },
-  {
-    id: 'sub_jain',
-    planName: 'Jain Satvik Pure Daily Meal Plan',
-    mealsLeft: 30,
-    schedule: 'Daily (12:00 PM & 7:30 PM) • No root vegetables, cow ghee, temple-pure prep',
-    price: '₹3,450/mo',
-    badge: 'Satvik'
-  }
-];
-
 const normalizeAddress = (addr, idx) => {
   if (!addr) return null;
   const id = addr._id || addr.id || `addr_${Date.now()}_${idx || 0}`;
@@ -189,13 +162,15 @@ export default function UserProfileModal({
   });
   const [newUpiId, setNewUpiId] = useState('');
 
-  // Active meal subscription state with persistence
+  // Dynamic available meal plans loaded from database (/api/tiffins)
+  const [availablePlans, setAvailablePlans] = useState([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+
+  // Active meal subscription state with dynamic DB persistence
   const [subscription, setSubscription] = useState(() => {
-    if (currentUser?.subscription) return currentUser.subscription;
-    try {
-      const cached = localStorage.getItem('tiffinlink_active_subscription');
-      if (cached) return JSON.parse(cached);
-    } catch (_) {}
+    if (currentUser?.subscription?.planName && currentUser.subscription.status !== 'inactive') {
+      return currentUser.subscription;
+    }
     return null;
   });
 
@@ -238,7 +213,11 @@ export default function UserProfileModal({
         setPaymentMethods(currentUser.paymentMethods);
       }
       if (currentUser.subscription) {
-        setSubscription(currentUser.subscription);
+        if (currentUser.subscription.planName && currentUser.subscription.status !== 'inactive') {
+          setSubscription(currentUser.subscription);
+        } else {
+          setSubscription(null);
+        }
       }
       if (currentUser.notifications) {
         setNotifications(prev => ({ ...prev, ...currentUser.notifications }));
@@ -248,6 +227,81 @@ export default function UserProfileModal({
       }
     }
   }, [currentUser]);
+
+  // Synchronize dynamic meal plans and live customer subscription from database
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchDynamicSubscriptionData = async () => {
+      // 1. Fetch available dynamic tiffin plans directly from MongoDB
+      try {
+        setIsLoadingPlans(true);
+        const res = await apiRequest('/tiffins');
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && list.length > 0) {
+          const formatted = list.map(t => ({
+            id: t._id || t.id,
+            tiffinId: t._id || t.id,
+            providerId: t.providerId,
+            planName: t.name,
+            mealsLeft: 26,
+            schedule: `${(t.days && t.days.length > 0) ? t.days.slice(0, 3).join(', ') + '–' + t.days.slice(-1) : 'Mon–Sat'} (${t.startTime || '12:30 PM'}) • ${t.description || t.category || 'Fresh Thali'}`,
+            price: t.monthlyPrice ? `₹${Number(t.monthlyPrice).toLocaleString('en-IN')}/mo` : (t.weeklyPrice ? `₹${Number(t.weeklyPrice).toLocaleString('en-IN')}/wk` : `₹${(Number(t.price || 120) * 26).toLocaleString('en-IN')}/mo`),
+            rawAmount: t.monthlyPrice || (t.price ? t.price * 26 : 3200),
+            badge: t.category || t.foodType || 'Popular',
+            mealType: t.mealType || 'Lunch'
+          }));
+          setAvailablePlans(formatted);
+          safeSetItem('tiffinlink_dynamic_plans', JSON.stringify(formatted));
+        } else {
+          const cached = localStorage.getItem('tiffinlink_dynamic_plans');
+          if (cached) setAvailablePlans(JSON.parse(cached));
+        }
+      } catch (err) {
+        console.warn('Could not fetch dynamic plans:', err);
+        try {
+          const cached = localStorage.getItem('tiffinlink_dynamic_plans');
+          if (cached) setAvailablePlans(JSON.parse(cached));
+        } catch (_) {}
+      } finally {
+        setIsLoadingPlans(false);
+      }
+
+      // 2. Fetch live customer active subscription from database
+      try {
+        const subRes = await apiRequest('/subscriptions/my-subscriptions');
+        const subs = subRes?.data || [];
+        if (Array.isArray(subs) && subs.length > 0) {
+          const activeSub = subs.find(s => s.status === 'ACTIVE' || s.status === 'PAUSED');
+          if (activeSub && activeSub.status !== 'CANCELLED') {
+            const mapped = {
+              subId: activeSub.subId || activeSub._id,
+              planName: activeSub.plan || activeSub.planName,
+              mealsLeft: activeSub.remainingMeals ?? activeSub.totalMeals ?? 26,
+              schedule: activeSub.slotTime ? `${activeSub.deliveryDays?.join(', ') || 'Daily'} (${activeSub.slotTime})` : (activeSub.schedule || 'Scheduled delivery in insulated canisters.'),
+              status: activeSub.status === 'PAUSED' ? 'paused' : 'active',
+              startDate: activeSub.startDate
+            };
+            setSubscription(mapped);
+            safeSetItem('tiffinlink_active_subscription', JSON.stringify(mapped));
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback to currentUser profile subscription if active
+      if (currentUser?.subscription?.planName && currentUser.subscription.status !== 'inactive') {
+        setSubscription(currentUser.subscription);
+      } else {
+        setSubscription(null);
+        try {
+          localStorage.removeItem('tiffinlink_active_subscription');
+        } catch (_) {}
+      }
+    };
+
+    fetchDynamicSubscriptionData();
+  }, [isOpen, currentUser]);
 
   // Synchronize saved addresses from server and local cache
   useEffect(() => {
@@ -611,54 +665,141 @@ export default function UserProfileModal({
   };
 
   const handleActivateSubscription = async (plan) => {
-    const newSub = {
-      planName: plan.planName,
-      mealsLeft: plan.mealsLeft,
-      schedule: plan.schedule,
-      status: 'active',
-      startDate: new Date().toISOString()
-    };
-    setSubscription(newSub);
-    safeSetItem('tiffinlink_active_subscription', JSON.stringify(newSub));
-
-    if (onUpdateUser && currentUser) {
-      onUpdateUser({ ...currentUser, subscription: newSub });
-    }
-
     try {
-      await apiRequest('/customers/profile', {
-        method: 'PUT',
-        body: JSON.stringify({ subscription: newSub })
-      });
-    } catch (_) {}
+      setSubscriptionToast('Activating plan with provider...');
+      const payload = {
+        tiffinId: plan.tiffinId || plan.id,
+        providerId: plan.providerId || 'tiffinlink_kitchen',
+        planName: plan.planName,
+        frequency: 'Daily',
+        schedule: plan.schedule,
+        amount: plan.rawAmount || 3200,
+        mealType: plan.mealType || 'Lunch',
+        mealsLeft: plan.mealsLeft || 26
+      };
 
-    setSubscriptionToast(`✓ "${plan.planName}" activated! Fresh meals will be delivered as scheduled.`);
-    setTimeout(() => setSubscriptionToast(''), 4000);
+      let newSub = null;
+      try {
+        const res = await apiRequest('/subscriptions/subscribe', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (res && res.success && res.data) {
+          newSub = res.data;
+        }
+      } catch (subErr) {
+        console.warn('POST /subscriptions/subscribe notice:', subErr);
+      }
+
+      if (!newSub) {
+        newSub = {
+          planName: plan.planName,
+          mealsLeft: plan.mealsLeft || 26,
+          schedule: plan.schedule,
+          status: 'active',
+          startDate: new Date().toISOString()
+        };
+        try {
+          await apiRequest('/customers/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ subscription: newSub })
+          });
+        } catch (_) {}
+      }
+
+      setSubscription(newSub);
+      safeSetItem('tiffinlink_active_subscription', JSON.stringify(newSub));
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({ ...currentUser, subscription: newSub });
+      }
+
+      setSubscriptionToast(`✓ "${plan.planName}" activated dynamically! Fresh meals scheduled.`);
+      setTimeout(() => setSubscriptionToast(''), 4000);
+    } catch (err) {
+      console.error('Error activating subscription:', err);
+      setSubscriptionToast('Failed to activate subscription. Please try again.');
+      setTimeout(() => setSubscriptionToast(''), 3500);
+    }
   };
 
   const handlePauseResumeSubscription = async () => {
     if (!subscription) return;
     const isPaused = subscription.status === 'paused';
-    const updatedSub = {
-      ...subscription,
-      status: isPaused ? 'active' : 'paused'
-    };
-    setSubscription(updatedSub);
-    safeSetItem('tiffinlink_active_subscription', JSON.stringify(updatedSub));
-
-    if (onUpdateUser && currentUser) {
-      onUpdateUser({ ...currentUser, subscription: updatedSub });
-    }
-
     try {
-      await apiRequest('/customers/profile', {
-        method: 'PUT',
-        body: JSON.stringify({ subscription: updatedSub })
-      });
-    } catch (_) {}
+      let updatedSub = null;
+      try {
+        const res = await apiRequest('/subscriptions/toggle-status', { method: 'POST' });
+        if (res && res.success && res.data) {
+          updatedSub = res.data;
+        }
+      } catch (apiErr) {
+        console.warn('POST /subscriptions/toggle-status notice:', apiErr);
+      }
 
-    setSubscriptionToast(isPaused ? '✓ Subscription resumed! Upcoming tiffins are scheduled.' : '⏸ Subscription paused for upcoming deliveries without penalty.');
-    setTimeout(() => setSubscriptionToast(''), 3500);
+      if (!updatedSub) {
+        updatedSub = {
+          ...subscription,
+          status: isPaused ? 'active' : 'paused'
+        };
+        try {
+          await apiRequest('/customers/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ subscription: updatedSub })
+          });
+        } catch (_) {}
+      }
+
+      setSubscription(updatedSub);
+      safeSetItem('tiffinlink_active_subscription', JSON.stringify(updatedSub));
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({ ...currentUser, subscription: updatedSub });
+      }
+
+      setSubscriptionToast(
+        updatedSub.status === 'active' 
+          ? '✓ Subscription resumed in database! Daily deliveries active.' 
+          : '⏸ Subscription paused in database for upcoming deliveries.'
+      );
+      setTimeout(() => setSubscriptionToast(''), 3500);
+    } catch (err) {
+      console.error('Error toggling subscription status:', err);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      try {
+        await apiRequest('/subscriptions/cancel-active', { method: 'POST' });
+      } catch (_) {}
+
+      try {
+        await apiRequest('/customers/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            subscription: { planName: '', mealsLeft: 0, schedule: '', status: 'inactive' }
+          })
+        });
+      } catch (_) {}
+
+      setSubscription(null);
+      try {
+        localStorage.removeItem('tiffinlink_active_subscription');
+      } catch (_) {}
+
+      if (onUpdateUser && currentUser) {
+        onUpdateUser({
+          ...currentUser,
+          subscription: { planName: '', mealsLeft: 0, schedule: '', status: 'inactive' }
+        });
+      }
+
+      setSubscriptionToast('✓ Subscription cancelled. No active meal plan.');
+      setTimeout(() => setSubscriptionToast(''), 3500);
+    } catch (err) {
+      console.error('Error cancelling subscription:', err);
+    }
   };
 
   const handleToggleNotification = async (key) => {
@@ -1619,7 +1760,15 @@ export default function UserProfileModal({
                             : 'bg-white border border-[#ded9d1] text-[#1a1a1a] hover:bg-stone-100'
                         }`}
                       >
-                        {subscription.status === 'paused' ? '▶ Resume Deliveries' : '⏸ Pause Subscription'}
+                        {subscription.status === 'paused' ? '▶ Resume Deliveries' : '⏸ Pause Deliveries'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelSubscription}
+                        className="px-4 py-2 rounded-xl bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer"
+                        title="Cancel active meal subscription"
+                      >
+                        Cancel Plan
                       </button>
                       <button
                         type="button"
@@ -1655,43 +1804,54 @@ export default function UserProfileModal({
                   </div>
                 )}
 
-                {/* Curated Ahmedabad Subscription Plans */}
+                {/* Dynamic Live Ahmedabad Subscription Plans from MongoDB */}
                 <div className="space-y-2.5 pt-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[#665d52]">
-                      Popular Ahmedabad Meal Subscriptions
+                      Available Meal Subscriptions (Live from Kitchens)
                     </h4>
                     <span className="text-[10px] text-[#8c8273]">Instant 1-Click Activation</span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
-                    {SAMPLE_PLANS.map((plan) => (
-                      <div 
-                        key={plan.id}
-                        className="p-3.5 rounded-xl border border-[#ded9d1] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#1a1a1a] transition-colors"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-[#1a1a1a]">{plan.planName}</span>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#a0522d]/10 text-[#a0522d] uppercase">
-                              {plan.badge}
-                            </span>
+                  {isLoadingPlans ? (
+                    <div className="p-8 rounded-xl border border-dashed border-[#ded9d1] bg-white flex items-center justify-center gap-2 text-xs text-[#665d52]">
+                      <Loader2 size={16} className="animate-spin text-[#a0522d]" />
+                      <span>Fetching dynamic meal plans from Ahmedabad kitchens...</span>
+                    </div>
+                  ) : availablePlans.length === 0 ? (
+                    <div className="p-6 rounded-xl border border-dashed border-[#ded9d1] bg-white text-center text-xs text-[#665d52]">
+                      No subscription plans found at the moment. Browse the main catalog to explore active home kitchens.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {availablePlans.map((plan) => (
+                        <div 
+                          key={plan.id}
+                          className="p-3.5 rounded-xl border border-[#ded9d1] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#1a1a1a] transition-colors shadow-xs"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-[#1a1a1a]">{plan.planName}</span>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#a0522d]/10 text-[#a0522d] uppercase">
+                                {plan.badge}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#665d52] leading-snug">{plan.schedule}</p>
                           </div>
-                          <p className="text-[11px] text-[#665d52]">{plan.schedule}</p>
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                            <span className="font-bold text-xs text-[#1a1a1a] font-mono">{plan.price}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleActivateSubscription(plan)}
+                              className="px-3.5 py-1.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
+                            >
+                              Activate Plan
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-                          <span className="font-bold text-xs text-[#1a1a1a]">{plan.price}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleActivateSubscription(plan)}
-                            className="px-3.5 py-1.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                          >
-                            Activate Plan
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 rounded-xl border border-[#ded9d1] bg-[#f5f3ef] text-xs text-[#665d52] flex items-center gap-2">

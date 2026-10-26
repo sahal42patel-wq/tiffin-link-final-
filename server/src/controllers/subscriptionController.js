@@ -266,10 +266,158 @@ const getCustomerSubscriptions = async (req, res) => {
   }
 };
 
+// @desc    Customer subscribes to a tiffin plan dynamically
+// @route   POST /api/subscriptions/subscribe
+const customerSubscribe = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    const { 
+      tiffinId, 
+      planName, 
+      frequency = 'Daily', 
+      schedule, 
+      amount, 
+      mealType = 'Lunch', 
+      mealsLeft = 26,
+      providerId = 'tiffinlink_kitchen'
+    } = req.body;
+
+    const subIdNum = Math.floor(1000 + Math.random() * 9000);
+    const subData = {
+      providerId: providerId || 'tiffinlink_kitchen',
+      subId: `SUB-${subIdNum}`,
+      customerId: user._id.toString(),
+      customerName: user.name || 'Verified Diner',
+      customerPhone: user.phone || '',
+      customerEmail: user.email || '',
+      tiffinId: tiffinId || '',
+      plan: planName || 'Artisanal Thali Plan',
+      frequency,
+      mealType,
+      amount: Number(amount) || 3200,
+      totalMeals: Number(mealsLeft) || 26,
+      remainingMeals: Number(mealsLeft) || 26,
+      startDate: new Date().toISOString(),
+      status: 'ACTIVE',
+      paymentStatus: 'PAID'
+    };
+
+    if (await isDbConnected()) {
+      const newSub = new Subscription(subData);
+      await newSub.save();
+    }
+
+    // Update user document
+    const updatedUserSub = {
+      planName: subData.plan,
+      mealsLeft: subData.remainingMeals,
+      schedule: schedule || `${frequency} • ${mealType}`,
+      status: 'active',
+      startDate: subData.startDate,
+      subId: subData.subId
+    };
+
+    const dbUser = await User.findById(user._id);
+    if (dbUser) {
+      dbUser.subscription = updatedUserSub;
+      await dbUser.save();
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `✓ Subscribed to "${subData.plan}" successfully!`,
+      data: updatedUserSub
+    });
+  } catch (err) {
+    console.error('Customer subscribe error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create subscription: ' + err.message });
+  }
+};
+
+// @desc    Customer toggles subscription pause/resume status
+// @route   POST /api/subscriptions/toggle-status
+const customerToggleSubscriptionStatus = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const dbUser = await User.findById(user._id);
+    if (!dbUser || !dbUser.subscription || !dbUser.subscription.planName) {
+      return res.status(404).json({ success: false, message: 'No active subscription found' });
+    }
+
+    const isCurrentlyPaused = dbUser.subscription.status === 'paused';
+    const nextStatus = isCurrentlyPaused ? 'active' : 'paused';
+
+    dbUser.subscription.status = nextStatus;
+    await dbUser.save();
+
+    if (await isDbConnected()) {
+      await Subscription.updateMany(
+        { customerId: user._id.toString(), status: isCurrentlyPaused ? 'PAUSED' : 'ACTIVE' },
+        { status: isCurrentlyPaused ? 'ACTIVE' : 'PAUSED' }
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: nextStatus === 'active' ? '✓ Subscription resumed! Tiffins will arrive as scheduled.' : '⏸ Subscription paused for upcoming deliveries.',
+      data: dbUser.subscription
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update subscription status: ' + err.message });
+  }
+};
+
+// @desc    Customer cancels active subscription
+// @route   POST /api/subscriptions/cancel-active
+const customerCancelSubscription = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const dbUser = await User.findById(user._id);
+    if (dbUser) {
+      dbUser.subscription = {
+        planName: '',
+        mealsLeft: 0,
+        schedule: '',
+        status: 'inactive'
+      };
+      await dbUser.save();
+    }
+
+    if (await isDbConnected()) {
+      await Subscription.updateMany(
+        { customerId: user._id.toString(), status: { $in: ['ACTIVE', 'PAUSED'] } },
+        { status: 'CANCELLED', cancelledAt: new Date() }
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: '✓ Subscription cancelled. No active meal plan.',
+      data: null
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to cancel subscription' });
+  }
+};
+
 module.exports = {
   getSubscriptions,
   getCustomerSubscriptions,
   createSubscription,
   updateSubscription,
-  deleteSubscription
+  deleteSubscription,
+  customerSubscribe,
+  customerToggleSubscriptionStatus,
+  customerCancelSubscription
 };

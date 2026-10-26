@@ -6,7 +6,10 @@ const {
   getCustomerSubscriptions,
   createSubscription,
   updateSubscription,
-  deleteSubscription
+  deleteSubscription,
+  customerSubscribe,
+  customerToggleSubscriptionStatus,
+  customerCancelSubscription
 } = require('../controllers/subscriptionController');
 
 const optionalProtect = async (req, res, next) => {
@@ -29,7 +32,13 @@ const optionalProtect = async (req, res, next) => {
   next();
 };
 
+// Customer routes
 router.get('/my-subscriptions', optionalProtect, getCustomerSubscriptions);
+router.post('/subscribe', protect, customerSubscribe);
+router.post('/toggle-status', protect, customerToggleSubscriptionStatus);
+router.post('/cancel-active', protect, customerCancelSubscription);
+
+// Provider routes
 router.get('/', protect, requireProvider, getSubscriptions);
 router.post('/', protect, requireProvider, createSubscription);
 router.put('/:id', protect, requireProvider, updateSubscription);
