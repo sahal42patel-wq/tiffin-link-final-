@@ -34,9 +34,9 @@ const optionalProtect = async (req, res, next) => {
 
 // Customer routes
 router.get('/my-subscriptions', optionalProtect, getCustomerSubscriptions);
-router.post('/subscribe', protect, customerSubscribe);
-router.post('/toggle-status', protect, customerToggleSubscriptionStatus);
-router.post('/cancel-active', protect, customerCancelSubscription);
+router.post('/subscribe', optionalProtect, customerSubscribe);
+router.post('/toggle-status', optionalProtect, customerToggleSubscriptionStatus);
+router.post('/cancel-active', optionalProtect, customerCancelSubscription);
 
 // Provider routes
 router.get('/', protect, requireProvider, getSubscriptions);

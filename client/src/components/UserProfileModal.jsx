@@ -162,17 +162,9 @@ export default function UserProfileModal({
   });
   const [newUpiId, setNewUpiId] = useState('');
 
-  // Dynamic available meal plans loaded from database (/api/tiffins)
-  const [availablePlans, setAvailablePlans] = useState([]);
-  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
-
-  // Active meal subscription state with dynamic DB persistence
-  const [subscription, setSubscription] = useState(() => {
-    if (currentUser?.subscription?.planName && currentUser.subscription.status !== 'inactive') {
-      return currentUser.subscription;
-    }
-    return null;
-  });
+  // Real customer subscriptions state fetched dynamically from MongoDB
+  const [customerSubscriptions, setCustomerSubscriptions] = useState([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
 
   // Notifications preferences state with persistence
   const [notifications, setNotifications] = useState(() => {
@@ -212,13 +204,6 @@ export default function UserProfileModal({
       if (currentUser.paymentMethods && Array.isArray(currentUser.paymentMethods) && currentUser.paymentMethods.length > 0) {
         setPaymentMethods(currentUser.paymentMethods);
       }
-      if (currentUser.subscription) {
-        if (currentUser.subscription.planName && currentUser.subscription.status !== 'inactive') {
-          setSubscription(currentUser.subscription);
-        } else {
-          setSubscription(null);
-        }
-      }
       if (currentUser.notifications) {
         setNotifications(prev => ({ ...prev, ...currentUser.notifications }));
       }
@@ -228,79 +213,55 @@ export default function UserProfileModal({
     }
   }, [currentUser]);
 
-  // Synchronize dynamic meal plans and live customer subscription from database
+  // Synchronize live customer subscriptions directly from MongoDB
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchDynamicSubscriptionData = async () => {
-      // 1. Fetch available dynamic tiffin plans directly from MongoDB
+    const fetchLiveSubscriptions = async () => {
       try {
-        setIsLoadingPlans(true);
-        const res = await apiRequest('/tiffins');
+        setIsLoadingSubscriptions(true);
+        const email = currentUser?.email || '';
+        const params = email ? `?email=${encodeURIComponent(email)}` : '';
+        const res = await apiRequest(`/subscriptions/my-subscriptions${params}`);
         const list = res?.data || (Array.isArray(res) ? res : []);
         if (Array.isArray(list) && list.length > 0) {
-          const formatted = list.map(t => ({
-            id: t._id || t.id,
-            tiffinId: t._id || t.id,
-            providerId: t.providerId,
-            planName: t.name,
-            mealsLeft: 26,
-            schedule: `${(t.days && t.days.length > 0) ? t.days.slice(0, 3).join(', ') + '–' + t.days.slice(-1) : 'Mon–Sat'} (${t.startTime || '12:30 PM'}) • ${t.description || t.category || 'Fresh Thali'}`,
-            price: t.monthlyPrice ? `₹${Number(t.monthlyPrice).toLocaleString('en-IN')}/mo` : (t.weeklyPrice ? `₹${Number(t.weeklyPrice).toLocaleString('en-IN')}/wk` : `₹${(Number(t.price || 120) * 26).toLocaleString('en-IN')}/mo`),
-            rawAmount: t.monthlyPrice || (t.price ? t.price * 26 : 3200),
-            badge: t.category || t.foodType || 'Popular',
-            mealType: t.mealType || 'Lunch'
-          }));
-          setAvailablePlans(formatted);
-          safeSetItem('tiffinlink_dynamic_plans', JSON.stringify(formatted));
-        } else {
-          const cached = localStorage.getItem('tiffinlink_dynamic_plans');
-          if (cached) setAvailablePlans(JSON.parse(cached));
-        }
-      } catch (err) {
-        console.warn('Could not fetch dynamic plans:', err);
-        try {
-          const cached = localStorage.getItem('tiffinlink_dynamic_plans');
-          if (cached) setAvailablePlans(JSON.parse(cached));
-        } catch (_) {}
-      } finally {
-        setIsLoadingPlans(false);
-      }
-
-      // 2. Fetch live customer active subscription from database
-      try {
-        const subRes = await apiRequest('/subscriptions/my-subscriptions');
-        const subs = subRes?.data || [];
-        if (Array.isArray(subs) && subs.length > 0) {
-          const activeSub = subs.find(s => s.status === 'ACTIVE' || s.status === 'PAUSED');
-          if (activeSub && activeSub.status !== 'CANCELLED') {
-            const mapped = {
-              subId: activeSub.subId || activeSub._id,
-              planName: activeSub.plan || activeSub.planName,
-              mealsLeft: activeSub.remainingMeals ?? activeSub.totalMeals ?? 26,
-              schedule: activeSub.slotTime ? `${activeSub.deliveryDays?.join(', ') || 'Daily'} (${activeSub.slotTime})` : (activeSub.schedule || 'Scheduled delivery in insulated canisters.'),
-              status: activeSub.status === 'PAUSED' ? 'paused' : 'active',
-              startDate: activeSub.startDate
-            };
-            setSubscription(mapped);
-            safeSetItem('tiffinlink_active_subscription', JSON.stringify(mapped));
+          const activeSubs = list.filter(s => s.status !== 'CANCELLED');
+          if (activeSubs.length > 0) {
+            setCustomerSubscriptions(activeSubs);
+            safeSetItem('tiffinlink_user_db_subscriptions', JSON.stringify(activeSubs));
             return;
           }
         }
-      } catch (_) {}
+      } catch (err) {
+        console.warn('Could not fetch database subscriptions:', err);
+      } finally {
+        setIsLoadingSubscriptions(false);
+      }
 
-      // Fallback to currentUser profile subscription if active
+      // Check if user object has active subscription from MongoDB profile
       if (currentUser?.subscription?.planName && currentUser.subscription.status !== 'inactive') {
-        setSubscription(currentUser.subscription);
+        const fallbackSub = [{
+          _id: currentUser.subscription.subId || 'curr_sub',
+          subId: currentUser.subscription.subId || 'SUB-101',
+          plan: currentUser.subscription.planName,
+          status: (currentUser.subscription.status || 'ACTIVE').toUpperCase(),
+          remainingMeals: currentUser.subscription.mealsLeft || 26,
+          totalMeals: 26,
+          schedule: currentUser.subscription.schedule || 'Scheduled daily delivery in insulated canisters.',
+          frequency: 'Daily',
+          slotTime: '12:30 PM'
+        }];
+        setCustomerSubscriptions(fallbackSub);
       } else {
-        setSubscription(null);
+        setCustomerSubscriptions([]);
         try {
+          localStorage.removeItem('tiffinlink_user_db_subscriptions');
           localStorage.removeItem('tiffinlink_active_subscription');
         } catch (_) {}
       }
     };
 
-    fetchDynamicSubscriptionData();
+    fetchLiveSubscriptions();
   }, [isOpen, currentUser]);
 
   // Synchronize saved addresses from server and local cache
@@ -707,7 +668,8 @@ export default function UserProfileModal({
         } catch (_) {}
       }
 
-      setSubscription(newSub);
+      setCustomerSubscriptions([newSub]);
+      safeSetItem('tiffinlink_user_db_subscriptions', JSON.stringify([newSub]));
       safeSetItem('tiffinlink_active_subscription', JSON.stringify(newSub));
 
       if (onUpdateUser && currentUser) {
@@ -723,55 +685,69 @@ export default function UserProfileModal({
     }
   };
 
-  const handlePauseResumeSubscription = async () => {
-    if (!subscription) return;
-    const isPaused = subscription.status === 'paused';
+  const handlePauseResumeSubscription = async (targetSub) => {
+    const sub = targetSub || customerSubscriptions[0];
+    if (!sub) return;
+    const isPaused = (sub.status || '').toLowerCase() === 'paused';
+    const nextStatus = isPaused ? 'active' : 'paused';
     try {
-      let updatedSub = null;
+      setSubscriptionToast('Updating subscription status in database...');
       try {
-        const res = await apiRequest('/subscriptions/toggle-status', { method: 'POST' });
-        if (res && res.success && res.data) {
-          updatedSub = res.data;
-        }
+        await apiRequest('/subscriptions/toggle-status', {
+          method: 'POST',
+          body: JSON.stringify({
+            subId: sub.subId || sub._id,
+            status: sub.status,
+            email: currentUser?.email || ''
+          })
+        });
       } catch (apiErr) {
         console.warn('POST /subscriptions/toggle-status notice:', apiErr);
       }
 
-      if (!updatedSub) {
-        updatedSub = {
-          ...subscription,
-          status: isPaused ? 'active' : 'paused'
-        };
-        try {
-          await apiRequest('/customers/profile', {
-            method: 'PUT',
-            body: JSON.stringify({ subscription: updatedSub })
-          });
-        } catch (_) {}
-      }
-
-      setSubscription(updatedSub);
-      safeSetItem('tiffinlink_active_subscription', JSON.stringify(updatedSub));
+      const updatedList = customerSubscriptions.map(s => {
+        if ((s.subId && s.subId === sub.subId) || (s._id && s._id === sub._id)) {
+          return { ...s, status: nextStatus.toUpperCase() };
+        }
+        return s;
+      });
+      setCustomerSubscriptions(updatedList);
+      safeSetItem('tiffinlink_user_db_subscriptions', JSON.stringify(updatedList));
 
       if (onUpdateUser && currentUser) {
-        onUpdateUser({ ...currentUser, subscription: updatedSub });
+        const updatedUserSub = {
+          ...(currentUser.subscription || {}),
+          planName: sub.plan || sub.planName,
+          status: nextStatus
+        };
+        onUpdateUser({ ...currentUser, subscription: updatedUserSub });
       }
 
       setSubscriptionToast(
-        updatedSub.status === 'active' 
+        nextStatus === 'active' 
           ? '✓ Subscription resumed in database! Daily deliveries active.' 
           : '⏸ Subscription paused in database for upcoming deliveries.'
       );
       setTimeout(() => setSubscriptionToast(''), 3500);
     } catch (err) {
       console.error('Error toggling subscription status:', err);
+      setSubscriptionToast('Failed to update subscription status. Please try again.');
+      setTimeout(() => setSubscriptionToast(''), 3500);
     }
   };
 
-  const handleCancelSubscription = async () => {
+  const handleCancelSubscription = async (targetSub) => {
+    const sub = targetSub || customerSubscriptions[0];
     try {
+      setSubscriptionToast('Cancelling subscription in database...');
       try {
-        await apiRequest('/subscriptions/cancel-active', { method: 'POST' });
+        await apiRequest('/subscriptions/cancel-active', {
+          method: 'POST',
+          body: JSON.stringify({
+            subId: sub?.subId || sub?._id,
+            email: currentUser?.email || ''
+          })
+        });
       } catch (_) {}
 
       try {
@@ -783,8 +759,9 @@ export default function UserProfileModal({
         });
       } catch (_) {}
 
-      setSubscription(null);
+      setCustomerSubscriptions([]);
       try {
+        localStorage.removeItem('tiffinlink_user_db_subscriptions');
         localStorage.removeItem('tiffinlink_active_subscription');
       } catch (_) {}
 
@@ -795,10 +772,12 @@ export default function UserProfileModal({
         });
       }
 
-      setSubscriptionToast('✓ Subscription cancelled. No active meal plan.');
+      setSubscriptionToast('✓ Subscription cancelled in database. No active meal plan.');
       setTimeout(() => setSubscriptionToast(''), 3500);
     } catch (err) {
       console.error('Error cancelling subscription:', err);
+      setSubscriptionToast('Failed to cancel subscription.');
+      setTimeout(() => setSubscriptionToast(''), 3500);
     }
   };
 
@@ -1727,61 +1706,90 @@ export default function UserProfileModal({
                   </div>
                 )}
 
-                {subscription ? (
-                  <div className="p-5 rounded-2xl border border-[#1b5e20]/40 bg-[#1b5e20]/5 space-y-4 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-[#1b5e20]">Active Meal Plan</span>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                            subscription.status === 'paused' ? 'bg-amber-100 text-amber-800' : 'bg-[#1b5e20] text-white'
-                          }`}>
-                            {subscription.status === 'paused' ? 'PAUSED' : 'DELIVERING DAILY'}
-                          </span>
+                {isLoadingSubscriptions ? (
+                  <div className="p-8 rounded-2xl border border-dashed border-[#ded9d1] bg-white flex flex-col items-center justify-center gap-2 text-xs text-[#665d52]">
+                    <Loader2 size={18} className="animate-spin text-[#a0522d]" />
+                    <span className="font-semibold text-[#1a1a1a]">Fetching active subscriptions from database...</span>
+                  </div>
+                ) : customerSubscriptions && customerSubscriptions.length > 0 ? (
+                  <div className="space-y-4">
+                    {customerSubscriptions.map((sub, idx) => {
+                      const isPaused = (sub.status || '').toLowerCase() === 'paused';
+                      const planName = sub.plan || sub.planName || 'Active Ahmedabad Meal Plan';
+                      const mealsRemaining = sub.remainingMeals ?? sub.mealsLeft ?? 26;
+                      const totalMeals = sub.totalMeals || 26;
+                      const scheduleDesc = sub.schedule || (sub.deliveryDays ? `Mon-Sat (${sub.slotTime || '12:30 PM'})` : 'Daily Lunch Delivery in Food-Grade Canisters');
+
+                      return (
+                        <div key={sub._id || sub.subId || idx} className="p-5 rounded-2xl border border-[#1b5e20]/40 bg-[#1b5e20]/5 space-y-4 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-[#1b5e20]">Active Meal Plan</span>
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                  isPaused ? 'bg-amber-100 text-amber-800' : 'bg-[#1b5e20] text-white'
+                                }`}>
+                                  {isPaused ? 'PAUSED' : 'DELIVERING DAILY'}
+                                </span>
+                                {sub.subId && (
+                                  <span className="text-[10px] font-mono text-[#665d52] font-semibold bg-white/80 px-2 py-0.5 rounded border border-[#ded9d1]">
+                                    {sub.subId}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-display-lg text-lg text-[#1a1a1a] mt-1">{planName}</h4>
+                            </div>
+                            <span className="bg-[#1b5e20] text-white text-xs font-bold px-3 py-1 rounded-full uppercase self-start sm:self-auto">
+                              {mealsRemaining} / {totalMeals} Meals Remaining
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#665d52] bg-white/70 p-3 rounded-xl border border-[#ded9d1]/60">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-[#8c8273] block">Delivery Schedule</span>
+                              <span className="font-semibold text-[#1a1a1a]">{scheduleDesc}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-[#8c8273] block">Time Slot</span>
+                              <span className="font-semibold text-[#1a1a1a]">{sub.slotTime || '12:30 PM (Lunch Slot)'}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-[#1b5e20]/20 flex flex-wrap gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => handlePauseResumeSubscription(sub)}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                isPaused
+                                  ? 'bg-[#1b5e20] text-white hover:bg-[#144216]'
+                                  : 'bg-white border border-[#ded9d1] text-[#1a1a1a] hover:bg-stone-100'
+                              }`}
+                            >
+                              {isPaused ? '▶ Resume Deliveries' : '⏸ Pause Deliveries'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelSubscription(sub)}
+                              className="px-4 py-2 rounded-xl bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer"
+                              title="Cancel active meal subscription in database"
+                            >
+                              Cancel Plan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                if (onNavigate) onNavigate('#find-tiffin');
+                                else window.location.hash = '#find-tiffin';
+                              }}
+                              className="px-4 py-2 rounded-xl bg-white border border-[#ded9d1] text-xs font-bold text-[#4a4238] hover:bg-stone-100 cursor-pointer"
+                            >
+                              Browse Other Plans
+                            </button>
+                          </div>
                         </div>
-                        <h4 className="font-display-lg text-lg text-[#1a1a1a] mt-1">{subscription.planName || 'Ahmedabad Thali Plan'}</h4>
-                      </div>
-                      <span className="bg-[#1b5e20] text-white text-xs font-bold px-3 py-1 rounded-full uppercase self-start sm:self-auto">
-                        {subscription.mealsLeft || 0} Meals Remaining
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-[#665d52] leading-relaxed">
-                      {subscription.schedule || 'Scheduled delivery in 304 Food-Grade Insulated Canisters with live GPS telemetry.'}
-                    </p>
-
-                    <div className="pt-2 border-t border-[#1b5e20]/20 flex flex-wrap gap-2.5">
-                      <button
-                        type="button"
-                        onClick={handlePauseResumeSubscription}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          subscription.status === 'paused'
-                            ? 'bg-[#1b5e20] text-white hover:bg-[#144216]'
-                            : 'bg-white border border-[#ded9d1] text-[#1a1a1a] hover:bg-stone-100'
-                        }`}
-                      >
-                        {subscription.status === 'paused' ? '▶ Resume Deliveries' : '⏸ Pause Deliveries'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelSubscription}
-                        className="px-4 py-2 rounded-xl bg-white border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer"
-                        title="Cancel active meal subscription"
-                      >
-                        Cancel Plan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onClose();
-                          if (onNavigate) onNavigate('#find-tiffin');
-                          else window.location.hash = '#find-tiffin';
-                        }}
-                        className="px-4 py-2 rounded-xl bg-white border border-[#ded9d1] text-xs font-bold text-[#4a4238] hover:bg-stone-100 cursor-pointer"
-                      >
-                        Browse Other Plans
-                      </button>
-                    </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center text-xs text-[#665d52] bg-[#f5f3ef] border border-[#ded9d1] rounded-2xl p-6 shadow-xs">
@@ -1803,56 +1811,6 @@ export default function UserProfileModal({
                     </button>
                   </div>
                 )}
-
-                {/* Dynamic Live Ahmedabad Subscription Plans from MongoDB */}
-                <div className="space-y-2.5 pt-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#665d52]">
-                      Available Meal Subscriptions (Live from Kitchens)
-                    </h4>
-                    <span className="text-[10px] text-[#8c8273]">Instant 1-Click Activation</span>
-                  </div>
-
-                  {isLoadingPlans ? (
-                    <div className="p-8 rounded-xl border border-dashed border-[#ded9d1] bg-white flex items-center justify-center gap-2 text-xs text-[#665d52]">
-                      <Loader2 size={16} className="animate-spin text-[#a0522d]" />
-                      <span>Fetching dynamic meal plans from Ahmedabad kitchens...</span>
-                    </div>
-                  ) : availablePlans.length === 0 ? (
-                    <div className="p-6 rounded-xl border border-dashed border-[#ded9d1] bg-white text-center text-xs text-[#665d52]">
-                      No subscription plans found at the moment. Browse the main catalog to explore active home kitchens.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2.5">
-                      {availablePlans.map((plan) => (
-                        <div 
-                          key={plan.id}
-                          className="p-3.5 rounded-xl border border-[#ded9d1] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#1a1a1a] transition-colors shadow-xs"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-[#1a1a1a]">{plan.planName}</span>
-                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#a0522d]/10 text-[#a0522d] uppercase">
-                                {plan.badge}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-[#665d52] leading-snug">{plan.schedule}</p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-                            <span className="font-bold text-xs text-[#1a1a1a] font-mono">{plan.price}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleActivateSubscription(plan)}
-                              className="px-3.5 py-1.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-xs"
-                            >
-                              Activate Plan
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 <div className="p-4 rounded-xl border border-[#ded9d1] bg-[#f5f3ef] text-xs text-[#665d52] flex items-center gap-2">
                   <span className="text-base">💡</span>

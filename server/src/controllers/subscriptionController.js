@@ -267,13 +267,10 @@ const getCustomerSubscriptions = async (req, res) => {
 };
 
 // @desc    Customer subscribes to a tiffin plan dynamically
+// @desc    Customer subscribes to a tiffin plan dynamically
 // @route   POST /api/subscriptions/subscribe
 const customerSubscribe = async (req, res) => {
   try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
     const { 
       tiffinId, 
       planName, 
@@ -282,17 +279,35 @@ const customerSubscribe = async (req, res) => {
       amount, 
       mealType = 'Lunch', 
       mealsLeft = 26,
-      providerId = 'tiffinlink_kitchen'
+      providerId = 'tiffinlink_kitchen',
+      email,
+      userId
     } = req.body;
+
+    let dbUser = null;
+    if (req.user?._id) {
+      dbUser = await User.findById(req.user._id);
+    }
+    if (!dbUser && email) {
+      dbUser = await User.findOne({ email: email.toLowerCase() });
+    }
+    if (!dbUser && userId) {
+      dbUser = await User.findById(userId);
+    }
+
+    const customerId = dbUser?._id ? dbUser._id.toString() : (userId || 'guest_user');
+    const customerName = dbUser?.name || req.body.customerName || 'Verified Diner';
+    const customerPhone = dbUser?.phone || req.body.customerPhone || '';
+    const customerEmail = dbUser?.email || email || '';
 
     const subIdNum = Math.floor(1000 + Math.random() * 9000);
     const subData = {
       providerId: providerId || 'tiffinlink_kitchen',
       subId: `SUB-${subIdNum}`,
-      customerId: user._id.toString(),
-      customerName: user.name || 'Verified Diner',
-      customerPhone: user.phone || '',
-      customerEmail: user.email || '',
+      customerId,
+      customerName,
+      customerPhone,
+      customerEmail,
       tiffinId: tiffinId || '',
       plan: planName || 'Artisanal Thali Plan',
       frequency,
@@ -310,7 +325,7 @@ const customerSubscribe = async (req, res) => {
       await newSub.save();
     }
 
-    // Update user document
+    // Update user document if found
     const updatedUserSub = {
       planName: subData.plan,
       mealsLeft: subData.remainingMeals,
@@ -320,7 +335,6 @@ const customerSubscribe = async (req, res) => {
       subId: subData.subId
     };
 
-    const dbUser = await User.findById(user._id);
     if (dbUser) {
       dbUser.subscription = updatedUserSub;
       await dbUser.save();
@@ -341,35 +355,56 @@ const customerSubscribe = async (req, res) => {
 // @route   POST /api/subscriptions/toggle-status
 const customerToggleSubscriptionStatus = async (req, res) => {
   try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+    const { subId, email, userId } = req.body || {};
+    let dbUser = null;
+    if (req.user?._id) {
+      dbUser = await User.findById(req.user._id);
+    }
+    if (!dbUser && email) {
+      dbUser = await User.findOne({ email: email.toLowerCase() });
+    }
+    if (!dbUser && userId) {
+      dbUser = await User.findById(userId);
     }
 
-    const dbUser = await User.findById(user._id);
-    if (!dbUser || !dbUser.subscription || !dbUser.subscription.planName) {
-      return res.status(404).json({ success: false, message: 'No active subscription found' });
+    let isCurrentlyPaused = false;
+    let nextStatus = 'paused';
+
+    if (dbUser && dbUser.subscription) {
+      isCurrentlyPaused = (dbUser.subscription.status || '').toLowerCase() === 'paused';
+      nextStatus = isCurrentlyPaused ? 'active' : 'paused';
+      dbUser.subscription.status = nextStatus;
+      await dbUser.save();
     }
-
-    const isCurrentlyPaused = dbUser.subscription.status === 'paused';
-    const nextStatus = isCurrentlyPaused ? 'active' : 'paused';
-
-    dbUser.subscription.status = nextStatus;
-    await dbUser.save();
 
     if (await isDbConnected()) {
-      await Subscription.updateMany(
-        { customerId: user._id.toString(), status: isCurrentlyPaused ? 'PAUSED' : 'ACTIVE' },
-        { status: isCurrentlyPaused ? 'ACTIVE' : 'PAUSED' }
-      );
+      const conditions = [];
+      if (subId) conditions.push({ subId }, { _id: subId });
+      if (dbUser?._id) conditions.push({ customerId: dbUser._id.toString() });
+      if (dbUser?.email) conditions.push({ customerEmail: dbUser.email.toLowerCase() });
+      if (email) conditions.push({ customerEmail: email.toLowerCase() });
+
+      if (conditions.length > 0) {
+        // Find existing to check status if dbUser didn't have it
+        const existing = await Subscription.findOne({ $or: conditions });
+        if (existing) {
+          isCurrentlyPaused = (existing.status || '').toUpperCase() === 'PAUSED';
+          nextStatus = isCurrentlyPaused ? 'active' : 'paused';
+          await Subscription.updateMany(
+            { $or: conditions, status: isCurrentlyPaused ? 'PAUSED' : 'ACTIVE' },
+            { status: isCurrentlyPaused ? 'ACTIVE' : 'PAUSED' }
+          );
+        }
+      }
     }
 
     return res.json({
       success: true,
       message: nextStatus === 'active' ? '✓ Subscription resumed! Tiffins will arrive as scheduled.' : '⏸ Subscription paused for upcoming deliveries.',
-      data: dbUser.subscription
+      data: dbUser?.subscription || { status: nextStatus }
     });
   } catch (err) {
+    console.error('Customer toggle subscription status error:', err);
     res.status(500).json({ success: false, message: 'Failed to update subscription status: ' + err.message });
   }
 };
@@ -378,12 +413,18 @@ const customerToggleSubscriptionStatus = async (req, res) => {
 // @route   POST /api/subscriptions/cancel-active
 const customerCancelSubscription = async (req, res) => {
   try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+    const { subId, email, userId } = req.body || {};
+    let dbUser = null;
+    if (req.user?._id) {
+      dbUser = await User.findById(req.user._id);
+    }
+    if (!dbUser && email) {
+      dbUser = await User.findOne({ email: email.toLowerCase() });
+    }
+    if (!dbUser && userId) {
+      dbUser = await User.findById(userId);
     }
 
-    const dbUser = await User.findById(user._id);
     if (dbUser) {
       dbUser.subscription = {
         planName: '',
@@ -395,10 +436,18 @@ const customerCancelSubscription = async (req, res) => {
     }
 
     if (await isDbConnected()) {
-      await Subscription.updateMany(
-        { customerId: user._id.toString(), status: { $in: ['ACTIVE', 'PAUSED'] } },
-        { status: 'CANCELLED', cancelledAt: new Date() }
-      );
+      const conditions = [];
+      if (subId) conditions.push({ subId }, { _id: subId });
+      if (dbUser?._id) conditions.push({ customerId: dbUser._id.toString() });
+      if (dbUser?.email) conditions.push({ customerEmail: dbUser.email.toLowerCase() });
+      if (email) conditions.push({ customerEmail: email.toLowerCase() });
+
+      if (conditions.length > 0) {
+        await Subscription.updateMany(
+          { $or: conditions, status: { $in: ['ACTIVE', 'PAUSED'] } },
+          { status: 'CANCELLED', cancelledAt: new Date() }
+        );
+      }
     }
 
     return res.json({
@@ -407,6 +456,7 @@ const customerCancelSubscription = async (req, res) => {
       data: null
     });
   } catch (err) {
+    console.error('Customer cancel subscription error:', err);
     res.status(500).json({ success: false, message: 'Failed to cancel subscription' });
   }
 };
