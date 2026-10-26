@@ -300,7 +300,7 @@ export default function TiffinCustomizer({
   const activeProviderName = dbProvider?.name || provider?.name || 'Kitchen Partner';
   const activeTiffinName = dbTiffin?.name || tiffin?.name || 'Tiffin';
   const activeTiffinDesc = dbTiffin?.description || tiffin?.description || '';
-  const fallbackTiffinImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+  const fallbackTiffinImg = '/assets/food_biryani.png';
   const activeTiffinImg = 
     dbTiffin?.image || 
     tiffin?.image || 

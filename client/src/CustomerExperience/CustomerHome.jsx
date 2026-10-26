@@ -298,7 +298,7 @@ export default function CustomerHome({ onNavigate }) {
                 const kStatus = k.status === 'busy' ? 'Busy' : 'Accepting Orders';
                 const kDesc = k.description || 'Authentic homestyle dining prepared with fresh ingredients.';
                 const kPrice = k.price ? `₹${k.price}` : 'Custom Pricing';
-                const kImg = k.image && k.image.startsWith('http') ? k.image : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+                const kImg = k.image && (k.image.startsWith('http') || k.image.startsWith('/')) ? k.image : '/assets/tiffin_hero.png';
 
                 return (
                   <div key={k._id || i} className="bg-white rounded-xl overflow-hidden shadow-lg group flex flex-col justify-between transition-transform duration-300 hover:-translate-y-1">

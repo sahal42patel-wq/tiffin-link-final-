@@ -1,0 +1,23 @@
+{
+  "name": "TiffinLink - Artisanal Home Dining",
+  "short_name": "TiffinLink",
+  "description": "Hyperlocal Home-Cooked Tiffin Subscriptions & Artisanal Meal Delivery",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#181512",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/indian_tiffin_heritage.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

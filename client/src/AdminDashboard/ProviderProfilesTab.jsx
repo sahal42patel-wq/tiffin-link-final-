@@ -203,7 +203,7 @@ export default function ProviderProfilesTab({ onNavigate, onOpenProvider360 }) {
       pendingRelease: '₹0',
       acceptanceRate: '100%',
       onTimeRate: '100%',
-      avatarUrl: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=150&auto=format&fit=crop&q=80'
+      avatarUrl: '/assets/provider_1.png'
     };
     setProviders(prev => [newEntry, ...prev]);
     setIsAddModalOpen(false);
@@ -966,7 +966,7 @@ export default function ProviderProfilesTab({ onNavigate, onOpenProvider360 }) {
                     <div
                       className="w-full h-44 bg-[#eae8e4] bg-cover bg-center flex items-end p-3 border border-[#ded9d1]"
                       style={{
-                        backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&auto=format&fit=crop&q=80')`
+                        backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.6)), url('/assets/tiffin_hero.png')`
                       }}
                     >
                       <div className="bg-white/95 backdrop-blur-sm p-2 font-mono text-xs flex items-center justify-between w-full border border-[#ded9d1]">

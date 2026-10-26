@@ -821,7 +821,7 @@ export default function ProviderPerformanceTab({ onNavigate }) {
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-5 shadow-sm flex flex-col gap-3 border border-[#ded9d1]/60">
             <img
-              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&auto=format&fit=crop&q=80"
+              src="/assets/indian_tiffin_heritage.png"
               alt="Stainless steel kitchen staging"
               className="w-full h-48 object-cover border border-[#ded9d1]"
             />
@@ -834,7 +834,7 @@ export default function ProviderPerformanceTab({ onNavigate }) {
 
           <div className="bg-white p-5 shadow-sm flex flex-col gap-3 border border-[#ded9d1]/60">
             <img
-              src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&auto=format&fit=crop&q=80"
+              src="/assets/tiffin_hero.png"
               alt="Thermal retention packaging"
               className="w-full h-48 object-cover border border-[#ded9d1]"
             />
@@ -847,7 +847,7 @@ export default function ProviderPerformanceTab({ onNavigate }) {
 
           <div className="bg-white p-5 shadow-sm flex flex-col gap-3 border border-[#ded9d1]/60">
             <img
-              src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+              src="/assets/dashboard_mockup.png"
               alt="Operational dispatch terminal"
               className="w-full h-48 object-cover border border-[#ded9d1]"
             />

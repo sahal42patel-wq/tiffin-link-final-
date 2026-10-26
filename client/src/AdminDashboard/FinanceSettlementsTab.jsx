@@ -515,7 +515,7 @@ export default function FinanceSettlementsTab() {
               <img
                 className="w-12 h-12 object-cover border border-[#ded9d1]"
                 alt="Ahmedabad Kitchen Network Audit"
-                src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=200&auto=format&fit=crop&q=80"
+                src="/assets/tiffin_hero.png"
               />
               <div className="flex flex-col min-w-0">
                 <span className="font-sans text-xs text-[#1a1a1a] truncate font-semibold">Ahmedabad Kitchen Network Audit</span>

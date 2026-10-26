@@ -516,7 +516,7 @@ export default function DispatchEngineTab({ onNavigate }) {
               <div
                 className="w-full h-64 bg-cover bg-center relative overflow-hidden border border-[#ded9d1]"
                 style={{
-                  backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDpMWpnqXKhTUzaj5OIWTxM2HNtpQMgWgk1MFNsbauLrELINB9LR_DmKdXMkBdma5IBUJU6fQWMd18BRKv9fImHzLXe5jH88XeJmVpu-_B_oKhcgl8RLwnLPggJNDzDjsNNYm2SC9ZEQsxTw9cZSsDPu7_eKooTQD4D71jOJbCp-XVuDginGc2FdAzZpBFyhzqHdsR-mgD1cQGfWNMxHL40mETgmksIEND-vRpSS1H_VFjz8DRNV1Pu')`
+                  backgroundImage: `url('/assets/indian_tiffin_heritage.png')`
                 }}
               >
                 {/* Translucent HUD overlay over map */}

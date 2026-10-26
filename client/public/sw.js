@@ -1,13 +1,31 @@
-const CACHE_NAME = 'tiffinlink-offline-v1';
+const CACHE_NAME = 'tiffinlink-offline-v2';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/manifest.json',
   '/vendor/tailwindcss.js',
   '/fonts/google-fonts.css',
   '/fonts/material-symbols.css',
   '/assets/indian_tiffin_heritage.png',
   '/assets/food_biryani.png',
+  '/assets/food_burger.png',
+  '/assets/food_coffee.png',
+  '/assets/food_dessert.png',
+  '/assets/food_pizza.png',
+  '/assets/food_south_indian.png',
+  '/assets/food_vada.png',
+  '/assets/food_vada_pav.png',
+  '/assets/provider_1.png',
+  '/assets/provider_2.png',
+  '/assets/provider_3.png',
+  '/assets/provider_4.png',
+  '/assets/provider_5.png',
+  '/assets/tiffin_hero.png',
+  '/assets/dashboard_mockup.png',
+  '/assets/phone_mockup.png',
+  '/assets/qr_code.png',
+  '/assets/becomedeliveryform.jpg',
   '/favicon.svg',
   '/icons.svg'
 ];
@@ -15,9 +33,13 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('Non-critical pre-cache issue:', err);
-      });
+      return Promise.allSettled(
+        STATIC_ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn(`[SW] Pre-cache skipped for ${asset}:`, err.message);
+          })
+        )
+      );
     }).then(() => self.skipWaiting())
   );
 });
@@ -40,50 +62,55 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Skip non-GET and chrome-extension / socket / API requests
-  if (req.method !== 'GET' || url.protocol.startsWith('ws') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/')) {
+  // STRICT SECURITY & ACCURACY RULES:
+  // Never cache or intercept non-GET, API endpoints, socket.io, auth or web sockets
+  if (
+    req.method !== 'GET' ||
+    url.protocol.startsWith('ws') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/socket.io/') ||
+    url.hostname !== location.hostname
+  ) {
     return;
   }
 
-  // Stale-while-revalidate for local static assets (fonts, vendor scripts, images, CSS)
-  if (url.origin === location.origin) {
+  // 1. Navigation requests (HTML page / App shell)
+  if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match(req).then((cachedResponse) => {
-        const fetchPromise = fetch(req).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
-          }
-          return networkResponse;
-        }).catch(() => {
-          // If offline and request is an image, fall back to cached placeholder
-          if (req.destination === 'image' || req.headers.get('accept')?.includes('image/')) {
-            return caches.match('/assets/indian_tiffin_heritage.png');
-          }
-          return cachedResponse;
-        });
-
-        return cachedResponse || fetchPromise;
+      fetch(req).then((networkRes) => {
+        if (networkRes && networkRes.status === 200) {
+          const clone = networkRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        }
+        return networkRes;
+      }).catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        return caches.match('/index.html');
       })
     );
     return;
   }
 
-  // External font or CDN assets (if any remaining) - Cache First
+  // 2. Static Assets (Fonts, CSS, JS bundles, Images)
+  // Stale-While-Revalidate with graceful offline fallbacks
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        if (res && res.status === 200) {
-          const clone = res.clone();
+    caches.match(req).then((cachedResponse) => {
+      const fetchPromise = fetch(req).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
         }
-        return res;
+        return networkResponse;
       }).catch(() => {
-        if (req.destination === 'image') {
+        // Fallback for failed image requests when offline
+        if (req.destination === 'image' || req.headers.get('accept')?.includes('image/')) {
           return caches.match('/assets/indian_tiffin_heritage.png');
         }
+        return cachedResponse;
       });
+
+      return cachedResponse || fetchPromise;
     })
   );
 });

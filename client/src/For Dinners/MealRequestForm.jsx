@@ -37,6 +37,11 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
           customerPhone: u.phone || prev.customerPhone
         }));
       }
+      const savedDraft = localStorage.getItem('tiffinlink_meal_request_draft');
+      if (savedDraft) {
+        const d = JSON.parse(savedDraft);
+        setFormData(prev => ({ ...prev, ...d }));
+      }
     } catch (e) {}
   }, []);
 
@@ -56,10 +61,14 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
+    const nextData = {
       ...formData,
       [e.target.name]: e.target.value
-    });
+    };
+    setFormData(nextData);
+    try {
+      localStorage.setItem('tiffinlink_meal_request_draft', JSON.stringify(nextData));
+    } catch (err) {}
   };
 
   const handleKeyDown = (e) => {
@@ -95,6 +104,11 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
         origin: { y: 0.6 },
         colors: ['#1A1A1A', '#4A4238', '#DED9D1']
       });
+    } catch (err) {}
+
+    // Clear draft on submission
+    try {
+      localStorage.removeItem('tiffinlink_meal_request_draft');
     } catch (err) {}
 
     // Pass filters to navigate and filter providers list

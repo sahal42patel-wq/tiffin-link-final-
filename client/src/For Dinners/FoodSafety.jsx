@@ -48,7 +48,7 @@ export default function FoodSafety() {
               className="aspect-square bg-cover bg-center" 
               data-alt="A minimalist architectural shot of a bright, white-tiled professional kitchen. The surfaces are gleaming and sterile, yet the space feels warm due to soft natural light. There is a single artisan bowl of fresh herbs on a stainless steel counter, illustrating the clean and meticulous standard of TiffinLink kitchens." 
               style={{ 
-                backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB_SjvlgcbEn5AeB2PrcvrtEvexHLk6ded3x_qlpnYlK4bZHrhpWSkDkhLzZBa46E78Vvm7WHWZPG_xNBJOOCzaRQCkAh5zIwmyUuvuKmO9NCtW-Q6AI-IyPQNFeoBzShWY8iobzSN_J-2LDXl2NHqpvYnhxcim0zWcVx6MwDwU1AcQzulAimbE-ci_xyH0W39OMJuX9jrATvUM8hypEYX3E_11UUvFXVWYitvBHAFWcsm6WQQPQD1U')" 
+                backgroundImage: "url('/assets/indian_tiffin_heritage.png')" 
               }}
             ></div>
             {/* Trust Standards Box */}

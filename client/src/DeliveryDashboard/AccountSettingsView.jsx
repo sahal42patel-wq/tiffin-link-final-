@@ -515,7 +515,7 @@ export default function AccountSettingsView({ currentUser, onNavigateTab, onShow
     );
   }
 
-  const defaultAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
+  const defaultAvatar = '/assets/provider_1.png';
   const displayAvatar = accountData.avatar || currentUser?.avatar || defaultAvatar;
 
   return (

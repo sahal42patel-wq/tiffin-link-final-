@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, Compass, Layers, CheckCircle2 } from 'lucide-react';
+import { MapPin, Navigation, Compass, Layers, CheckCircle2, WifiOff } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export default function ServiceAreaMap({ 
   kitchenLocation, 
@@ -13,42 +15,28 @@ export default function ServiceAreaMap({
   const circleRef = useRef(null);
   const areaCirclesRef = useRef([]);
 
-  const [leafletLoaded, setLeafletLoaded] = useState(false);
   const [mapLayer, setMapLayer] = useState('roadmap'); // 'roadmap' | 'satellite'
+  const [isTilesOffline, setIsTilesOffline] = useState(!navigator.onLine);
 
   const kitchenLat = kitchenLocation?.latitude || 23.0300;
   const kitchenLng = kitchenLocation?.longitude || 72.5650;
   const kitchenName = kitchenLocation?.locality || kitchenLocation?.city || 'Shreeji Kitchen';
 
-  // Load Leaflet CDN script & styles
+  // Connectivity listener for base map tiles
   useEffect(() => {
-    if (window.L) {
-      setLeafletLoaded(true);
-      return;
-    }
-
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-
-    if (!document.getElementById('leaflet-js')) {
-      const script = document.createElement('script');
-      script.id = 'leaflet-js';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => setLeafletLoaded(true);
-      document.head.appendChild(script);
-    }
+    const handleOnline = () => setIsTilesOffline(false);
+    const handleOffline = () => setIsTilesOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Initialize and update Leaflet Map
   useEffect(() => {
-    if (!leafletLoaded || !mapRef.current) return;
-    const L = window.L;
-    if (!L) return;
+    if (!mapRef.current) return;
 
     if (!leafletMapRef.current) {
       const map = L.map(mapRef.current, {
@@ -70,17 +58,20 @@ export default function ServiceAreaMap({
       }
     });
 
-    if (mapLayer === 'satellite') {
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
-        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS'
-      }).addTo(map);
-    } else {
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-    }
+    const tileUrl = mapLayer === 'satellite'
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    const tiles = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    tiles.on('tileerror', () => {
+      setIsTilesOffline(true);
+    });
+
+    tiles.addTo(map);
 
     // Kitchen Marker (Onyx Black Kitchen Hub)
     const kitchenIcon = L.divIcon({
@@ -147,7 +138,7 @@ export default function ServiceAreaMap({
     }
 
     map.setView([kitchenLat, kitchenLng], 12);
-  }, [leafletLoaded, kitchenLat, kitchenLng, radiusKm, deliveryMode, areas, mapLayer]);
+  }, [kitchenLat, kitchenLng, radiusKm, deliveryMode, areas, mapLayer]);
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-[#E5ECE8] shadow-xs" style={{ height }}>
@@ -175,6 +166,14 @@ export default function ServiceAreaMap({
           Satellite
         </button>
       </div>
+
+      {/* Offline Tile Indicator if no internet */}
+      {isTilesOffline && (
+        <div className="absolute top-3 left-3 z-20 bg-amber-500/90 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1 rounded-lg shadow-md flex items-center gap-1.5">
+          <WifiOff size={13} />
+          <span>Offline: Kitchen coordinates active (Tiles require internet)</span>
+        </div>
+      )}
 
       {/* Map Information Badge Overlay */}
       <div className="absolute bottom-3 left-3 z-20 bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-[#E5ECE8] shadow-md flex items-center gap-2 text-xs font-black">

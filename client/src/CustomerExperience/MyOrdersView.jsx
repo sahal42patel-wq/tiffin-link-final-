@@ -150,7 +150,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
             o.image ||
             o.tiffinImage ||
             o.providerImage ||
-            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+            '/assets/food_biryani.png',
           providerName: o.providerName || (typeof o.providerId === 'object' && o.providerId?.name) || 'Kitchen Partner',
           providerAddress: o.providerAddress || (typeof o.providerId === 'object' && o.providerId?.address) || 'Ahmedabad',
           customerAddress: o.customerAddress || o.deliveryAddress || 'Ahmedabad',
@@ -383,7 +383,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
         remaining: sub.remainingMeals || 0,
         nextBill: sub.endDate || 'Active'
       },
-      image: sub.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBVTYSFo5IXhMeJB0IUzwaUBjeRXlfJKSrGerIwI_zRrZIA8eWbmJBMRZiI5yUpQ14D8IyxVEGK5iYB4BaQZ1GhZwgvI-dUHKv7yLGYKX9Tp-U4cRbO2aKN6krVwWPuL2bQalI3L0ryAXemKAlpf6sj9-AvcurbMfwdt02c-R4IFZ80cf_xHJ7NOKmEXZLy3-npTZGyaRnB84-RX46pDFFpEGGMnQjFoi_A8E6GY2zHCo3lvjAVPHHD',
+      image: sub.image || '/assets/indian_tiffin_heritage.png',
       inclusions: sub.inclusions || ['Fresh Homestyle Preparation', 'Cow Ghee Roti', 'Daily Dal & Sabzi', 'Steamed Rice'],
       destination: sub.address || 'Home Delivery',
       cutoff: 'Modify dishes before 09:00 PM',
@@ -1533,7 +1533,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                       <img
                         className="w-full h-full object-cover"
                         alt="Kathiyawadi Thali"
-                        src={activeConsignment.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCPbgHX-SWuQwFR9geMvHoTEYRi2DqiRZm4Hg15sqiHY0c83zzUb8jhbqC61nRPvt5i3qpb4KYuEsw9QAtHhRxnwjpulun18bomyxatAu--_hTp9mthN5hrZ6gipQXHH-G1RQGzWyQ4sTCjLT3SsWL_4cMSWb3wPfV8oxBfd9HO_hNqde0kEqujGMNPwR3lZAjdjJX4ZOOmQ_qWNoLIwEfmQtwbz4hRA6u273Blnyrh1P5VdJ3ggYTB'}
+                        src={activeConsignment.image || '/assets/food_south_indian.png'}
                       />
                       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-onyx-black/80 backdrop-blur-sm rounded text-[10px] text-white font-label-caps uppercase">
                         1x
@@ -3555,7 +3555,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                           <img
                             className="w-full h-44 object-cover shadow-sm"
                             alt={order.tiffinName}
-                            src={order.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuA3-Ji_Btd_oK6I-X-aVCZMGi5GQ44H0BFj791Qy__LR2k6M_Q0SDof2oCdSQZ5VdVkg1azNzxU2fXi6gbaTmCbyKqliRLEUAb6sFPPJtpGVPDlsvlpumd_yNkFC3lmfuwjTQsKOE1ANb9C9airyrORl09rBnh4LJ_uqLwWvfrj2aXmoFpC12NP5DaZkNnbx4Y2hbYaBQczQy-O2ioUm5Qe2L8OYoXAYEzZFP2ZpsDPH3cte4lVjNzz'}
+                            src={order.image || '/assets/food_vada.png'}
                           />
                         </div>
 
@@ -3927,7 +3927,7 @@ export default function MyOrdersView({ currentUser, onNavigate, onOpenTracking }
                             alt={order.providerName || 'Kitchen'}
                             src={
                               order.image ||
-                              'https://lh3.googleusercontent.com/aida-public/AB6AXuDpczy9ShlJdBXSPSN70jL7ew5uySCwu1HErUiRCxH0vitIUaZgb83O3xdHXMdpExv838UHG0nFfNBWuq5bWzmRQfZ8Nhx1o1GJ2hPb2mCr-tOMvOBIftluVFNgR0qm220CKrea8Q5u2-Acum1HT9gf1Yi6YQ6ePQLzBFkvfjjkLs0tZmnJSu4a9cLX6VryFXE5Z0sXxczfRimaMCaPeUNLvhBGXbYiscWETXYF2ode77_-MnVQ7fum'
+                              '/assets/tiffin_hero.png'
                             }
                           />
                           <div>

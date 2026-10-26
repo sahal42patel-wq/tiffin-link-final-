@@ -16,6 +16,11 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Local offline SVG pin markers (zero external HTTP dependencies)
+const GREEN_PIN_SVG = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"><path fill="#10B981" stroke="#065F46" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="3" fill="#ffffff"/></svg>');
+const RED_PIN_SVG = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"><path fill="#EF4444" stroke="#991B1B" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="3" fill="#ffffff"/></svg>');
+const BLUE_PIN_SVG = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24"><path fill="#3B82F6" stroke="#1E40AF" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="3.5" fill="#ffffff"/></svg>');
+
 export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRole = 'provider', hideOuterCard = false }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -165,15 +170,24 @@ export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRo
       return () => clearInterval(interval);
     }
 
+    if (!navigator.onLine) {
+      setMapLoaded(false);
+      setMapLoadError('Offline Mode: Google Maps live map tiles require an internet connection. Coordinates and consignment tracking are preserved.');
+      return;
+    }
+
     const script = document.createElement('script');
     script.id = scriptId;
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,routes`;
     script.async = true;
     script.defer = true;
-    script.onload = () => setMapLoaded(true);
+    script.onload = () => {
+      setMapLoaded(true);
+      setMapLoadError(null);
+    };
     script.onerror = () => {
       setMapLoaded(false);
-      setMapLoadError('Failed to load Google Maps JavaScript API SDK.');
+      setMapLoadError('Google Maps tiles require an active connection. Local GPS telemetry & order details are preserved.');
     };
     document.head.appendChild(script);
   }, [apiKey, isKeyConfigured]);
@@ -236,7 +250,7 @@ export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRo
           map,
           title: `🍱 Kitchen: ${kitchenPos.name}`,
           icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+            url: GREEN_PIN_SVG,
             scaledSize: new google.maps.Size(40, 40)
           }
         });
@@ -253,7 +267,7 @@ export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRo
           map,
           title: `📍 Customer: ${customerPos.name}`,
           icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            url: RED_PIN_SVG,
             scaledSize: new google.maps.Size(40, 40)
           }
         });
@@ -272,7 +286,7 @@ export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRo
           map,
           title: `🛵 Driver: ${initialDriverPos.name}`,
           icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            url: BLUE_PIN_SVG,
             scaledSize: new google.maps.Size(44, 44)
           }
         });
@@ -626,10 +640,29 @@ export default function GoogleDeliveryMap({ delivery, height = '24rem', activeRo
         <div ref={mapRef} className="w-full h-full z-0" />
 
         {!mapLoaded && (
-          <div className="absolute inset-0 bg-white/90 backdrop-blur-xs flex items-center justify-center z-10">
-            <div className="text-center space-y-2">
-              <RefreshCw size={24} className="animate-spin mx-auto text-onyx-black" />
-              <p className="text-xs font-black text-[#111827]">Loading Google Maps Navigation...</p>
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-xs flex items-center justify-center p-6 z-10">
+            <div className="text-center space-y-3 max-w-sm">
+              {mapLoadError || !navigator.onLine ? (
+                <>
+                  <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                    <Navigation size={20} />
+                  </div>
+                  <h4 className="text-xs font-black text-onyx-black uppercase tracking-wider">Map Offline Mode</h4>
+                  <p className="text-[11px] text-[#4B5563] leading-relaxed">
+                    Live Google Map satellite/road tiles require an active connection. GPS telemetry, consignment details, and destination addresses remain fully preserved.
+                  </p>
+                  <div className="bg-surface-container p-2.5 rounded-lg border border-sand-neutral/40 text-[10px] text-left font-mono space-y-1">
+                    <div><strong>Pickup:</strong> {kitchenPos.name || 'Kitchen Hub'}</div>
+                    <div><strong>Drop:</strong> {customerPos.name || 'Customer Address'}</div>
+                    {currentDriverCoords && <div><strong>Driver GPS:</strong> {currentDriverCoords.lat?.toFixed(4)}, {currentDriverCoords.lng?.toFixed(4)}</div>}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={24} className="animate-spin mx-auto text-onyx-black" />
+                  <p className="text-xs font-black text-[#111827]">Loading Google Maps Navigation...</p>
+                </>
+              )}
             </div>
           </div>
         )}

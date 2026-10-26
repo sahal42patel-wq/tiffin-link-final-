@@ -325,8 +325,8 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
     insurance: 'Transit Cargo Insurance Active',
     bankAcc: 'Direct Nodal Bank A/C (+91 9558601570)',
     emergencyContact: { name: 'Samir Mansuri', phone: '+91 96649 51570', relationship: 'Father' },
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA1sxwXV5MRB9zcZGIyHC3uTvXDvfrRVnuiMG4J-W1e_6g7VGZeDBUykHIXTC8M1rGbyYY-Cmg4ZxrIaqOFW7a0bGEFAmDXrhNZDfschVqTszTFlaODx73zCh-yGDDAaS33NJ56ADcEM-S20kx3DgdrL0uG1W4iMEjNbSGP4-p55x_uDESrkisMFKNaSvbzIrJGx_ik9hpwBkqOl3FiFBkTT4ptBP0kb163y2YGiM6kVxnPRgMpzCJF',
-    mapBg: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAl2nVecQFPSEap4TRVYkiWdY9KpluEDn4k41acpOVJ4xejNf5sPVHAK1wgcHGGplZUmGj2f9kCPvQSqqEYe6FhF0eAOufDS2gZsU2cQAFSh3Qu0YXqF-Qmgbf1ke21eO8wzOoCPWUgjB_rGfxKCC-St0JGB-NsniIuagRW_jbK6S-rccYDiOd6LWVNetPZvZZmqhrclOis419ILRdTbVc9pDNplD1PMXjv_ehanSCubzhfX7XOOPVZ'
+    avatar: '/assets/provider_2.png',
+    mapBg: '/assets/indian_tiffin_heritage.png'
   };
 
   // Client-side filtering
@@ -734,7 +734,7 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
                               <img
                                 src={
                                   partner.avatar ||
-                                  'https://lh3.googleusercontent.com/aida-public/AB6AXuA1sxwXV5MRB9zcZGIyHC3uTvXDvfrRVnuiMG4J-W1e_6g7VGZeDBUykHIXTC8M1rGbyYY-Cmg4ZxrIaqOFW7a0bGEFAmDXrhNZDfschVqTszTFlaODx73zCh-yGDDAaS33NJ56ADcEM-S20kx3DgdrL0uG1W4iMEjNbSGP4-p55x_uDESrkisMFKNaSvbzIrJGx_ik9hpwBkqOl3FiFBkTT4ptBP0kb163y2YGiM6kVxnPRgMpzCJF'
+                                  '/assets/provider_2.png'
                                 }
                                 alt={partner.name}
                                 className="w-9 h-9 object-cover bg-[#ded9d1] border border-[#ded9d1]"
@@ -904,7 +904,7 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
                 <img
                   src={
                     selectedPartner.avatar ||
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuA1sxwXV5MRB9zcZGIyHC3uTvXDvfrRVnuiMG4J-W1e_6g7VGZeDBUykHIXTC8M1rGbyYY-Cmg4ZxrIaqOFW7a0bGEFAmDXrhNZDfschVqTszTFlaODx73zCh-yGDDAaS33NJ56ADcEM-S20kx3DgdrL0uG1W4iMEjNbSGP4-p55x_uDESrkisMFKNaSvbzIrJGx_ik9hpwBkqOl3FiFBkTT4ptBP0kb163y2YGiM6kVxnPRgMpzCJF'
+                    '/assets/provider_2.png'
                   }
                   alt={selectedPartner.name}
                   className="w-14 h-14 object-cover bg-[#ded9d1] border border-[#ded9d1]"
@@ -978,7 +978,7 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
               <div
                 className="w-full h-28 bg-cover bg-center relative overflow-hidden flex items-end p-2 border border-[#ded9d1]"
                 style={{
-                  backgroundImage: `url(${selectedPartner.mapBg || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAl2nVecQFPSEap4TRVYkiWdY9KpluEDn4k41acpOVJ4xejNf5sPVHAK1wgcHGGplZUmGj2f9kCPvQSqqEYe6FhF0eAOufDS2gZsU2cQAFSh3Qu0YXqF-Qmgbf1ke21eO8wzOoCPWUgjB_rGfxKCC-St0JGB-NsniIuagRW_jbK6S-rccYDiOd6LWVNetPZvZZmqhrclOis419ILRdTbVc9pDNplD1PMXjv_ehanSCubzhfX7XOOPVZ'})`
+                  backgroundImage: `url(${selectedPartner.mapBg || '/assets/indian_tiffin_heritage.png'})`
                 }}
               >
                 <div className="bg-[#1a1a1a]/85 backdrop-blur-sm px-2 py-1 text-white font-mono text-[9px] flex items-center justify-between w-full">
@@ -1429,7 +1429,7 @@ export default function DeliveryPartnersRegistryTab({ onOpenDriver360, onNavigat
               <img
                 src={
                   selectedPartner.avatar ||
-                  'https://lh3.googleusercontent.com/aida-public/AB6AXuA1sxwXV5MRB9zcZGIyHC3uTvXDvfrRVnuiMG4J-W1e_6g7VGZeDBUykHIXTC8M1rGbyYY-Cmg4ZxrIaqOFW7a0bGEFAmDXrhNZDfschVqTszTFlaODx73zCh-yGDDAaS33NJ56ADcEM-S20kx3DgdrL0uG1W4iMEjNbSGP4-p55x_uDESrkisMFKNaSvbzIrJGx_ik9hpwBkqOl3FiFBkTT4ptBP0kb163y2YGiM6kVxnPRgMpzCJF'
+                  '/assets/provider_2.png'
                 }
                 alt={selectedPartner.name}
                 className="w-20 h-20 object-cover border border-[#1a1a1a]"

@@ -1139,7 +1139,7 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                 <div className="w-full h-48 bg-[#ded9d1] relative overflow-hidden flex items-end p-3 rounded-xl border border-[#ded9d1]">
                   <img 
                     className="absolute inset-0 w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYJfOhWCYJaGO5pVRCFve6WoZZxEEY_pLdHkfGosN8bV9Dum0myPzUNbEeosxERSlnkXFD6QX9HPvpoQxOMP_l5kEHlaWGCPpfcISHGDnNK6EfcG5mDLYAjeKrAEkkvb7zbiziiK1WgP1y0BEEDK63TjkLaDWA3pobQIxYBo9wJPyEvAMS1qEx4Zp6Tr5dOrwOryeqsljfPHvYSTFA7BLAGrWAkAf2R_4o-3a4Ek6hQ89VZ5-6oLxO"
+                    src="/assets/indian_tiffin_heritage.png"
                     alt="Map"
                   />
                   <div className="absolute inset-0 bg-[#1a1a1a]/15"></div>
@@ -1435,7 +1435,7 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                   <div className="lg:col-span-5 relative min-h-[340px] lg:min-h-full overflow-hidden bg-[#ded9d1]">
                     <img
                       className="w-full h-full object-cover"
-                      src={featuredProvider.kitchenPhoto || featuredProvider.kitchenPhotos || featuredProvider.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBiw6tDo_f_kjjAYJbR39UjbsjfiZLISgukNlT1NLBHi6J70rn0ejgipVric4kdY9aLpNEJMCdaVDiL8ZUhs2Pr3i82XS9JcfUcjDgDZsKMMdXcuPnaz-tc9K8m4GT_mWP4uXCToqmZ-cdSH4BbRHLvSLcscSQcf-bTi_8Ahcdj52ThYGMoKswqnaycYzc9phyP3adyOX_soeSnnwvIYuhZa0M7qQAON5joyoBaSK28KytaqIUDCJ7G'}
+                      src={featuredProvider.kitchenPhoto || featuredProvider.kitchenPhotos || featuredProvider.image || '/assets/tiffin_hero.png'}
                       alt={featuredProvider.name}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/70 via-transparent to-transparent"></div>
@@ -1830,7 +1830,7 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                 <div className="w-full h-64 bg-[#ded9d1] relative overflow-hidden flex items-end p-4 border border-[#ded9d1] rounded-xl">
                   <img
                     className="absolute inset-0 w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYJfOhWCYJaGO5pVRCFve6WoZZxEEY_pLdHkfGosN8bV9Dum0myPzUNbEeosxERSlnkXFD6QX9HPvpoQxOMP_l5kEHlaWGCPpfcISHGDnNK6EfcG5mDLYAjeKrAEkkvb7zbiziiK1WgP1y0BEEDK63TjkLaDWA3pobQIxYBo9wJPyEvAMS1qEx4Zp6Tr5dOrwOryeqsljfPHvYSTFA7BLAGrWAkAf2R_4o-3a4Ek6hQ89VZ5-6oLxO"
+                    src="/assets/indian_tiffin_heritage.png"
                     alt="Delivery Zone Map"
                   />
                   <div className="absolute inset-0 bg-[#1a1a1a]/15"></div>

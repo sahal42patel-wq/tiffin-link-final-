@@ -103,8 +103,8 @@ export default function ProviderOrderHistoryTab({ onNavigate }) {
             ratingCourier: '5.0★',
             escrowDisbursed: `₹${amountNum.toFixed(2)} → ${kitchen}`,
             imageUrl: idx % 2 === 0
-              ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuCX4gGNzZ9U51dcMsTccSRPSpF_cu-5HqagCEx4Zd_qSmWb1Hs-Rlt5Fnuz9aq47McMZM1n1YqdMVABU56TrlgpPOXc87Z8NwtnqA9qZqvJQi1BJLYfo0Mp82iFTnQuzIUo38DiDDE760uXHnw8TMdA718t3AO4OyL6uomS2p7PX8NYdWsmHoSHXGvKykGMkZgKAxaZ5C5QYONkOwopF2tKS7dceMFre5onBpAk3ZaeYVVTz-v6Jo8w'
-              : 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&auto=format&fit=crop&q=80',
+              ? '/assets/food_biryani.png'
+              : '/assets/indian_tiffin_heritage.png',
             timeline: [
               {
                 time: created.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' IST',

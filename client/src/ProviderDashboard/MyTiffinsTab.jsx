@@ -13,11 +13,11 @@ const DAYS_CONFIG = [
 ];
 
 const PRESET_TIFFIN_IMAGES = [
-  { label: 'Gujarati Special', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8QQzVgko9nNu4_SsDiyuUddEJNcWGXvNBPmE-pv0qiPSfZe8g189a3mcHpC2iDCC4rjrQrexEUvCdhHLQ66hFXqI5yCifyHUSiYBgZWdecVPFLt9fTRxPV8phlcfjxRCU6YAE6gm4hxXRjH9BHn91IwRvlbAdGNTixR2JgBWWpHqTtIEtHsxseZ-794WRvuWukAwg5PqaBNbW4S_KzYlPej-PJqC9AAwZvyUTvlkB7mxK6o2S2ORR' },
-  { label: 'Satvik Jain Deluxe', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCaizVDeW28iwY5ui51hxuU909KA2mHXvuur_GapbKhrwfFwuwi9Sa2Ydl6rYWQze_dV52NE73mh4_QALx9DelXKik5dIrU71p8iTbY1PavV49_ZJa9DcYoV3PR7aMWAcjZvy7oa7s9HNvF9iNdIn4Ur0cHyVZeZEG4f0VUBABdiCC1AsMgXYVrgxtcr6AFahJzE-Fcl_O76esX1ZQmZzCjwiLtm22hWZDHF6dM67SZJIuHD2v8pT4' },
-  { label: 'Kathiyawadi Feast', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdDK2iHV62rSWmk1EuvsuZZylT6Q4IWfvs9hikrbQHfiiOOmrdhZVuX5mWqaKMTC9BOZk4Y6rt4P8k9ouAmuc72CywaQosoCr8zfs2wUNG1_kYB_1WdOED9qFjpBdfCMbO1Ifsuo73bEvYjuhb5ReeibH6bLjrCpyikrwsntPyiJFpYenqx4n0xVhjP-DZo5BNJu3xaLOkpjiRCm1dYmwVaRdUeWj39tlkQGwqsFAaIfKw19v0OuPo' },
-  { label: 'High-Protein Healthy', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAM0aHvfoJpN6RMR62OTMvVHqc1FMMurz4SEaKeL1-daqiiJu_T6lr2QmoQ1xLyUdtBM3pi5ccHtNCPN2XIon_z7yRV5unEK2xc3DTUWp5CllHfmIe3-oVnNz2uftOPWKe6IP8Nwa6Q_IJVE5It9Odq1I__nejEhKq82u6um1quV2erafOJ07fMBJ4epgZKrdBXkkcVvSAw5jVeoRh1htemR5_IoTJTn0edJ721FzGgvWMZOhfNIrKe' },
-  { label: 'Punjabi North-Indian', url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDwUcUoJ6r89gVPSfnHsNZQ8qlsAlTmq2iqCNe6MqERgBZmGW39wzerJvrTStWCEEOkak684jpl3pjEBzf3uogJwAEB7hqmYBHvBY5114CyEBjV6-piEoG31mlLGXlBX_d2K_cS3tdacpiR4S66b9NlYmZ7E1xKK6mKLTxx2P21p5MuUBJpgb2cpHg_a2ToVphk6OelK7cpIFpJ43HDOwJdsaX0jB3RUrP2NyrrRBUGiJoUNYZ1G9s8' }
+  { label: 'Gujarati Special', url: '/assets/indian_tiffin_heritage.png' },
+  { label: 'Satvik Jain Deluxe', url: '/assets/food_south_indian.png' },
+  { label: 'Kathiyawadi Feast', url: '/assets/food_biryani.png' },
+  { label: 'High-Protein Healthy', url: '/assets/food_vada.png' },
+  { label: 'Punjabi North-Indian', url: '/assets/food_burger.png' }
 ];
 
 const ITEM_CATEGORIES = [

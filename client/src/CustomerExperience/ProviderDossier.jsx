@@ -80,7 +80,7 @@ export default function ProviderDossier({
   const providerName = p.name || 'Kitchen Partner';
   const providerDesc = p.description || 'Authentic home-cooked meals prepared with care and fresh ingredients.';
   const dynamicKitchenPhoto = p.kitchenPhoto || p.kitchenPhotos || p.image;
-  const providerImg = dynamicKitchenPhoto || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+  const providerImg = dynamicKitchenPhoto || '/assets/tiffin_hero.png';
   const fssai = p.fssaiNumber || '—';
   const rating = p.rating || 0;
   const reviewCount = p.reviewCount || 0;
@@ -547,13 +547,13 @@ export default function ProviderDossier({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
               {tiffins.map((tif, idx) => {
-                const tifImg = tif.image && tif.image.startsWith('http') 
-                  ? tif.image 
-                  : (idx === 0 
-                      ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuCMu_TVgTec0S1wQHIMMwrELkw3t1LX664GkNNa9BT258VzR9SyXuP-XB5KYIGq_KZVXp1A5qIcS4ooyOIfdEsA87ygeKHaE6foMiv-C3yyM21VcGBWEnvu8WvL-RQFZZCXkE0OTNxmoEQF_tdo0sj5L0-0wTY238PdytDxl_KerGP8fiigXMye8nczTLWNQYaTsD1-Ud3QDfxvSghCcVy1TIzjU_6sLPwbEMb1Ras9rHO-tsMIYxzw'
-                      : (idx === 1
-                          ? 'https://lh3.googleusercontent.com/aida-public/AB6AXuALL9P29qX9nOtbETPkhsF7OUY2W71CC0_9a8ppDvyo3i2vxr6eYZYntKAPbcic9zhmHV-owfYPnQRQ_owyF0lStSEDGWUX04L3qL_rRh3dGx7cpn32PysFzvw6f_vJNWOyI6Xa0B-9y5HA5duroMhxIn1kCqlFthQF9t_JyKm6Q7a0SuDoY_9f5HAb-WRkMZQ4W2BV06zUSTY8EkoJ9TyWcJKYJYh4WLlNtle0tAUrnTE6xOO4Mg37'
-                          : 'https://lh3.googleusercontent.com/aida-public/AB6AXuAs5gW8mHVYuHPeX_s8wbG8BUkrPtLAPxqCAnZ5RHS4ETkuyWSw53l-ieyvAcaZ2aYbCUB245YvCVE3pliclCnrT1shVrCjIOb_Iu46Y5p-zfOonLcB_BB_A9RPIEfHGA-vcOYJJZhTTczbpqhOLgLw5qmAdDI1nXj8sDj9eed8SUyMmZBueoH-KgF4cl02MiPqz4xv3ZhSkoPZNKTbn3zX-o4IR_A5yH2qS4Fw848zBCaSGfm0CGrv'));
+                  const tifImg = tif.image && (tif.image.startsWith('http') || tif.image.startsWith('/')) 
+                    ? tif.image 
+                    : (idx === 0 
+                        ? '/assets/food_biryani.png'
+                        : (idx === 1
+                            ? '/assets/food_vada.png'
+                            : '/assets/food_south_indian.png'));
 
                 const compositionList = Array.isArray(tif.items) && tif.items.length > 0 
                   ? tif.items 

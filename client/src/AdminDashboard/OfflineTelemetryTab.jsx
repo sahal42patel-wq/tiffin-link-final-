@@ -608,7 +608,7 @@ export default function OfflineTelemetryTab({ onNavigate, onOpenDriver360 }) {
                 <div
                   className="w-full h-40 bg-cover bg-center border border-[#ded9d1] relative grayscale contrast-125 overflow-hidden"
                   style={{
-                    backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuAl2nVecQFPSEap4TRVYkiWdY9KpluEDn4k41acpOVJ4xejNf5sPVHAK1wgcHGGplZUmGj2f9kCPvQSqqEYe6FhF0eAOufDS2gZsU2cQAFSh3Qu0YXqF-Qmgbf1ke21eO8wzOoCPWUgjB_rGfxKCC-St0JGB-NsniIuagRW_jbK6S-rccYDiOd6LWVNetPZvZZmqhrclOis419ILRdTbVc9pDNplD1PMXjv_ehanSCubzhfX7XOOPVZ')`
+                    backgroundImage: `url('/assets/indian_tiffin_heritage.png')`
                   }}
                 >
                   <div className="absolute inset-0 bg-[#1a1a1a]/20 mix-blend-multiply pointer-events-none" />

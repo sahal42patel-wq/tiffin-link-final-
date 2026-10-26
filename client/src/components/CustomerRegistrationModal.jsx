@@ -354,7 +354,7 @@ export default function CustomerRegistrationModal({
               <div className="absolute inset-0 z-0">
                 <img
                   className="w-full h-full object-cover grayscale contrast-125 hover:grayscale-0 transition-all duration-700"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJ8gylUX-nW3T8TtGAQOh73C_FkMUzWo-bzTL40rt7Xx840sW0QIjHhvpYfWNaRhhDw1XEwsTf5qmj3F1hDIP408eF6feQHJE_9jRM9u2g1u4rDEhXqh3HcWaGCUbyWg9ZqtpTwFS59BSjwheGbudmZZyKYdXwG008U_HZCwcpvPqhi-OthvI3DecQ7AcKls22CcHFqwWf946LHJUCtjtPK5PkoWzmhWDdqoyQx4u_sIhtQn87bJ5V"
+                  src="/assets/indian_tiffin_heritage.png"
                   alt="Artisanal Tiffin Logistics"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/90 via-[#1a1a1a]/40 to-transparent"></div>
