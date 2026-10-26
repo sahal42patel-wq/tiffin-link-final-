@@ -29,12 +29,21 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('tiffinlink_user');
+      let userLocation = null;
       if (savedUser) {
         const u = JSON.parse(savedUser);
+        const list = u.savedAddresses || u.addresses;
+        if (Array.isArray(list) && list.length > 0) {
+          const def = list.find(a => a.isDefault) || list[0];
+          userLocation = [def.street, def.area, def.city || 'Ahmedabad'].filter(Boolean).join(', ');
+        } else if (u.address) {
+          userLocation = typeof u.address === 'string' ? u.address : (u.address.street || null);
+        }
         setFormData(prev => ({
           ...prev,
           customerName: u.name || prev.customerName,
-          customerPhone: u.phone || prev.customerPhone
+          customerPhone: u.phone || prev.customerPhone,
+          location: userLocation || prev.location
         }));
       }
       const savedDraft = localStorage.getItem('tiffinlink_meal_request_draft');

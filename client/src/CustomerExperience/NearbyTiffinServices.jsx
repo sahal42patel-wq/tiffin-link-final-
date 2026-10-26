@@ -38,6 +38,14 @@ const AHMEDABAD_LOCALITIES = {
   'navrangpura': { lat: 23.0370, lng: 72.5600, name: 'Navrangpura, Ahmedabad' },
   'cg road': { lat: 23.0280, lng: 72.5590, name: 'C.G. Road, Ahmedabad' },
   'paldi': { lat: 23.0150, lng: 72.5620, name: 'Paldi, Ahmedabad' },
+  'fathewadi': { lat: 22.9860, lng: 72.5310, name: 'Fathewadi, Ahmedabad' },
+  'canal': { lat: 22.9860, lng: 72.5310, name: 'Fathewadi Canal, Ahmedabad' },
+  'aman park': { lat: 22.9860, lng: 72.5310, name: 'Fathewadi, Ahmedabad' },
+  'juhapura': { lat: 22.9980, lng: 72.5280, name: 'Juhapura, Ahmedabad' },
+  'sarkhej': { lat: 22.9850, lng: 72.4980, name: 'Sarkhej, Ahmedabad' },
+  'vejalpur': { lat: 23.0080, lng: 72.5250, name: 'Vejalpur, Ahmedabad' },
+  'vasna': { lat: 23.0020, lng: 72.5530, name: 'Vasna, Ahmedabad' },
+  'danilimda': { lat: 22.9940, lng: 72.5850, name: 'Danilimda, Ahmedabad' },
   'gota': { lat: 23.1000, lng: 72.5350, name: 'Gota, Ahmedabad' },
   'bopal': { lat: 23.0350, lng: 72.4650, name: 'South Bopal, Ahmedabad' },
   'vatva': { lat: 22.9584, lng: 72.6346, name: 'Vatva, Ahmedabad' },
@@ -167,11 +175,65 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
   const [isSearchFormOpen, setIsSearchFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(initialFilters.search || '');
   const [mealType, setMealType] = useState(initialFilters.mealType || 'Veg Tiffin');
+  // Helper to extract primary user delivery address from MongoDB / session
+  const getPrimaryUserAddress = (user) => {
+    if (!user) return null;
+    const list = user.savedAddresses || user.addresses;
+    if (Array.isArray(list) && list.length > 0) {
+      const def = list.find(a => a.isDefault) || list[0];
+      const street = def.street || def.address || '';
+      const area = def.area || def.locality || '';
+      const city = def.city || 'Ahmedabad';
+      const full = [street, area, city].filter(Boolean).join(', ');
+      return {
+        ...def,
+        fullAddress: full,
+        displayAddress: area ? `${area}, ${city}` : full,
+        lat: def.lat,
+        lng: def.lng
+      };
+    }
+    if (user.address) {
+      const addrStr = typeof user.address === 'string' ? user.address : (user.address.street || '');
+      return {
+        fullAddress: addrStr,
+        displayAddress: addrStr,
+        lat: user.address?.latitude,
+        lng: user.address?.longitude
+      };
+    }
+    // Check cached saved addresses
+    try {
+      const cached = JSON.parse(localStorage.getItem('tiffinlink_saved_addresses') || '[]');
+      if (Array.isArray(cached) && cached.length > 0) {
+        const def = cached.find(a => a.isDefault) || cached[0];
+        const street = def.street || def.address || '';
+        const area = def.area || def.locality || '';
+        const city = def.city || 'Ahmedabad';
+        const full = [street, area, city].filter(Boolean).join(', ');
+        return {
+          ...def,
+          fullAddress: full,
+          displayAddress: area ? `${area}, ${city}` : full,
+          lat: def.lat,
+          lng: def.lng
+        };
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  const initialUserAddr = getPrimaryUserAddress(currentUser);
+
   const [orderDate, setOrderDate] = useState(initialFilters.date || '2026-10-04');
   const [timeSlot, setTimeSlot] = useState(initialFilters.time || '01:00 PM - Lunch');
   const [fulfillment, setFulfillment] = useState(initialFilters.deliveryType || 'Delivery');
   const [locationAddress, setLocationAddress] = useState(() => {
-    return initialFilters.location || location.address || '';
+    if (initialFilters.location) return initialFilters.location;
+    if (initialUserAddr?.fullAddress) return initialUserAddr.fullAddress;
+    const isVatva = location?.address && location.address.toLowerCase().includes('vatva');
+    if (!isVatva && location?.address) return location.address;
+    return 'Fathewadi, Ahmedabad';
   });
   const [budget, setBudget] = useState(Number(initialFilters.budget) || 150);
   const [radiusKm, setRadiusKm] = useState(5.0); // 5km to 10km supported
@@ -184,15 +246,50 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
         }
       }
     }
-    if (location.isCalibrated && location.latitude && location.longitude) {
+    if (initialUserAddr?.lat && initialUserAddr?.lng) {
+      return { lat: Number(initialUserAddr.lat), lng: Number(initialUserAddr.lng) };
+    }
+    if (initialUserAddr?.fullAddress) {
+      const lower = initialUserAddr.fullAddress.toLowerCase();
+      for (const [key, coords] of Object.entries(AHMEDABAD_LOCALITIES)) {
+        if (lower.includes(key)) {
+          return { lat: coords.lat, lng: coords.lng };
+        }
+      }
+    }
+    if (location.isCalibrated && location.latitude && location.longitude && !location.address?.toLowerCase().includes('vatva')) {
       return { lat: location.latitude, lng: location.longitude };
     }
     if (initialFilters.lat && initialFilters.lng) {
       return { lat: Number(initialFilters.lat), lng: Number(initialFilters.lng) };
     }
-    return { lat: 23.0300, lng: 72.5178 };
+    return { lat: 22.9860, lng: 72.5310 }; // Fathewadi / Ahmedabad default
   });
   const [sortBy, setSortBy] = useState('distance');
+
+  // Synchronize location whenever currentUser or saved addresses update
+  useEffect(() => {
+    if (initialFilters.location) return;
+    const addr = getPrimaryUserAddress(currentUser);
+    if (addr && addr.fullAddress) {
+      setLocationAddress(addr.fullAddress);
+      let foundCoords = null;
+      if (addr.lat && addr.lng) {
+        foundCoords = { lat: Number(addr.lat), lng: Number(addr.lng) };
+      } else {
+        const lower = addr.fullAddress.toLowerCase();
+        for (const [key, coords] of Object.entries(AHMEDABAD_LOCALITIES)) {
+          if (lower.includes(key)) {
+            foundCoords = { lat: coords.lat, lng: coords.lng };
+            break;
+          }
+        }
+      }
+      if (foundCoords) {
+        setCoordinates(foundCoords);
+      }
+    }
+  }, [currentUser, initialFilters.location]);
 
   // Sync state if initialFilters prop changes
   useEffect(() => {
@@ -563,16 +660,21 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
     return null;
   };
 
-  // Synchronize with calibrated location from context
+  // Synchronize with calibrated location from context (only if user does not have a saved address or explicitly changed)
   useEffect(() => {
-    if (location.isCalibrated && location.latitude && location.longitude) {
-      const nextCoords = { lat: location.latitude, lng: location.longitude };
-      setCoordinates(nextCoords);
-      if (location.address) {
-        setLocationAddress(location.address);
+    const hasUserSavedAddress = Boolean(currentUser?.savedAddresses?.length || currentUser?.address);
+    const isVatva = location.address && location.address.toLowerCase().includes('vatva');
+
+    if (location.isCalibrated && location.latitude && location.longitude && (!isVatva || !hasUserSavedAddress)) {
+      if (!hasUserSavedAddress || location.isUserManualOverride) {
+        const nextCoords = { lat: location.latitude, lng: location.longitude };
+        setCoordinates(nextCoords);
+        if (location.address) {
+          setLocationAddress(location.address);
+        }
       }
     }
-  }, [location.isCalibrated, location.latitude, location.longitude, location.address]);
+  }, [location.isCalibrated, location.latitude, location.longitude, location.address, currentUser]);
 
   // Quick Zone selection handler
   const handleSelectQuickZone = (zoneName) => {
@@ -703,9 +805,26 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
 
             {/* Filter Chips with clean overflow management */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg text-[#1b1c1a] shadow-xs border border-[#ded9d1] text-xs">
-                <span className="material-symbols-outlined text-[14px] text-[#a0522d]">location_on</span>
-                <span className="font-button-text font-semibold truncate max-w-[150px] sm:max-w-[200px]">{locationAddress}</span>
+              <div 
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-[#f5f3ef] rounded-lg text-[#1b1c1a] shadow-xs border border-[#ded9d1] text-xs transition-colors cursor-pointer"
+                title={`Delivery Address:\n${locationAddress}`}
+                onClick={() => {
+                  const inputEl = document.getElementById('discovery-location-input');
+                  if (inputEl) {
+                    inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    inputEl.focus();
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined text-[15px] text-[#a0522d]">location_on</span>
+                <span className="font-button-text font-semibold truncate max-w-[170px] sm:max-w-[240px]">
+                  {locationAddress}
+                </span>
+                {currentUser?.savedAddresses?.length > 0 && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full uppercase">
+                    Saved
+                  </span>
+                )}
               </div>
 
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg text-[#1b1c1a] shadow-xs border border-[#ded9d1] text-xs">

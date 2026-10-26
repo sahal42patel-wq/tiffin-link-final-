@@ -42,6 +42,48 @@ export function LocationProvider({ children }) {
   const [locationError, setLocationError] = useState('');
   const toastTimeoutRef = useRef(null);
 
+  // Synchronize location with currentUser's authoritative saved address in MongoDB
+  useEffect(() => {
+    if (!currentUser) return;
+    const list = currentUser.savedAddresses || currentUser.addresses;
+    let def = null;
+    if (Array.isArray(list) && list.length > 0) {
+      def = list.find(a => a.isDefault) || list[0];
+    } else if (currentUser.address) {
+      def = typeof currentUser.address === 'string' ? { street: currentUser.address, city: 'Ahmedabad' } : currentUser.address;
+    }
+
+    if (def) {
+      const st = def.street || def.address || '';
+      const ar = def.area || def.locality || '';
+      const fullDisplay = [st, ar, def.city || 'Ahmedabad'].filter(Boolean).join(', ');
+      
+      setLocation(prev => {
+        const isGenericOrVatva = !prev.address || prev.address.toLowerCase().includes('vatva') || prev.address.includes('GPS Location');
+        if (isGenericOrVatva || !prev.isUserManualOverride) {
+          const isFathewadi = fullDisplay.toLowerCase().includes('fathewadi') || fullDisplay.toLowerCase().includes('canal');
+          const lat = def.lat || (isFathewadi ? 22.9860 : prev.latitude || 23.0300);
+          const lng = def.lng || (isFathewadi ? 72.5310 : prev.longitude || 72.5178);
+          const next = {
+            ...prev,
+            address: fullDisplay || prev.address,
+            city: def.city || prev.city || 'Ahmedabad',
+            state: def.state || prev.state || 'Gujarat',
+            latitude: lat,
+            longitude: lng,
+            isCalibrated: true,
+            isSavedAddress: true
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch (_) {}
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [currentUser]);
+
   const showToast = useCallback((msg, duration = 4500) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setRecalibrateToast(msg);
