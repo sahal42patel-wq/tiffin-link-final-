@@ -345,6 +345,11 @@ const getCustomerProfile = async (req, res) => {
         isVerified: user.isVerified,
         savedAddresses: user.savedAddresses || [],
         currentLocation: user.currentLocation || null,
+        paymentMethods: user.paymentMethods || [],
+        preferences: user.preferences || {},
+        subscription: user.subscription || null,
+        notifications: user.notifications || {},
+        privacySettings: user.privacySettings || {},
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -361,12 +366,49 @@ const updateCustomerProfile = async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
-    const { name, phone, address, currentLocation } = req.body;
+    const { 
+      name, phone, address, currentLocation,
+      paymentMethods, preferences, dietary, rotliType, spiceLevel, noOnionGarlic, lessOil,
+      subscription, notifications, privacySettings
+    } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (name) user.name = name.trim();
     if (phone) user.phone = phone.trim();
+    if (paymentMethods && Array.isArray(paymentMethods)) {
+      user.paymentMethods = paymentMethods;
+    }
+    if (preferences) {
+      user.preferences = {
+        ...user.preferences,
+        ...preferences
+      };
+    }
+    if (dietary !== undefined) user.preferences = { ...user.preferences, dietary };
+    if (rotliType !== undefined) user.preferences = { ...user.preferences, rotliType };
+    if (spiceLevel !== undefined) user.preferences = { ...user.preferences, spiceLevel };
+    if (noOnionGarlic !== undefined) user.preferences = { ...user.preferences, noOnionGarlic: Boolean(noOnionGarlic) };
+    if (lessOil !== undefined) user.preferences = { ...user.preferences, lessOil: Boolean(lessOil) };
+
+    if (subscription) {
+      user.subscription = {
+        ...user.subscription,
+        ...subscription
+      };
+    }
+    if (notifications) {
+      user.notifications = {
+        ...user.notifications,
+        ...notifications
+      };
+    }
+    if (privacySettings) {
+      user.privacySettings = {
+        ...user.privacySettings,
+        ...privacySettings
+      };
+    }
     if (currentLocation) {
       user.currentLocation = {
         ...user.currentLocation,
@@ -396,7 +438,12 @@ const updateCustomerProfile = async (req, res) => {
         phone: user.phone,
         role: user.role,
         savedAddresses: user.savedAddresses || [],
-        currentLocation: user.currentLocation || null
+        currentLocation: user.currentLocation || null,
+        paymentMethods: user.paymentMethods || [],
+        preferences: user.preferences || {},
+        subscription: user.subscription || null,
+        notifications: user.notifications || {},
+        privacySettings: user.privacySettings || {}
       }
     });
   } catch (err) {

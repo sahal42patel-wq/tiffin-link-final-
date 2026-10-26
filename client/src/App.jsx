@@ -1316,6 +1316,7 @@ export default function App() {
         onUpdateUser={updateUser}
         onLogout={handleLogout}
         onOpenLegalModal={openLegalModal}
+        onNavigate={(hash) => { setView(hash.replace(/^#/, '')); window.location.hash = hash; }}
       />
 
       {/* Toast Alerts */}

@@ -70,6 +70,43 @@ const userSchema = new mongoose.Schema(
         isDefault: { type: Boolean, default: false }
       }
     ],
+    paymentMethods: [
+      {
+        id: { type: String },
+        type: { type: String, default: 'UPI' },
+        detail: { type: String, default: '' },
+        label: { type: String, default: 'UPI' },
+        isDefault: { type: Boolean, default: false }
+      }
+    ],
+    preferences: {
+      dietary: { type: String, default: 'Veg' },
+      rotliType: { type: String, default: 'Soft Phulka Rotli (Ghee)' },
+      spiceLevel: { type: String, default: 'Medium Spice' },
+      noOnionGarlic: { type: Boolean, default: false },
+      lessOil: { type: Boolean, default: false }
+    },
+    subscription: {
+      planName: { type: String, default: '' },
+      mealsLeft: { type: Number, default: 0 },
+      schedule: { type: String, default: '' },
+      status: { type: String, default: 'inactive' },
+      startDate: { type: Date },
+      endDate: { type: Date }
+    },
+    notifications: {
+      orderStatusWhatsapp: { type: Boolean, default: true },
+      driverEnRouteSms: { type: Boolean, default: true },
+      dailyTiffinReminder: { type: Boolean, default: true },
+      kitchenMenuUpdates: { type: Boolean, default: false },
+      promotions: { type: Boolean, default: false }
+    },
+    privacySettings: {
+      shareLiveGps: { type: Boolean, default: true },
+      personalizedChefs: { type: Boolean, default: true },
+      telemetryAnalytics: { type: Boolean, default: true },
+      retainOrderHistory: { type: Boolean, default: true }
+    },
     currentLocation: {
       latitude: { type: Number },
       longitude: { type: Number },

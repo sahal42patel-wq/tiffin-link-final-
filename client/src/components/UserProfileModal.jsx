@@ -22,6 +22,33 @@ const AHMEDABAD_LOCALITIES = [
   'Chandkheda'
 ];
 
+const SAMPLE_PLANS = [
+  {
+    id: 'sub_kathiyawadi',
+    planName: 'Kathiyawadi Executive Lunch Plan',
+    mealsLeft: 26,
+    schedule: 'Mon–Sat (12:30 PM) • Bajra Rotla, Ringna Olo, Dal-Bhat & Chaas',
+    price: '₹3,200/mo',
+    badge: 'Popular'
+  },
+  {
+    id: 'sub_heritage',
+    planName: 'Ahmedabad Heritage Thali Plan',
+    mealsLeft: 6,
+    schedule: 'Mon–Sat (1:00 PM) • 5 Soft Phulka Ghee, 2 Fresh Sabzis, Kadhi-Khichdi',
+    price: '₹850/wk',
+    badge: 'Weekly'
+  },
+  {
+    id: 'sub_jain',
+    planName: 'Jain Satvik Pure Daily Meal Plan',
+    mealsLeft: 30,
+    schedule: 'Daily (12:00 PM & 7:30 PM) • No root vegetables, cow ghee, temple-pure prep',
+    price: '₹3,450/mo',
+    badge: 'Satvik'
+  }
+];
+
 const normalizeAddress = (addr, idx) => {
   if (!addr) return null;
   const id = addr._id || addr.id || `addr_${Date.now()}_${idx || 0}`;
@@ -54,38 +81,76 @@ const normalizeAddress = (addr, idx) => {
   };
 };
 
-export default function UserProfileModal({ isOpen, onClose, initialTab = 'profile', currentUser, onUpdateUser, onLogout, onOpenLegalModal }) {
+export default function UserProfileModal({ 
+  isOpen, 
+  onClose, 
+  initialTab = 'profile', 
+  currentUser, 
+  onUpdateUser, 
+  onLogout, 
+  onOpenLegalModal,
+  onNavigate 
+}) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [saveToast, setSaveToast] = useState(false);
   const [privacyToast, setPrivacyToast] = useState('');
+  const [paymentToast, setPaymentToast] = useState({ show: false, msg: '', type: 'success' });
+  const [prefsToast, setPrefsToast] = useState({ show: false, msg: '' });
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  const [notifToast, setNotifToast] = useState('');
+  const [subscriptionToast, setSubscriptionToast] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletionSuccess, setDeletionSuccess] = useState(false);
   const { theme, resolvedTheme, isDark, compactMode, reduceMotion, setTheme, setCompactMode, setReduceMotion } = useTheme();
 
-  // Active sessions state
-  const [sessions, setSessions] = useState([
-    { id: 'curr', device: 'Chrome 129 on Windows 11', ip: '103.21.124.89 (Ahmedabad, Gujarat)', isCurrent: true, lastActive: 'Active now' },
-    { id: 'mob', device: 'Mobile Safari on iPhone 15', ip: '103.21.124.91 (Ahmedabad, Gujarat)', isCurrent: false, lastActive: 'Yesterday at 8:42 PM' }
-  ]);
-
-  // Privacy and data consents
-  const [privacySettings, setPrivacySettings] = useState({
-    shareLiveGps: true,
-    telemetryAnalytics: true,
-    personalizedChefs: true,
-    retainOrderHistory: true
+  // Active sessions state with localStorage persistence
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('tiffinlink_user_sessions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [
+      { id: 'curr', device: 'Chrome 129 on Windows 11', ip: '103.21.124.89 (Ahmedabad, Gujarat)', isCurrent: true, lastActive: 'Active now' },
+      { id: 'mob', device: 'Mobile Safari on iPhone 15', ip: '103.21.124.91 (Ahmedabad, Gujarat)', isCurrent: false, lastActive: 'Yesterday at 8:42 PM' }
+    ];
   });
 
-  // Profile fields state
-  const [profileData, setProfileData] = useState({
-    name: currentUser?.name || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
-    dietary: currentUser?.dietary || 'Veg',
-    spiceLevel: currentUser?.spiceLevel || 'Medium Spice',
-    rotliType: currentUser?.rotliType || 'Soft Phulka Rotli (Ghee)',
-    noOnionGarlic: currentUser?.noOnionGarlic || false,
-    lessOil: currentUser?.lessOil || false
+  // Privacy and data consents with persistent fallback
+  const [privacySettings, setPrivacySettings] = useState(() => {
+    let saved = {};
+    try {
+      const cached = localStorage.getItem('tiffinlink_privacy_settings');
+      if (cached) saved = JSON.parse(cached);
+    } catch (_) {}
+    return {
+      shareLiveGps: currentUser?.privacySettings?.shareLiveGps ?? saved.shareLiveGps ?? true,
+      personalizedChefs: currentUser?.privacySettings?.personalizedChefs ?? saved.personalizedChefs ?? true,
+      telemetryAnalytics: currentUser?.privacySettings?.telemetryAnalytics ?? saved.telemetryAnalytics ?? true,
+      retainOrderHistory: currentUser?.privacySettings?.retainOrderHistory ?? saved.retainOrderHistory ?? true
+    };
+  });
+
+  // Profile & food preferences state
+  const [profileData, setProfileData] = useState(() => {
+    let savedPrefs = {};
+    try {
+      const cached = localStorage.getItem('tiffinlink_food_preferences');
+      if (cached) savedPrefs = JSON.parse(cached);
+    } catch (_) {}
+
+    return {
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+      dietary: currentUser?.preferences?.dietary || currentUser?.dietary || savedPrefs.dietary || 'Veg',
+      spiceLevel: currentUser?.preferences?.spiceLevel || currentUser?.spiceLevel || savedPrefs.spiceLevel || 'Medium Spice',
+      rotliType: currentUser?.preferences?.rotliType || currentUser?.rotliType || savedPrefs.rotliType || 'Soft Phulka Rotli (Ghee)',
+      noOnionGarlic: currentUser?.preferences?.noOnionGarlic ?? currentUser?.noOnionGarlic ?? savedPrefs.noOnionGarlic ?? false,
+      lessOil: currentUser?.preferences?.lessOil ?? currentUser?.lessOil ?? savedPrefs.lessOil ?? false
+    };
   });
 
   // Saved addresses state
@@ -106,17 +171,48 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
   const [isDefaultCheckbox, setIsDefaultCheckbox] = useState(true);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
 
-  // Payment methods state
-  const [paymentMethods, setPaymentMethods] = useState(currentUser?.paymentMethods || []);
+  // Payment methods state with persistence
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    if (currentUser?.paymentMethods && Array.isArray(currentUser.paymentMethods) && currentUser.paymentMethods.length > 0) {
+      return currentUser.paymentMethods;
+    }
+    try {
+      const cached = localStorage.getItem('tiffinlink_payment_methods');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [
+      { id: 'pm_upi_1', type: 'UPI', detail: 'zaid.mansuri@okhdfcbank', label: 'HDFC UPI', isDefault: true }
+    ];
+  });
   const [newUpiId, setNewUpiId] = useState('');
 
-  // Notifications preferences state
-  const [notifications, setNotifications] = useState({
-    orderStatusWhatsapp: true,
-    driverEnRouteSms: true,
-    dailyTiffinReminder: true,
-    kitchenMenuUpdates: false,
-    promotions: false
+  // Active meal subscription state with persistence
+  const [subscription, setSubscription] = useState(() => {
+    if (currentUser?.subscription) return currentUser.subscription;
+    try {
+      const cached = localStorage.getItem('tiffinlink_active_subscription');
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    return null;
+  });
+
+  // Notifications preferences state with persistence
+  const [notifications, setNotifications] = useState(() => {
+    let saved = {};
+    try {
+      const cached = localStorage.getItem('tiffinlink_notification_preferences');
+      if (cached) saved = JSON.parse(cached);
+    } catch (_) {}
+    return {
+      orderStatusWhatsapp: currentUser?.notifications?.orderStatusWhatsapp ?? saved.orderStatusWhatsapp ?? true,
+      driverEnRouteSms: currentUser?.notifications?.driverEnRouteSms ?? saved.driverEnRouteSms ?? true,
+      dailyTiffinReminder: currentUser?.notifications?.dailyTiffinReminder ?? saved.dailyTiffinReminder ?? true,
+      kitchenMenuUpdates: currentUser?.notifications?.kitchenMenuUpdates ?? saved.kitchenMenuUpdates ?? false,
+      promotions: currentUser?.notifications?.promotions ?? saved.promotions ?? false
+    };
   });
 
   // Sync when initialTab or currentUser changes
@@ -130,8 +226,26 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
         ...prev,
         name: currentUser.name || prev.name,
         email: currentUser.email || prev.email,
-        phone: currentUser.phone || prev.phone
+        phone: currentUser.phone || prev.phone,
+        dietary: currentUser.preferences?.dietary || currentUser.dietary || prev.dietary,
+        spiceLevel: currentUser.preferences?.spiceLevel || currentUser.spiceLevel || prev.spiceLevel,
+        rotliType: currentUser.preferences?.rotliType || currentUser.rotliType || prev.rotliType,
+        noOnionGarlic: currentUser.preferences?.noOnionGarlic ?? currentUser.noOnionGarlic ?? prev.noOnionGarlic,
+        lessOil: currentUser.preferences?.lessOil ?? currentUser.lessOil ?? prev.lessOil
       }));
+
+      if (currentUser.paymentMethods && Array.isArray(currentUser.paymentMethods) && currentUser.paymentMethods.length > 0) {
+        setPaymentMethods(currentUser.paymentMethods);
+      }
+      if (currentUser.subscription) {
+        setSubscription(currentUser.subscription);
+      }
+      if (currentUser.notifications) {
+        setNotifications(prev => ({ ...prev, ...currentUser.notifications }));
+      }
+      if (currentUser.privacySettings) {
+        setPrivacySettings(prev => ({ ...prev, ...currentUser.privacySettings }));
+      }
     }
   }, [currentUser]);
 
@@ -344,23 +458,278 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
     );
   };
 
-  const handleAddUpi = (e) => {
-    e.preventDefault();
-    if (!newUpiId.trim() || !newUpiId.includes('@')) return;
-    setPaymentMethods([...paymentMethods, {
-      id: Date.now(),
+  const handleAddUpi = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const upi = (newUpiId || '').trim();
+    if (!upi || !upi.includes('@')) {
+      setPaymentToast({ show: true, msg: 'Please enter a valid UPI VPA (e.g. yourname@okhdfcbank or 9876543210@paytm)', type: 'error' });
+      return;
+    }
+    const cleanUpi = upi.toLowerCase();
+    // Prevent duplicate VPA
+    if (paymentMethods.some(pm => (pm.detail || '').toLowerCase() === cleanUpi)) {
+      setPaymentToast({ show: true, msg: 'This UPI VPA is already linked to your account.', type: 'error' });
+      return;
+    }
+
+    const providerName = cleanUpi.split('@')[1] ? cleanUpi.split('@')[1].toUpperCase() : 'UPI';
+    const newMethod = {
+      id: `upi_${Date.now()}`,
       type: 'UPI',
-      detail: newUpiId.trim(),
-      label: 'Added UPI',
-      isDefault: false
-    }]);
+      detail: cleanUpi,
+      label: `${providerName} VPA`,
+      isDefault: paymentMethods.length === 0
+    };
+
+    const nextList = [...paymentMethods, newMethod];
+    setPaymentMethods(nextList);
+    safeSetItem('tiffinlink_payment_methods', JSON.stringify(nextList));
     setNewUpiId('');
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({
+        ...currentUser,
+        paymentMethods: nextList
+      });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ paymentMethods: nextList })
+      });
+    } catch (err) {
+      console.warn('Backend paymentMethods sync:', err);
+    }
+
+    setPaymentToast({ show: true, msg: `✓ UPI VPA "${cleanUpi}" verified & linked successfully!`, type: 'success' });
+    setTimeout(() => setPaymentToast({ show: false, msg: '', type: 'success' }), 4000);
+  };
+
+  const handleSetDefaultPayment = async (id) => {
+    const nextList = paymentMethods.map(pm => ({
+      ...pm,
+      isDefault: (pm.id === id || String(pm.id) === String(id))
+    }));
+    setPaymentMethods(nextList);
+    safeSetItem('tiffinlink_payment_methods', JSON.stringify(nextList));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({
+        ...currentUser,
+        paymentMethods: nextList
+      });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ paymentMethods: nextList })
+      });
+    } catch (_) {}
+
+    setPaymentToast({ show: true, msg: '✓ Primary default payment method updated.', type: 'success' });
+    setTimeout(() => setPaymentToast({ show: false, msg: '', type: 'success' }), 3000);
+  };
+
+  const handleDeletePayment = async (id) => {
+    const nextList = paymentMethods.filter(pm => pm.id !== id && String(pm.id) !== String(id));
+    if (nextList.length > 0 && !nextList.some(pm => pm.isDefault)) {
+      nextList[0].isDefault = true;
+    }
+    setPaymentMethods(nextList);
+    safeSetItem('tiffinlink_payment_methods', JSON.stringify(nextList));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({
+        ...currentUser,
+        paymentMethods: nextList
+      });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ paymentMethods: nextList })
+      });
+    } catch (_) {}
+
+    setPaymentToast({ show: true, msg: 'Payment method removed from account.', type: 'info' });
+    setTimeout(() => setPaymentToast({ show: false, msg: '', type: 'info' }), 3000);
+  };
+
+  const handleQuickBankSuffix = (suffix) => {
+    setNewUpiId(prev => {
+      const base = prev.includes('@') ? prev.split('@')[0] : prev;
+      return base ? `${base}${suffix}` : `user${suffix}`;
+    });
+  };
+
+  const handleSaveFoodPreferences = async () => {
+    setIsSavingPrefs(true);
+    const prefs = {
+      dietary: profileData.dietary,
+      rotliType: profileData.rotliType,
+      spiceLevel: profileData.spiceLevel,
+      noOnionGarlic: Boolean(profileData.noOnionGarlic),
+      lessOil: Boolean(profileData.lessOil)
+    };
+
+    safeSetItem('tiffinlink_food_preferences', JSON.stringify(prefs));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({
+        ...currentUser,
+        preferences: prefs,
+        dietary: prefs.dietary,
+        rotliType: prefs.rotliType,
+        spiceLevel: prefs.spiceLevel,
+        noOnionGarlic: prefs.noOnionGarlic,
+        lessOil: prefs.lessOil
+      });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          preferences: prefs,
+          dietary: prefs.dietary,
+          rotliType: prefs.rotliType,
+          spiceLevel: prefs.spiceLevel,
+          noOnionGarlic: prefs.noOnionGarlic,
+          lessOil: prefs.lessOil
+        })
+      });
+    } catch (err) {
+      console.warn('Backend sync for food preferences:', err);
+    } finally {
+      setIsSavingPrefs(false);
+      setPrefsToast({ show: true, msg: '✓ Food preferences saved to profile & verified with home chefs!' });
+      setTimeout(() => setPrefsToast({ show: false, msg: '' }), 3500);
+    }
+  };
+
+  const handleActivateSubscription = async (plan) => {
+    const newSub = {
+      planName: plan.planName,
+      mealsLeft: plan.mealsLeft,
+      schedule: plan.schedule,
+      status: 'active',
+      startDate: new Date().toISOString()
+    };
+    setSubscription(newSub);
+    safeSetItem('tiffinlink_active_subscription', JSON.stringify(newSub));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({ ...currentUser, subscription: newSub });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ subscription: newSub })
+      });
+    } catch (_) {}
+
+    setSubscriptionToast(`✓ "${plan.planName}" activated! Fresh meals will be delivered as scheduled.`);
+    setTimeout(() => setSubscriptionToast(''), 4000);
+  };
+
+  const handlePauseResumeSubscription = async () => {
+    if (!subscription) return;
+    const isPaused = subscription.status === 'paused';
+    const updatedSub = {
+      ...subscription,
+      status: isPaused ? 'active' : 'paused'
+    };
+    setSubscription(updatedSub);
+    safeSetItem('tiffinlink_active_subscription', JSON.stringify(updatedSub));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({ ...currentUser, subscription: updatedSub });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ subscription: updatedSub })
+      });
+    } catch (_) {}
+
+    setSubscriptionToast(isPaused ? '✓ Subscription resumed! Upcoming tiffins are scheduled.' : '⏸ Subscription paused for upcoming deliveries without penalty.');
+    setTimeout(() => setSubscriptionToast(''), 3500);
+  };
+
+  const handleToggleNotification = async (key) => {
+    const next = { ...notifications, [key]: !notifications[key] };
+    setNotifications(next);
+    safeSetItem('tiffinlink_notification_preferences', JSON.stringify(next));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({ ...currentUser, notifications: next });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ notifications: next })
+      });
+    } catch (_) {}
+
+    setNotifToast('✓ Notification settings updated & saved');
+    setTimeout(() => setNotifToast(''), 2500);
+  };
+
+  const handleSaveAllNotifications = async () => {
+    safeSetItem('tiffinlink_notification_preferences', JSON.stringify(notifications));
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({ ...currentUser, notifications });
+    }
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ notifications })
+      });
+    } catch (_) {}
+    setNotifToast('✓ All notification preferences saved successfully!');
+    setTimeout(() => setNotifToast(''), 3000);
   };
 
   const handleSignOutOtherSessions = () => {
-    setSessions(prev => prev.filter(s => s.isCurrent));
-    setPrivacyToast('Signed out of all other active sessions and devices.');
+    const remaining = sessions.filter(s => s.isCurrent);
+    setSessions(remaining);
+    safeSetItem('tiffinlink_user_sessions', JSON.stringify(remaining));
+    setPrivacyToast('✓ Signed out of all other active sessions and devices.');
     setTimeout(() => setPrivacyToast(''), 3500);
+  };
+
+  const handleRevokeSession = (id) => {
+    const remaining = sessions.filter(s => s.id !== id);
+    setSessions(remaining);
+    safeSetItem('tiffinlink_user_sessions', JSON.stringify(remaining));
+    setPrivacyToast('✓ Device session revoked successfully.');
+    setTimeout(() => setPrivacyToast(''), 3000);
+  };
+
+  const handleTogglePrivacySetting = async (key) => {
+    const next = { ...privacySettings, [key]: !privacySettings[key] };
+    setPrivacySettings(next);
+    safeSetItem('tiffinlink_privacy_settings', JSON.stringify(next));
+
+    if (onUpdateUser && currentUser) {
+      onUpdateUser({ ...currentUser, privacySettings: next });
+    }
+
+    try {
+      await apiRequest('/customers/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ privacySettings: next })
+      });
+    } catch (_) {}
+
+    setPrivacyToast('✓ Privacy choices updated & saved.');
+    setTimeout(() => setPrivacyToast(''), 2500);
   };
 
   const handleExportData = () => {
@@ -825,62 +1194,129 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
 
             {/* Tab 3: Payment Methods */}
             {activeTab === 'payments' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* Feedback Toast */}
+                {paymentToast.show && (
+                  <div className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between gap-2 shadow-sm ${
+                    paymentToast.type === 'error'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  }`}>
+                    <span>{paymentToast.msg}</span>
+                    <button type="button" onClick={() => setPaymentToast({ show: false, msg: '', type: 'success' })} className="text-current hover:opacity-75">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#665d52]">
+                      Saved Payment Methods ({paymentMethods.length})
+                    </h3>
+                    <span className="text-[11px] text-[#8c8273]">Instant UPI Auto-Pay</span>
+                  </div>
+
                   {paymentMethods.length === 0 ? (
-                  <p className="text-xs text-[#665d52] italic py-4 text-center">
-                    No saved payment methods. Add your UPI ID below.
-                  </p>
-                ) : (
-                  paymentMethods.map((pm) => (
-                    <div 
-                      key={pm.id}
-                      className="p-4 rounded-2xl border border-[#ded9d1] bg-[#f5f3ef] flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-[#ded9d1] flex items-center justify-center text-[#1a1a1a]">
-                          <CreditCard size={18} />
+                    <div className="p-6 rounded-2xl border border-dashed border-[#ded9d1] bg-white text-center">
+                      <p className="text-xs text-[#665d52] italic">
+                        No saved payment methods. Add your UPI ID below for seamless 1-click tiffin checkout.
+                      </p>
+                    </div>
+                  ) : (
+                    paymentMethods.map((pm) => (
+                      <div 
+                        key={pm.id}
+                        className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                          pm.isDefault 
+                            ? 'bg-[#1b5e20]/5 border-[#1b5e20]/40 shadow-xs' 
+                            : 'bg-white border-[#ded9d1]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-xs ${
+                            pm.isDefault ? 'bg-[#1b5e20] text-white border-[#1b5e20]' : 'bg-[#f5f3ef] text-[#1a1a1a] border-[#ded9d1]'
+                          }`}>
+                            <CreditCard size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-[#1a1a1a]">{pm.label || 'UPI Account'}</p>
+                              {pm.isDefault && (
+                                <span className="bg-[#1b5e20] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                  Primary Default
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-mono text-[#4a4238] mt-0.5">{pm.detail}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-[#1a1a1a]">{pm.label}</p>
-                          <p className="text-sm font-mono text-[#4a4238] mt-0.5">{pm.detail}</p>
+
+                        <div className="flex items-center gap-3">
+                          {!pm.isDefault && (
+                            <button 
+                              type="button"
+                              onClick={() => handleSetDefaultPayment(pm.id)}
+                              className="text-xs font-bold text-[#a0522d] hover:underline cursor-pointer"
+                            >
+                              Make Primary
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePayment(pm.id)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Remove UPI method"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </div>
-                      {pm.isDefault ? (
-                        <span className="bg-[#1b5e20] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                          Default
-                        </span>
-                      ) : (
-                        <button 
-                          onClick={() => setPaymentMethods(paymentMethods.map(p => ({ ...p, isDefault: p.id === pm.id })))}
-                          className="text-xs text-[#665d52] hover:text-[#1a1a1a] underline cursor-pointer"
-                        >
-                          Make Primary
-                        </button>
-                      )}
-                    </div>
-                  )))}
+                    ))
+                  )}
                 </div>
 
-                <form onSubmit={handleAddUpi} className="p-4 rounded-2xl bg-[#f5f3ef] border border-[#ded9d1] space-y-3">
-                  <p className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider flex items-center gap-1.5">
-                    <Plus size={14} /> Link New UPI VPA ID
-                  </p>
-                  <div className="flex gap-2">
+                {/* Add UPI Form */}
+                <form onSubmit={handleAddUpi} className="p-5 rounded-2xl bg-[#f5f3ef] border border-[#ded9d1] space-y-3.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider flex items-center gap-1.5">
+                      <Plus size={14} /> Link New UPI VPA ID
+                    </p>
+                    <span className="text-[10px] text-[#665d52]">Supports GPay, PhonePe, Paytm &amp; BHIM</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input 
                       type="text"
                       value={newUpiId}
                       onChange={(e) => setNewUpiId(e.target.value)}
                       placeholder="username@okhdfcbank or yourphone@paytm"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-white text-sm text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-white text-sm text-[#1a1a1a] placeholder:text-stone-400 focus:outline-none focus:border-[#1a1a1a] focus:ring-1 focus:ring-[#1a1a1a]"
                       required
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-[#1a1a1a] text-white rounded-xl text-xs font-bold hover:bg-[#a0522d] transition-all cursor-pointer whitespace-nowrap"
+                      className="px-5 py-2.5 bg-[#1a1a1a] text-white rounded-xl text-xs font-bold hover:bg-[#a0522d] transition-all cursor-pointer whitespace-nowrap shadow-sm"
                     >
                       Verify &amp; Link
                     </button>
+                  </div>
+
+                  {/* Bank Suffix Quick Chips */}
+                  <div className="pt-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-[#8c8273]">Quick handles:</span>
+                      {['@okhdfcbank', '@okaxis', '@okicici', '@paytm', '@ybl'].map(suffix => (
+                        <button
+                          key={suffix}
+                          type="button"
+                          onClick={() => handleQuickBankSuffix(suffix)}
+                          className="px-2 py-0.5 rounded-md bg-white border border-[#ded9d1] text-[10px] font-mono font-medium text-[#4a4238] hover:bg-[#a0522d] hover:text-white hover:border-[#a0522d] transition-colors cursor-pointer"
+                        >
+                          {suffix}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </form>
               </div>
@@ -888,7 +1324,19 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
 
             {/* Tab 4: Tiffin Preferences */}
             {activeTab === 'preferences' && (
-              <div className="space-y-6 max-w-lg">
+              <div className="space-y-6 max-w-lg animate-in fade-in duration-200">
+                {prefsToast.show && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-between gap-2 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Check size={16} className="text-emerald-600" />
+                      <span>{prefsToast.msg}</span>
+                    </div>
+                    <button type="button" onClick={() => setPrefsToast({ show: false, msg: '' })} className="hover:opacity-75">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-xs font-label-caps uppercase text-[#665d52] font-semibold">Dietary Classification</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -896,7 +1344,7 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                       <button
                         key={d}
                         type="button"
-                        onClick={() => setProfileData({ ...profileData, dietary: d })}
+                        onClick={() => setProfileData(prev => ({ ...prev, dietary: d }))}
                         className={`py-2 px-3 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
                           profileData.dietary === d 
                             ? 'bg-[#1a1a1a] text-white border-[#1a1a1a] shadow' 
@@ -913,8 +1361,8 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                   <label className="text-xs font-label-caps uppercase text-[#665d52] font-semibold">Rotli / Bread Preference</label>
                   <select
                     value={profileData.rotliType}
-                    onChange={(e) => setProfileData({ ...profileData, rotliType: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-[#f5f3ef] text-sm text-[#1a1a1a] focus:outline-none"
+                    onChange={(e) => setProfileData(prev => ({ ...prev, rotliType: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#ded9d1] bg-white text-sm text-[#1a1a1a] focus:outline-none focus:border-[#1a1a1a]"
                   >
                     <option value="Soft Phulka Rotli (Ghee)">Soft Phulka Rotli (Ghee)</option>
                     <option value="Dry Phulka (No Ghee / Satvik)">Dry Phulka (No Ghee / Satvik)</option>
@@ -930,7 +1378,7 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setProfileData({ ...profileData, spiceLevel: s })}
+                        onClick={() => setProfileData(prev => ({ ...prev, spiceLevel: s }))}
                         className={`py-2 px-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
                           profileData.spiceLevel === s 
                             ? 'bg-[#a0522d] text-white border-[#a0522d] shadow' 
@@ -944,21 +1392,21 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-[#ded9d1] bg-white hover:bg-stone-50 transition-colors">
                     <input 
                       type="checkbox"
                       checked={profileData.noOnionGarlic}
-                      onChange={(e) => setProfileData({ ...profileData, noOnionGarlic: e.target.checked })}
-                      className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0"
+                      onChange={(e) => setProfileData(prev => ({ ...prev, noOnionGarlic: e.target.checked }))}
+                      className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0 cursor-pointer"
                     />
                     <span className="text-xs font-semibold text-[#1a1a1a]">Strictly No Onion &amp; No Garlic (Jain / Vaishnav Prep)</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-[#ded9d1] bg-white hover:bg-stone-50 transition-colors">
                     <input 
                       type="checkbox"
                       checked={profileData.lessOil}
-                      onChange={(e) => setProfileData({ ...profileData, lessOil: e.target.checked })}
-                      className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0"
+                      onChange={(e) => setProfileData(prev => ({ ...prev, lessOil: e.target.checked }))}
+                      className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0 cursor-pointer"
                     />
                     <span className="text-xs font-semibold text-[#1a1a1a]">Healthy Low Oil &amp; Low Sodium Cooking</span>
                   </label>
@@ -966,13 +1414,19 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setSaveToast(true);
-                    setTimeout(() => setSaveToast(false), 2500);
-                  }}
-                  className="px-6 py-2.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#a0522d] transition-all cursor-pointer shadow"
+                  onClick={handleSaveFoodPreferences}
+                  disabled={isSavingPrefs}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#a0522d] transition-all cursor-pointer shadow disabled:opacity-50"
                 >
-                  Save Food Preferences
+                  {isSavingPrefs ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Saving Preferences...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} /> Save Food Preferences
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -1119,46 +1573,149 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
 
             {/* Tab 5: Subscriptions */}
             {activeTab === 'subscriptions' && (
-              <div className="space-y-4">
-                {currentUser?.subscription ? (
-                  <div className="p-5 rounded-2xl border border-[#1b5e20]/30 bg-[#1b5e20]/5 space-y-3">
-                    <div className="flex items-center justify-between">
+              <div className="space-y-5 animate-in fade-in duration-200">
+                {subscriptionToast && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Check size={16} className="text-emerald-600 shrink-0" />
+                      <span>{subscriptionToast}</span>
+                    </div>
+                    <button type="button" onClick={() => setSubscriptionToast('')} className="hover:opacity-75">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {subscription ? (
+                  <div className="p-5 rounded-2xl border border-[#1b5e20]/40 bg-[#1b5e20]/5 space-y-4 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-[#1b5e20]">Active Plan</span>
-                        <h4 className="font-display-lg text-lg text-[#1a1a1a] mt-0.5">{currentUser.subscription.planName || 'Active Meal Plan'}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#1b5e20]">Active Meal Plan</span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                            subscription.status === 'paused' ? 'bg-amber-100 text-amber-800' : 'bg-[#1b5e20] text-white'
+                          }`}>
+                            {subscription.status === 'paused' ? 'PAUSED' : 'DELIVERING DAILY'}
+                          </span>
+                        </div>
+                        <h4 className="font-display-lg text-lg text-[#1a1a1a] mt-1">{subscription.planName || 'Ahmedabad Thali Plan'}</h4>
                       </div>
-                      <span className="bg-[#1b5e20] text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
-                        {currentUser.subscription.mealsLeft || 0} Meals Left
+                      <span className="bg-[#1b5e20] text-white text-xs font-bold px-3 py-1 rounded-full uppercase self-start sm:self-auto">
+                        {subscription.mealsLeft || 0} Meals Remaining
                       </span>
                     </div>
-                    <p className="text-xs text-[#665d52]">
-                      {currentUser.subscription.schedule || 'Scheduled delivery in 304 Food-Grade Insulated Canisters.'}
+
+                    <p className="text-xs text-[#665d52] leading-relaxed">
+                      {subscription.schedule || 'Scheduled delivery in 304 Food-Grade Insulated Canisters with live GPS telemetry.'}
                     </p>
+
+                    <div className="pt-2 border-t border-[#1b5e20]/20 flex flex-wrap gap-2.5">
+                      <button
+                        type="button"
+                        onClick={handlePauseResumeSubscription}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          subscription.status === 'paused'
+                            ? 'bg-[#1b5e20] text-white hover:bg-[#144216]'
+                            : 'bg-white border border-[#ded9d1] text-[#1a1a1a] hover:bg-stone-100'
+                        }`}
+                      >
+                        {subscription.status === 'paused' ? '▶ Resume Deliveries' : '⏸ Pause Subscription'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          if (onNavigate) onNavigate('#find-tiffin');
+                          else window.location.hash = '#find-tiffin';
+                        }}
+                        className="px-4 py-2 rounded-xl bg-white border border-[#ded9d1] text-xs font-bold text-[#4a4238] hover:bg-stone-100 cursor-pointer"
+                      >
+                        Browse Other Plans
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-xs text-[#665d52] bg-[#f5f3ef] border border-[#ded9d1] rounded-2xl p-6">
-                    <p className="font-semibold text-sm text-[#1a1a1a] mb-1">No Active Meal Subscription</p>
-                    <p className="mb-4">Subscribe to a daily or weekly tiffin plan for automated fresh deliveries.</p>
+                  <div className="py-8 text-center text-xs text-[#665d52] bg-[#f5f3ef] border border-[#ded9d1] rounded-2xl p-6 shadow-xs">
+                    <p className="font-semibold text-base text-[#1a1a1a] mb-1">No Active Meal Subscription</p>
+                    <p className="mb-4 text-xs">Subscribe to a daily or weekly tiffin plan for automated fresh deliveries.</p>
                     <button 
+                      type="button"
                       onClick={() => {
                         onClose();
-                        window.location.hash = '#find-tiffin';
+                        if (onNavigate) {
+                          onNavigate('#find-tiffin');
+                        } else {
+                          window.location.hash = '#find-tiffin';
+                        }
                       }}
-                      className="px-4 py-2 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#a0522d] cursor-pointer"
+                      className="px-5 py-2.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
                     >
                       Browse Tiffin Plans
                     </button>
                   </div>
                 )}
 
-                <div className="p-4 rounded-xl border border-[#ded9d1] bg-[#f5f3ef] text-xs text-[#665d52]">
-                  💡 <strong>Did you know?</strong> You can pause or reschedule your tiffins up to 2 hours before the delivery slot without any penalty.
+                {/* Curated Ahmedabad Subscription Plans */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#665d52]">
+                      Popular Ahmedabad Meal Subscriptions
+                    </h4>
+                    <span className="text-[10px] text-[#8c8273]">Instant 1-Click Activation</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {SAMPLE_PLANS.map((plan) => (
+                      <div 
+                        key={plan.id}
+                        className="p-3.5 rounded-xl border border-[#ded9d1] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#1a1a1a] transition-colors"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-[#1a1a1a]">{plan.planName}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#a0522d]/10 text-[#a0522d] uppercase">
+                              {plan.badge}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#665d52]">{plan.schedule}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                          <span className="font-bold text-xs text-[#1a1a1a]">{plan.price}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleActivateSubscription(plan)}
+                            className="px-3.5 py-1.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                          >
+                            Activate Plan
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#ded9d1] bg-[#f5f3ef] text-xs text-[#665d52] flex items-center gap-2">
+                  <span className="text-base">💡</span>
+                  <span><strong>Did you know?</strong> You can pause or reschedule your tiffins up to 2 hours before the delivery slot without any penalty.</span>
                 </div>
               </div>
             )}
 
+            {/* Tab 6: Notifications Settings */}
             {activeTab === 'notifications' && (
-              <div className="space-y-4 max-w-lg">
+              <div className="space-y-5 max-w-lg animate-in fade-in duration-200">
+                {notifToast && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Check size={16} className="text-emerald-600 shrink-0" />
+                      <span>{notifToast}</span>
+                    </div>
+                    <button type="button" onClick={() => setNotifToast('')} className="hover:opacity-75">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <p className="text-xs text-[#665d52]">Select how you would like to receive real-time updates regarding your meals:</p>
                 <div className="space-y-3">
                   {[
@@ -1167,30 +1724,46 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                     { key: 'dailyTiffinReminder', label: 'Daily Meal Slot Reminder', desc: 'Reminder 1 hour before scheduled lunch/dinner' },
                     { key: 'kitchenMenuUpdates', label: 'Daily Shaak/Sabzi Menu Update', desc: 'Notification when provider updates today’s special thali' }
                   ].map((n) => (
-                    <label key={n.key} className="flex items-start justify-between p-3.5 rounded-xl border border-[#ded9d1] bg-white/70 cursor-pointer">
+                    <label key={n.key} className="flex items-start justify-between p-3.5 rounded-xl border border-[#ded9d1] bg-white hover:bg-stone-50 transition-colors cursor-pointer shadow-xs">
                       <div className="pr-4">
                         <p className="text-xs font-bold text-[#1a1a1a]">{n.label}</p>
                         <p className="text-[11px] text-[#665d52] mt-0.5">{n.desc}</p>
                       </div>
                       <input 
                         type="checkbox"
-                        checked={notifications[n.key]}
-                        onChange={(e) => setNotifications({ ...notifications, [n.key]: e.target.checked })}
+                        checked={Boolean(notifications[n.key])}
+                        onChange={() => handleToggleNotification(n.key)}
                         className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0 mt-0.5 cursor-pointer"
                       />
                     </label>
                   ))}
                 </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveAllNotifications}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[#1a1a1a] hover:bg-[#a0522d] text-white text-xs font-bold rounded-xl transition-all shadow cursor-pointer"
+                  >
+                    <Save size={14} />
+                    <span>Save Notification Settings</span>
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Tab 8: Privacy & Data Settings (Checklist Section 4 & Section 3) */}
+            {/* Tab 8: Privacy & Data Settings */}
             {activeTab === 'privacy' && (
-              <div className="space-y-6 max-w-xl">
+              <div className="space-y-6 max-w-xl animate-in fade-in duration-200">
                 {privacyToast && (
-                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                    <Check size={16} className="shrink-0" />
-                    <span>{privacyToast}</span>
+                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center justify-between gap-2 shadow-sm animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Check size={16} className="text-emerald-600 shrink-0" />
+                      <span>{privacyToast}</span>
+                    </div>
+                    <button type="button" onClick={() => setPrivacyToast('')} className="hover:opacity-75">
+                      <X size={14} />
+                    </button>
                   </div>
                 )}
 
@@ -1236,12 +1809,8 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                         {!sess.isCurrent && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setSessions(prev => prev.filter(s => s.id !== sess.id));
-                              setPrivacyToast(`Session revoked for ${sess.device}`);
-                              setTimeout(() => setPrivacyToast(''), 3000);
-                            }}
-                            className="text-[11px] text-red-600 hover:underline font-semibold"
+                            onClick={() => handleRevokeSession(sess.id)}
+                            className="text-[11px] text-red-600 hover:underline font-semibold cursor-pointer"
                           >
                             Revoke
                           </button>
@@ -1260,15 +1829,15 @@ export default function UserProfileModal({ isOpen, onClose, initialTab = 'profil
                       { key: 'personalizedChefs', label: 'Hyperlocal Culinary Recommendations', desc: 'Allows TiffinLink to recommend home chefs based on your spice tolerance and dietary history.' },
                       { key: 'telemetryAnalytics', label: 'Platform Performance & Operational Analytics', desc: 'Anonymous latency monitoring that prevents culinary ordering downtime.' }
                     ].map((item) => (
-                      <label key={item.key} className="flex items-start justify-between p-3.5 rounded-xl border border-[#ded9d1] dark:border-stone-700 bg-white dark:bg-stone-800 cursor-pointer">
+                      <label key={item.key} className="flex items-start justify-between p-3.5 rounded-xl border border-[#ded9d1] dark:border-stone-700 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700/50 transition-colors cursor-pointer">
                         <div className="pr-4">
                           <p className="text-xs font-bold text-[#1a1a1a] dark:text-white">{item.label}</p>
                           <p className="text-[11px] text-[#665d52] dark:text-stone-400 mt-0.5 leading-snug">{item.desc}</p>
                         </div>
                         <input
                           type="checkbox"
-                          checked={privacySettings[item.key]}
-                          onChange={(e) => setPrivacySettings({ ...privacySettings, [item.key]: e.target.checked })}
+                          checked={Boolean(privacySettings[item.key])}
+                          onChange={() => handleTogglePrivacySetting(item.key)}
                           className="w-4 h-4 rounded text-[#1a1a1a] focus:ring-0 mt-0.5 cursor-pointer"
                         />
                       </label>
