@@ -894,7 +894,7 @@ export default function LiveRequestsTab({ currentUser, onNavigateTab, onAcceptRe
                   12 Delivery Couriers Active
                 </div>
                 <div className="font-label-caps text-[10px] text-secondary">
-                  Within 2.5 km of Xoxo Men Kitchen
+                  Within 2.5 km of {currentUser?.businessName || currentUser?.kitchenName || currentUser?.name || 'Kitchen'}
                 </div>
               </div>
             </div>

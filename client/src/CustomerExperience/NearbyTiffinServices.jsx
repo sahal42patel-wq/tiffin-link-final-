@@ -176,6 +176,14 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
   const [budget, setBudget] = useState(Number(initialFilters.budget) || 150);
   const [radiusKm, setRadiusKm] = useState(5.0); // 5km to 10km supported
   const [coordinates, setCoordinates] = useState(() => {
+    if (initialFilters.location) {
+      const lowerLoc = initialFilters.location.toLowerCase();
+      for (const [key, coords] of Object.entries(AHMEDABAD_LOCALITIES)) {
+        if (lowerLoc.includes(key)) {
+          return { lat: coords.lat, lng: coords.lng };
+        }
+      }
+    }
     if (location.isCalibrated && location.latitude && location.longitude) {
       return { lat: location.latitude, lng: location.longitude };
     }
@@ -185,6 +193,28 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
     return { lat: 23.0300, lng: 72.5178 };
   });
   const [sortBy, setSortBy] = useState('distance');
+
+  // Sync state if initialFilters prop changes
+  useEffect(() => {
+    if (initialFilters && Object.keys(initialFilters).length > 0) {
+      if (initialFilters.search !== undefined) setSearchQuery(initialFilters.search);
+      if (initialFilters.mealType !== undefined) setMealType(initialFilters.mealType);
+      if (initialFilters.date !== undefined) setOrderDate(initialFilters.date);
+      if (initialFilters.time !== undefined) setTimeSlot(initialFilters.time);
+      if (initialFilters.deliveryType !== undefined) setFulfillment(initialFilters.deliveryType);
+      if (initialFilters.location !== undefined) {
+        setLocationAddress(initialFilters.location);
+        const lowerLoc = initialFilters.location.toLowerCase();
+        for (const [key, coords] of Object.entries(AHMEDABAD_LOCALITIES)) {
+          if (lowerLoc.includes(key)) {
+            setCoordinates({ lat: coords.lat, lng: coords.lng });
+            break;
+          }
+        }
+      }
+      if (initialFilters.budget !== undefined) setBudget(Number(initialFilters.budget) || 150);
+    }
+  }, [initialFilters]);
 
   // Atelier cooking standard mandates (checkboxes)
   const [mandates, setMandates] = useState({
@@ -338,12 +368,46 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
       }));
     };
 
+    const handleCapacityUpdated = (data) => {
+      if (!data || !data.providerId) return;
+      const targetId = String(data.providerId);
+
+      setProviders(prevList => prevList.map(prov => {
+        const provId = String(prov._id || prov.id || prov.providerId || '');
+        if (provId === targetId) {
+          const totalCapacity = Number(data.totalCapacity !== undefined ? data.totalCapacity : (data.maxDailyOrders || prov.totalCapacity || prov.maxCapacity || 30));
+          const availableSlots = Number(data.availableSlots !== undefined ? data.availableSlots : (data.remainingSlots !== undefined ? data.remainingSlots : prov.availableSlots));
+          const consumedSlots = Number(data.consumedSlots !== undefined ? data.consumedSlots : Math.max(0, totalCapacity - availableSlots));
+          const consumedPercentage = Number(data.consumedPercentage !== undefined ? data.consumedPercentage : (totalCapacity > 0 ? Math.round((consumedSlots / totalCapacity) * 100) : 0));
+
+          return {
+            ...prov,
+            totalCapacity,
+            maxCapacity: totalCapacity,
+            availableSlots: Math.max(0, Math.min(totalCapacity, availableSlots)),
+            remainingSlots: Math.max(0, Math.min(totalCapacity, availableSlots)),
+            consumedSlots,
+            consumedPercentage,
+            orderCutoff: data.orderCutoff || prov.orderCutoff,
+            isCutoffPassed: data.isCutoffPassed !== undefined ? data.isCutoffPassed : prov.isCutoffPassed,
+            availabilityStatus: data.availabilityStatus || prov.availabilityStatus,
+            featuredMealType: data.mealType || prov.featuredMealType
+          };
+        }
+        return prov;
+      }));
+    };
+
     s.on('provider:rating:updated', handleRatingUpdated);
     s.on('review:new', handleNewReview);
+    s.on('capacity:updated', handleCapacityUpdated);
+    s.on('tiffin:availability:updated', handleCapacityUpdated);
 
     return () => {
       s.off('provider:rating:updated', handleRatingUpdated);
       s.off('review:new', handleNewReview);
+      s.off('capacity:updated', handleCapacityUpdated);
+      s.off('tiffin:availability:updated', handleCapacityUpdated);
     };
   }, []);
 
@@ -1472,35 +1536,99 @@ export default function NearbyTiffinServices({ onNavigate, initialFilters = {}, 
                       </div>
                     </div>
 
-                    {/* Capacity Bar & Direct Action */}
-                    <div className="pt-4 bg-[#f5f3ef] p-4 space-y-3 border border-[#ded9d1] rounded-xl">
-                      <div className="flex items-center justify-between text-[#1a1a1a] text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#1b5e20] animate-pulse"></span>
-                          <span className="font-label-caps text-[11px] uppercase font-bold">
-                            {featuredProvider.availableSlots || 18} of 30 Lunch Slots Remaining
-                          </span>
+                    {/* Dynamic Real-Time Capacity Bar & Direct Action */}
+                    {(() => {
+                      const totalCap = Number(featuredProvider.totalCapacity || featuredProvider.maxCapacity || 30);
+                      const rawSlots = featuredProvider.availableSlots !== undefined 
+                        ? featuredProvider.availableSlots 
+                        : (featuredProvider.remainingSlots !== undefined ? featuredProvider.remainingSlots : totalCap);
+                      const availSlots = Math.max(0, Math.min(totalCap, Number(rawSlots) || 0));
+                      const consumedSlots = featuredProvider.consumedSlots !== undefined 
+                        ? Number(featuredProvider.consumedSlots) 
+                        : Math.max(0, totalCap - availSlots);
+                      const consumedPct = totalCap > 0 
+                        ? Math.min(100, Math.max(0, Math.round((consumedSlots / totalCap) * 100))) 
+                        : 0;
+
+                      const cutoffTime = featuredProvider.orderCutoff || '11:30 AM';
+                      const isCutoffPassed = Boolean(featuredProvider.isCutoffPassed);
+                      const isSoldOut = availSlots <= 0;
+                      const isAcceptingOrders = featuredProvider.isAcceptingOrders !== false;
+                      const isKitchenPaused = !isAcceptingOrders || featuredProvider.availabilityStatus === 'KITCHEN_PAUSED';
+
+                      const mealTypeLabel = (featuredProvider.featuredMealType || mealType || 'Lunch').toUpperCase();
+
+                      return (
+                        <div className="pt-4 bg-[#f5f3ef] p-4 space-y-3 border border-[#ded9d1] rounded-xl">
+                          <div className="flex items-center justify-between text-[#1a1a1a] text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span 
+                                className={`w-2 h-2 rounded-full ${
+                                  isKitchenPaused 
+                                    ? 'bg-[#ba1a1a]' 
+                                    : isSoldOut 
+                                      ? 'bg-[#ba1a1a]' 
+                                      : isCutoffPassed 
+                                        ? 'bg-[#b25e00]' 
+                                        : 'bg-[#1b5e20]'
+                                } animate-pulse`}
+                              ></span>
+                              <span className="font-label-caps text-[11px] uppercase font-bold">
+                                {isKitchenPaused 
+                                  ? 'Kitchen Paused For Today' 
+                                  : isSoldOut 
+                                    ? `0 of ${totalCap} ${mealTypeLabel} Slots (Sold Out)` 
+                                    : isCutoffPassed 
+                                      ? `Cut-off Passed • ${availSlots} of ${totalCap} ${mealTypeLabel} slots` 
+                                      : `${availSlots} of ${totalCap} ${mealTypeLabel} Slots Remaining`}
+                              </span>
+                            </div>
+                            <span className="font-label-caps text-[10px] text-[#665d52]">
+                              {isCutoffPassed 
+                                ? 'Cut-off passed for today' 
+                                : `Cut-off: ${cutoffTime} today`}
+                            </span>
+                          </div>
+
+                          {/* Dynamic Progress Line */}
+                          <div className="w-full bg-[#ded9d1] h-1.5 overflow-hidden rounded-full">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isSoldOut ? 'bg-[#ba1a1a]' : 'bg-[#1a1a1a]'
+                              }`} 
+                              style={{ width: `${isSoldOut ? 100 : consumedPct}%` }}
+                            ></div>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                            <span className="text-xs text-[#665d52]">✓ Prepared fresh with hygienic packaging</span>
+                            <button
+                              type="button"
+                              onClick={() => (!isSoldOut && !isCutoffPassed && !isKitchenPaused) && handleOpenDossier(featuredProvider)}
+                              disabled={isSoldOut || isCutoffPassed || isKitchenPaused}
+                              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 font-button-text text-xs uppercase tracking-wider transition-colors font-bold rounded-xl ${
+                                (isSoldOut || isCutoffPassed || isKitchenPaused)
+                                  ? 'bg-[#ded9d1] text-[#665d52] cursor-not-allowed'
+                                  : 'bg-[#1a1a1a] text-white hover:bg-[#4a4238] cursor-pointer'
+                              }`}
+                            >
+                              <span>
+                                {isKitchenPaused 
+                                  ? 'Kitchen Paused' 
+                                  : isSoldOut 
+                                    ? 'Sold Out Today' 
+                                    : isCutoffPassed 
+                                      ? 'Orders Closed' 
+                                      : 'View Menu & Order'}
+                              </span>
+                              {!isSoldOut && !isCutoffPassed && !isKitchenPaused && (
+                                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                        <span className="font-label-caps text-[10px] text-[#665d52]">Cut-off: 11:30 AM today</span>
-                      </div>
-
-                      {/* Progress Line */}
-                      <div className="w-full bg-[#ded9d1] h-1.5 overflow-hidden rounded-full">
-                        <div className="bg-[#1a1a1a] h-full rounded-full" style={{ width: '60%' }}></div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-                        <span className="text-xs text-[#665d52]">✓ Prepared fresh with hygienic packaging</span>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDossier(featuredProvider)}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white font-button-text text-xs uppercase tracking-wider hover:bg-[#4a4238] transition-colors cursor-pointer font-bold rounded-xl"
-                        >
-                          <span>View Menu & Order</span>
-                          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                        </button>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </section>

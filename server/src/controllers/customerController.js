@@ -279,10 +279,138 @@ const deleteCustomerAddress = async (req, res) => {
   }
 };
 
+// @desc    Update a saved address
+// @route   PUT /api/customers/addresses/:id
+const updateCustomerAddress = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    const { id } = req.params;
+    const { label, fullName, phone, street, area, city, state, pincode, lat, lng, landmark, isDefault } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.savedAddresses = user.savedAddresses || [];
+    const addr = user.savedAddresses.find(a => String(a._id) === String(id));
+    if (!addr) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    if (isDefault) {
+      user.savedAddresses.forEach(a => { a.isDefault = false; });
+      addr.isDefault = true;
+    } else if (isDefault !== undefined) {
+      addr.isDefault = false;
+    }
+
+    if (label !== undefined) addr.label = label;
+    if (fullName !== undefined) addr.fullName = fullName;
+    if (phone !== undefined) addr.phone = phone;
+    if (street !== undefined) addr.street = street;
+    if (area !== undefined) addr.area = area;
+    if (city !== undefined) addr.city = city;
+    if (state !== undefined) addr.state = state;
+    if (pincode !== undefined) addr.pincode = pincode;
+    if (lat !== undefined) addr.lat = Number(lat) || addr.lat;
+    if (lng !== undefined) addr.lng = Number(lng) || addr.lng;
+    if (landmark !== undefined) addr.landmark = landmark;
+
+    await user.save();
+    return res.json({ success: true, message: 'Address updated successfully', data: user.savedAddresses });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Get authenticated customer profile with addresses
+// @route   GET /api/customers/profile
+const getCustomerProfile = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    return res.json({
+      success: true,
+      data: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+        savedAddresses: user.savedAddresses || [],
+        currentLocation: user.currentLocation || null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Update authenticated customer profile
+// @route   PUT /api/customers/profile
+const updateCustomerProfile = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    const { name, phone, address, currentLocation } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (name) user.name = name.trim();
+    if (phone) user.phone = phone.trim();
+    if (currentLocation) {
+      user.currentLocation = {
+        ...user.currentLocation,
+        ...currentLocation,
+        updatedAt: new Date()
+      };
+    }
+    if (address) {
+      user.currentLocation = {
+        address: typeof address === 'string' ? address : (address.street || ''),
+        city: address.city || user.currentLocation?.city || 'Ahmedabad',
+        state: address.state || user.currentLocation?.state || 'Gujarat',
+        country: 'India',
+        updatedAt: new Date()
+      };
+    }
+
+    await user.save();
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully in MongoDB',
+      data: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        savedAddresses: user.savedAddresses || [],
+        currentLocation: user.currentLocation || null
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getCustomers,
   getCustomerById,
   getCustomerAddresses,
   addCustomerAddress,
-  deleteCustomerAddress
+  updateCustomerAddress,
+  deleteCustomerAddress,
+  getCustomerProfile,
+  updateCustomerProfile
 };

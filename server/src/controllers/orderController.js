@@ -284,44 +284,24 @@ const createOrder = async (req, res) => {
           }
         }
 
-        // 2. Capacity Auto-Stop Validation Check
-        const settings = await ProviderSetting.findOne({ providerId });
-        const maxDaily = settings?.tiffin?.maxDailyLimit ?? 50;
-        const autoStop = settings?.tiffin?.autoPauseLimit ?? true;
-        const allowOver = settings?.tiffin?.allowOverbooking ?? false;
+        // 2. Dynamic Capacity & Cut-off Validation Check
+        const { calculateProviderCapacityData } = require('./capacityController');
+        const capData = await calculateProviderCapacityData(providerId);
 
-        const dObj = new Date();
-        const todayKey = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
-        
-        const Provider = require('../models/Provider');
-        const pDoc = await Provider.findById(providerId).lean();
-        const pMax = Number(pDoc?.maxMeals);
-        const effectiveMax = (!isNaN(pMax) && pMax > 0) ? pMax : maxDaily;
-
-        const todayCapDoc = await KitchenCapacity.findOne({ providerId, date: todayKey });
-        const finalMax = todayCapDoc ? todayCapDoc.maxCapacity : effectiveMax;
-        const finalAutoStop = todayCapDoc ? todayCapDoc.autoStopOrders : autoStop;
-        const finalAllowOver = todayCapDoc ? todayCapDoc.allowOverbooking : allowOver;
-
-        const existingOrders = await Order.find({ 
-          providerId, 
-          status: { $nin: ['Cancelled', 'CANCELLED', 'REJECTED', 'Rejected', 'PAYMENT_FAILED', 'DELIVERY_FAILED'] } 
-        });
-        const nowMs = Date.now();
-        const todayBooked = existingOrders
-          .filter(o => {
-            const od = new Date(o.createdAt);
-            const k = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}-${String(od.getDate()).padStart(2, '0')}`;
-            const isWithin24h = (nowMs - od.getTime()) >= 0 && (nowMs - od.getTime()) <= 24 * 60 * 60 * 1000;
-            return k === todayKey || isWithin24h;
-          })
-          .reduce((sum, o) => sum + Math.max(1, Number(o.quantity) || 1), 0);
-
-        const newTotal = todayBooked + (Number(quantity) || 1);
-        if (newTotal > finalMax && finalAutoStop && !finalAllowOver) {
+        if (capData.isCutoffPassed) {
           return res.status(400).json({
             success: false,
-            message: 'Kitchen is currently at full capacity.'
+            message: `Orders are closed for today. Same-day lunch cut-off (${capData.orderCutoff}) has passed.`
+          });
+        }
+
+        const reqQty = Math.max(1, Number(quantity) || 1);
+        if (capData.remainingSlots < reqQty) {
+          return res.status(400).json({
+            success: false,
+            message: capData.remainingSlots <= 0
+              ? 'This kitchen is completely sold out for today.'
+              : `Only ${capData.remainingSlots} slot(s) remaining for today. Cannot place order for ${reqQty} meals.`
           });
         }
       } catch (capErr) {
@@ -352,6 +332,13 @@ const createOrder = async (req, res) => {
     if (await isDbConnected()) {
       const newOrder = new Order(orderData);
       await newOrder.save();
+
+      // Real-time capacity update broadcast
+      try {
+        const { broadcastProviderCapacity } = require('./capacityController');
+        broadcastProviderCapacity(providerId);
+      } catch (bErr) {}
+
       const refreshedOrder = await Order.findById(newOrder._id);
       return res.status(201).json({ 
         success: true, 
@@ -767,6 +754,11 @@ const rejectOrder = async (req, res) => {
             io.to(`customer:${updatedOrder.customerEmail.toLowerCase()}`).emit('order:declined', declinePayload);
           }
         }
+
+        try {
+          const { broadcastProviderCapacity } = require('./capacityController');
+          broadcastProviderCapacity(providerId);
+        } catch (bErr) {}
       } catch (sErr) {}
 
       // Customer In-App Notification
@@ -1501,6 +1493,11 @@ const cancelOrder = async (req, res) => {
       }
       if (order.providerId) emitToProvider(order.providerId, 'order:updated', { orderId: order.orderId, status: 'Cancelled' });
       if (order.customerId) emitToCustomer(order.customerId, 'order:updated', { orderId: order.orderId, status: 'Cancelled' });
+
+      try {
+        const { broadcastProviderCapacity } = require('./capacityController');
+        broadcastProviderCapacity(order.providerId);
+      } catch (bErr) {}
     } catch (sErr) {}
 
     return res.json({ success: true, message: 'Order cancelled successfully', data: enrichOrderFinancials(order) });

@@ -37,7 +37,16 @@ const getServiceArea = async (req, res) => {
         settings = await ProviderSetting.create({ providerId });
       }
 
-      if (settings.business) {
+      const Provider = require('../models/Provider');
+      const prov = await Provider.findById(providerId).lean();
+      if (prov) {
+        const pStreet = prov.address?.street || prov.address?.houseNo || '';
+        kitchenLocation.address = pStreet || settings.business?.address || settings.account?.dispatchAddress || kitchenLocation.address;
+        kitchenLocation.locality = prov.address?.locality || '';
+        kitchenLocation.city = prov.address?.city || settings.business?.city || 'Ahmedabad';
+        kitchenLocation.latitude = prov.address?.lat || 23.0300;
+        kitchenLocation.longitude = prov.address?.lng || 72.5178;
+      } else if (settings.business) {
         kitchenLocation.address = settings.business.address || kitchenLocation.address;
         kitchenLocation.city = settings.business.city || kitchenLocation.city;
       }
@@ -123,9 +132,10 @@ const updateServiceAreaSettings = async (req, res) => {
       }
 
       if (deliveryMode !== undefined) settings.serviceAreaSettings.deliveryMode = deliveryMode;
-      if (deliveryRadius !== undefined) {
-        settings.serviceAreaSettings.deliveryRadius = Number(deliveryRadius);
-        if (settings.tiffin) settings.tiffin.maxDeliveryRadius = Number(deliveryRadius);
+      const radiusVal = deliveryRadius !== undefined ? deliveryRadius : req.body.maxDeliveryRadiusKm;
+      if (radiusVal !== undefined) {
+        settings.serviceAreaSettings.deliveryRadius = Number(radiusVal);
+        if (settings.tiffin) settings.tiffin.maxDeliveryRadius = Number(radiusVal);
       }
       if (minOrderAmount !== undefined) settings.serviceAreaSettings.minOrderAmount = Number(minOrderAmount);
       if (deliveryFee !== undefined) settings.serviceAreaSettings.deliveryFee = Number(deliveryFee);

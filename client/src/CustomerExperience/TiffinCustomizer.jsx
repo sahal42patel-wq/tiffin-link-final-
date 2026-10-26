@@ -300,8 +300,19 @@ export default function TiffinCustomizer({
   const activeProviderName = dbProvider?.name || provider?.name || 'Kitchen Partner';
   const activeTiffinName = dbTiffin?.name || tiffin?.name || 'Tiffin';
   const activeTiffinDesc = dbTiffin?.description || tiffin?.description || '';
-  const activeTiffinImg = dbTiffin?.image || tiffin?.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
-  const availableSlots = dbTiffin?.available !== undefined ? dbTiffin.available : (dbTiffin?.capacity || 0);
+  const fallbackTiffinImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+  const activeTiffinImg = 
+    dbTiffin?.image || 
+    tiffin?.image || 
+    tiffin?.imageUrl || 
+    dbProvider?.kitchenPhoto || 
+    dbProvider?.image || 
+    provider?.kitchenPhoto || 
+    provider?.image || 
+    fallbackTiffinImg;
+  const availableSlots = dbProvider?.availableSlots !== undefined 
+    ? dbProvider.availableSlots 
+    : (dbTiffin?.available !== undefined ? dbTiffin.available : (dbTiffin?.capacity || 0));
 
   // Authentication barrier: guest users must sign in to customize and configure meals
   if (!user) {
@@ -357,7 +368,7 @@ export default function TiffinCustomizer({
           tiffinId: targetTiffinId,
           tiffinName: dbTiffin?.name || tiffin?.name || 'Tiffin',
           tiffinCategory: dbTiffin?.category || tiffin?.category || '',
-          tiffinImage: dbTiffin?.image || tiffin?.image || '',
+          tiffinImage: activeTiffinImg || dbTiffin?.image || tiffin?.image || '',
           tiffinDesc: dbTiffin?.description || tiffin?.description || '',
           providerName: activeProviderName,
           activeReceiptItems,
@@ -530,6 +541,11 @@ export default function TiffinCustomizer({
                 className="w-full h-full object-cover grayscale contrast-125 hover:grayscale-0 transition-all duration-700"
                 src={activeTiffinImg}
                 alt={activeTiffinName}
+                onError={(e) => {
+                  if (e.currentTarget.src !== fallbackTiffinImg) {
+                    e.currentTarget.src = fallbackTiffinImg;
+                  }
+                }}
               />
               <div className="absolute bottom-0 inset-x-0 bg-[#1a1a1a]/85 text-[#fbf9f5] px-4 py-1.5 flex items-center justify-between text-[11px] font-label-caps uppercase">
                 <span>Vessel: 3-Tier Steel Canister</span>

@@ -62,11 +62,11 @@ const STATUS_CONFIGS = {
     iconBg: 'bg-[#dc2626]/10 text-[#dc2626] dark:bg-[#fee2e2]/10 dark:text-[#f87171]',
     title: 'Server Is Currently Unreachable',
     description: 'Our culinary kitchen servers are currently not responding. Our engineering team is actively attending to this. The platform will automatically resume once connections are re-established.',
-    primaryAction: null,
-    secondaryAction: null,
+    primaryAction: { label: 'Reload Platform', icon: RefreshCw, action: 'reload' },
+    secondaryAction: { label: 'Return Home', icon: Home, target: '#home' },
     tertiaryAction: null,
-    hideActions: true,
-    hideFooter: true
+    hideActions: false,
+    hideFooter: false
   },
   503: {
     code: '503',

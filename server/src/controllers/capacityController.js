@@ -180,12 +180,7 @@ const updateCapacitySettings = async (req, res) => {
         { upsert: true, new: true }
       );
 
-      try {
-        const { emitToProvider, getIO } = require('../services/socketService');
-        emitToProvider(String(providerId), 'capacity:updated', { maxDailyOrders });
-        const io = getIO();
-        if (io) io.emit('capacity:updated', { providerId: String(providerId), maxDailyOrders });
-      } catch (sErr) {}
+      await broadcastProviderCapacity(providerId);
     }
 
     return res.json({
@@ -220,6 +215,7 @@ const updateDateCapacity = async (req, res) => {
         },
         { upsert: true, new: true }
       );
+      await broadcastProviderCapacity(providerId, date);
       return res.json({ success: true, message: `Capacity updated for ${date}`, data: updated });
     }
 
@@ -279,9 +275,177 @@ const checkCapacityAvailable = async (req, res) => {
   }
 };
 
+const parseCutoffTimeToDate = (timeStr, targetDateObj) => {
+  if (!timeStr) return null;
+  const match = String(timeStr).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3] ? match[3].toUpperCase() : null;
+
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  const d = new Date(targetDateObj || new Date());
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+};
+
+const calculateProviderCapacityData = async (providerId, targetDateStr = null, cachedProvider = null, cachedTiffins = null) => {
+  const Provider = require('../models/Provider');
+  const Tiffin = require('../models/Tiffin');
+  const KitchenCapacity = require('../models/KitchenCapacity');
+  const Order = require('../models/Order');
+
+  const now = new Date();
+  const dateKey = targetDateStr || formatDateKey(now);
+
+  const prov = cachedProvider || (await Provider.findById(providerId).lean());
+  const tiffins = cachedTiffins || (await Tiffin.find({ providerId: String(providerId), status: 'Active' }).lean());
+
+  const primaryTiffin = (Array.isArray(tiffins) ? tiffins.find(t => t.status === 'Active') || tiffins[0] : null) || {};
+  const tiffinId = primaryTiffin._id ? String(primaryTiffin._id) : '';
+  const tiffinName = primaryTiffin.name || prov?.name || 'Homestyle Meal';
+  const mealType = primaryTiffin.mealType || prov?.mealType || 'Lunch';
+  const orderCutoff = primaryTiffin.orderCutoff || '11:30 AM';
+  const availableDays = primaryTiffin.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const serviceArea = primaryTiffin.area || prov?.address?.locality || 'All Localities';
+
+  // 1. Determine Total Capacity for this date
+  let totalCapacity = 30;
+  const capRecord = await KitchenCapacity.findOne({ providerId: String(providerId), date: dateKey }).lean();
+  if (capRecord && typeof capRecord.maxCapacity === 'number' && capRecord.maxCapacity > 0) {
+    totalCapacity = capRecord.maxCapacity;
+  } else if (prov && !isNaN(Number(prov.maxMeals)) && Number(prov.maxMeals) > 0) {
+    totalCapacity = Number(prov.maxMeals);
+  } else if (prov && !isNaN(Number(prov.maxCapacity)) && Number(prov.maxCapacity) > 0) {
+    totalCapacity = Number(prov.maxCapacity);
+  } else if (primaryTiffin && !isNaN(Number(primaryTiffin.capacity)) && Number(primaryTiffin.capacity) > 0) {
+    totalCapacity = Number(primaryTiffin.capacity);
+  }
+
+  // 2. Calculate Confirmed/Active Orders Consumption
+  const startOfDay = new Date(dateKey + 'T00:00:00.000Z');
+  const endOfDay = new Date(dateKey + 'T23:59:59.999Z');
+
+  const orders = await Order.find({
+    providerId: String(providerId),
+    status: { $nin: ['Cancelled', 'CANCELLED', 'REJECTED', 'Rejected', 'PAYMENT_FAILED', 'DELIVERY_FAILED', 'FAILED'] },
+    createdAt: { $gte: new Date(startOfDay.getTime() - 24 * 60 * 60 * 1000), $lte: new Date(endOfDay.getTime() + 24 * 60 * 60 * 1000) }
+  }).select('quantity createdAt deliverySlot status').lean();
+
+  const isToday = dateKey === formatDateKey(now);
+  const matchingOrders = orders.filter(o => {
+    const oDateKey = formatDateKey(new Date(o.createdAt));
+    if (isToday) {
+      const oTime = new Date(o.createdAt).getTime();
+      const within24h = (now.getTime() - oTime) >= 0 && (now.getTime() - oTime) <= 24 * 60 * 60 * 1000;
+      return oDateKey === dateKey || within24h;
+    }
+    return oDateKey === dateKey;
+  });
+
+  const consumedSlots = matchingOrders.reduce((sum, o) => sum + Math.max(1, Number(o.quantity) || 1), 0);
+  const remainingSlots = Math.max(0, totalCapacity - consumedSlots);
+  const consumedPercentage = totalCapacity > 0 ? Math.min(100, Math.max(0, Math.round((consumedSlots / totalCapacity) * 100))) : 0;
+
+  // 3. Cutoff Validation
+  let isCutoffPassed = false;
+  if (isToday) {
+    const cutoffDate = parseCutoffTimeToDate(orderCutoff, now);
+    if (cutoffDate && now.getTime() > cutoffDate.getTime()) {
+      isCutoffPassed = true;
+    }
+  } else {
+    const targetDate = new Date(dateKey + 'T23:59:59');
+    if (targetDate.getTime() < now.getTime()) {
+      isCutoffPassed = true;
+    }
+  }
+
+  let availabilityStatus = 'AVAILABLE';
+  if (prov && prov.isAcceptingOrders === false) {
+    availabilityStatus = 'KITCHEN_PAUSED';
+  } else if (isCutoffPassed) {
+    availabilityStatus = 'CUTOFF_PASSED';
+  } else if (remainingSlots <= 0) {
+    availabilityStatus = 'SOLD_OUT';
+  }
+
+  return {
+    providerId: String(providerId),
+    tiffinId,
+    tiffinName,
+    mealType,
+    totalCapacity,
+    consumedSlots,
+    remainingSlots,
+    availableSlots: remainingSlots,
+    consumedPercentage,
+    orderCutoff,
+    isCutoffPassed,
+    availabilityStatus,
+    availableDays,
+    serviceArea,
+    date: dateKey,
+    isToday
+  };
+};
+
+// Helper to broadcast real-time capacity and availability across Socket.IO
+const broadcastProviderCapacity = async (providerId, targetDate = null) => {
+  try {
+    const { getIO, emitToProvider } = require('../services/socketService');
+    const capacityData = await calculateProviderCapacityData(providerId, targetDate);
+    const pIdStr = String(providerId);
+
+    // Emit to provider room
+    emitToProvider(pIdStr, 'capacity:updated', capacityData);
+    emitToProvider(pIdStr, 'tiffin:availability:updated', capacityData);
+
+    // Broadcast globally to all diners / clients
+    const io = getIO();
+    if (io) {
+      io.emit('capacity:updated', capacityData);
+      io.emit('tiffin:availability:updated', capacityData);
+    }
+    return capacityData;
+  } catch (err) {
+    console.warn('broadcastProviderCapacity warning:', err.message);
+    return null;
+  }
+};
+
+// @desc    Get real-time dynamic availability for any provider (Public / Diner Endpoint)
+// @route   GET /api/capacity/availability/:providerId
+const getPublicProviderAvailability = async (req, res) => {
+  try {
+    const { providerId } = req.params;
+    const targetDateStr = req.query.date || null;
+
+    if (!providerId) {
+      return res.status(400).json({ success: false, message: 'Provider ID is required' });
+    }
+
+    if (!(await isDbConnected())) {
+      return res.status(503).json({ success: false, message: 'Database connection offline' });
+    }
+
+    const data = await calculateProviderCapacityData(providerId, targetDateStr);
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error getting public provider availability:', error);
+    return res.status(500).json({ success: false, message: 'Failed to calculate provider availability: ' + error.message });
+  }
+};
+
 module.exports = {
   getCapacity,
   updateCapacitySettings,
   updateDateCapacity,
-  checkCapacityAvailable
+  checkCapacityAvailable,
+  calculateProviderCapacityData,
+  broadcastProviderCapacity,
+  parseCutoffTimeToDate,
+  getPublicProviderAvailability
 };

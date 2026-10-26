@@ -3,6 +3,43 @@ import { apiRequest } from '../services/api';
 import { useTranslation, setLanguage } from '../services/i18n';
 import { useTheme } from '../context/ThemeContext';
 
+const toAddressString = (addr) => {
+  if (!addr) return '';
+  if (typeof addr === 'string') return addr.trim();
+  if (typeof addr === 'object') {
+    const parts = [];
+    if (addr.street) parts.push(String(addr.street).trim());
+    if (addr.locality && (!addr.street || !String(addr.street).includes(addr.locality))) parts.push(String(addr.locality).trim());
+    if (addr.city && (!addr.street || !String(addr.street).includes(addr.city))) parts.push(String(addr.city).trim());
+    if (addr.pincode && (!addr.street || !String(addr.street).includes(addr.pincode))) parts.push(String(addr.pincode).trim());
+    return parts.filter(Boolean).join(', ');
+  }
+  return String(addr);
+};
+
+const normalizeTagsArray = (rawTags) => {
+  if (!rawTags) return [];
+  if (Array.isArray(rawTags)) {
+    return rawTags
+      .map(t => (typeof t === 'string' ? t.trim() : (t?.name || t?.label || String(t || ''))))
+      .filter(Boolean);
+  }
+  if (typeof rawTags === 'string') {
+    return rawTags
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const getInitials = (val) => {
+  if (!val || typeof val !== 'string') return 'KP';
+  const parts = val.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'KP';
+  return parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
+};
+
 export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab = 'account' }) {
   const { t, lang: activeLang } = useTranslation();
   const { setTheme: setGlobalTheme, setCompactMode: setGlobalCompact, setReduceMotion: setGlobalReduceMotion } = useTheme();
@@ -24,7 +61,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
   // Hidden File input ref for kitchen photo upload
   const kitchenPhotoInputRef = useRef(null);
 
-  // Account Form State (Loaded from currentUser or localStorage or defaults)
+  // Account Form State (Loaded dynamically from authenticated provider record)
   const [accountData, setAccountData] = useState(() => {
     let localSaved = null;
     try {
@@ -33,35 +70,55 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
     } catch (e) { }
 
     const defaults = {
-      name: currentUser?.name || 'Kitchen Partner',
-      email: currentUser?.email || '',
-      phone: currentUser?.phone || currentUser?.mobile || '',
-      kitchenBrand: currentUser?.kitchenName || currentUser?.businessName || 'Homestyle Kitchen',
-      dispatchAddress: currentUser?.address || '',
+      name: typeof (currentUser?.name || currentUser?.fullName) === 'string' ? (currentUser.name || currentUser.fullName) : '',
+      email: typeof currentUser?.email === 'string' ? currentUser.email : '',
+      phone: typeof (currentUser?.phone || currentUser?.mobile) === 'string' ? (currentUser.phone || currentUser.mobile) : '',
+      kitchenBrand: typeof (currentUser?.kitchenName || currentUser?.businessName || currentUser?.kitchenBrand) === 'string'
+        ? (currentUser.kitchenName || currentUser.businessName || currentUser.kitchenBrand)
+        : '',
+      dispatchAddress: toAddressString(currentUser?.address || currentUser?.dispatchAddress),
       kitchenPhoto: currentUser?.kitchenPhoto || currentUser?.kitchenPhotos || currentUser?.image || '',
       avatarUrl: currentUser?.kitchenPhoto || currentUser?.kitchenPhotos || currentUser?.image || '',
       accountStatus: 'Active & Verified',
-      fssaiNo: currentUser?.fssaiNumber || currentUser?.fssaiNo || '',
+      fssaiNo: currentUser?.fssaiNumber || currentUser?.fssaiNo || currentUser?.fssaiLicenseNo || '',
       gstinNo: currentUser?.gstinNo || '',
       panNo: currentUser?.panNo || '',
       createdAtDate: currentUser?.createdAt ? new Date(currentUser.createdAt).toLocaleDateString('en-GB') : 'Active',
-      tags: currentUser?.tags?.length ? currentUser.tags : ['Kathiyawadi Special', 'Gujarati Traditional', 'Diet/Wellness Thalis']
+      tags: normalizeTagsArray(currentUser?.tags || currentUser?.cuisines)
     };
 
-    return localSaved ? { ...defaults, ...localSaved } : defaults;
+    if (localSaved && typeof localSaved === 'object') {
+      return {
+        ...defaults,
+        ...localSaved,
+        dispatchAddress: toAddressString(localSaved.dispatchAddress || defaults.dispatchAddress),
+        tags: normalizeTagsArray(localSaved.tags || defaults.tags)
+      };
+    }
+    return defaults;
   });
 
   useEffect(() => {
     if (currentUser) {
       setAccountData(prev => ({
         ...prev,
-        name: currentUser.name || prev.name,
-        email: currentUser.email || prev.email,
-        phone: currentUser.phone || currentUser.mobile || prev.phone,
-        kitchenBrand: currentUser.kitchenName || currentUser.businessName || prev.kitchenBrand,
-        dispatchAddress: currentUser.address || prev.dispatchAddress,
+        name: typeof (currentUser.name || currentUser.fullName) === 'string' ? (currentUser.name || currentUser.fullName) : prev.name,
+        email: typeof currentUser.email === 'string' ? currentUser.email : prev.email,
+        phone: typeof (currentUser.phone || currentUser.mobile) === 'string' ? (currentUser.phone || currentUser.mobile) : prev.phone,
+        kitchenBrand: typeof (currentUser.kitchenName || currentUser.businessName || currentUser.kitchenBrand) === 'string'
+          ? (currentUser.kitchenName || currentUser.businessName || currentUser.kitchenBrand)
+          : prev.kitchenBrand,
+        dispatchAddress: currentUser.address || currentUser.dispatchAddress
+          ? toAddressString(currentUser.address || currentUser.dispatchAddress)
+          : prev.dispatchAddress,
         kitchenPhoto: currentUser.kitchenPhoto || currentUser.kitchenPhotos || currentUser.image || prev.kitchenPhoto,
-        avatarUrl: currentUser.kitchenPhoto || currentUser.kitchenPhotos || currentUser.image || prev.avatarUrl
+        avatarUrl: currentUser.kitchenPhoto || currentUser.kitchenPhotos || currentUser.image || prev.avatarUrl,
+        fssaiNo: currentUser.fssaiNumber || currentUser.fssaiNo || currentUser.fssaiLicenseNo || prev.fssaiNo,
+        gstinNo: currentUser.gstinNo || prev.gstinNo,
+        panNo: currentUser.panNo || prev.panNo,
+        tags: currentUser.tags || currentUser.cuisines
+          ? normalizeTagsArray(currentUser.tags || currentUser.cuisines)
+          : prev.tags
       }));
     }
   }, [currentUser]);
@@ -188,40 +245,47 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
   });
 
   // Security & Privacy State
-  const [securityData, setSecurityData] = useState({
-    tierStatus: 'TIER 1',
-    kycStatus: 'APPROVED',
-    twoFactorEnabled: true,
-    loginAlerts: true,
-    activeSessions: [
-      {
-        id: 'sess_1',
-        device: 'Desktop Terminal (Windows)',
-        os: 'Windows 11',
-        browser: 'Chrome 129.0',
-        location: 'Ahmedabad, India',
-        ip: '152.58.18.94',
-        lastActive: 'Active Now',
-        tokenSig: 'sess_prov_jwt_991',
-        isCurrent: true
-      }
-    ],
-    securityLogs: [
-      {
-        id: 'log_1',
-        event: 'Master Login Authenticated',
-        timestamp: 'Today, 09:15 AM',
-        ip: '152.58.18.94',
-        status: 'Success'
-      },
-      {
-        id: 'log_2',
-        event: 'Profile Credentials Synchronized',
-        timestamp: 'Yesterday, 06:40 PM',
-        ip: '152.58.18.94',
-        status: 'Success'
-      }
-    ]
+  const [securityData, setSecurityData] = useState(() => {
+    // Dynamic client device detection for initial state before DB sync
+    const ua = typeof window !== 'undefined' ? (window.navigator?.userAgent || '') : '';
+    let os = 'Windows PC';
+    if (/Windows NT 10.0|Windows 11/i.test(ua)) os = 'Windows 11';
+    else if (/Windows/i.test(ua)) os = 'Windows PC';
+    else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
+    else if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad/i.test(ua)) os = 'iOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+
+    let browser = 'Chrome';
+    const chromeMatch = ua.match(/Chrome\/([0-9]+)/);
+    if (/Edg\//i.test(ua)) browser = 'Microsoft Edge';
+    else if (chromeMatch) browser = `Chrome ${chromeMatch[1]}.0`;
+    else if (/Firefox/i.test(ua)) browser = 'Firefox';
+    else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+
+    const isMobile = /Mobile|Android|iPhone/i.test(ua);
+    const device = `${isMobile ? 'Mobile Device' : 'Desktop Terminal'} (${os.split(' ')[0]})`;
+
+    return {
+      tierStatus: 'TIER 1',
+      kycStatus: 'APPROVED',
+      twoFactorEnabled: true,
+      loginAlerts: true,
+      activeSessions: [
+        {
+          id: 'sess_live',
+          device,
+          os,
+          browser,
+          location: 'Detected Client Network',
+          ip: 'Live Connected Client',
+          lastActive: 'Active Now',
+          tokenSig: 'sess_live_jwt',
+          isCurrent: true
+        }
+      ],
+      securityLogs: []
+    };
   });
 
   // Password Change Form Modal
@@ -289,7 +353,14 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
       const res = await apiRequest('/settings/provider');
       if (res && res.success && res.settings) {
         const s = res.settings;
-        if (s.account) setAccountData(prev => ({ ...prev, ...s.account }));
+        if (s.account) {
+          setAccountData(prev => ({
+            ...prev,
+            ...s.account,
+            dispatchAddress: s.account.dispatchAddress ? toAddressString(s.account.dispatchAddress) : prev.dispatchAddress,
+            tags: normalizeTagsArray(s.account.tags || prev.tags)
+          }));
+        }
         if (s.notifications) setNotificationData(prev => ({ ...prev, ...s.notifications }));
         if (s.security) {
           const sanitizedSessions = (Array.isArray(s.security.activeSessions) && s.security.activeSessions.length > 0)
@@ -297,9 +368,9 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
               id: sess?.id || `sess_${idx}`,
               device: sess?.device || 'Desktop Terminal (Windows)',
               os: sess?.os || 'Windows 11',
-              browser: sess?.browser || 'Chrome 129.0',
-              location: sess?.location || 'Ahmedabad, India',
-              ip: sess?.ip || '152.58.18.94',
+              browser: sess?.browser || 'Chrome',
+              location: sess?.location || 'Registered Service Area',
+              ip: sess?.ip || 'Connected IP',
               lastActive: sess?.lastActive || 'Active Now',
               tokenSig: sess?.tokenSig || 'sess_prov_jwt',
               isCurrent: Boolean(sess?.isCurrent)
@@ -309,7 +380,8 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
           setSecurityData(prev => ({
             ...prev,
             ...s.security,
-            ...(sanitizedSessions ? { activeSessions: sanitizedSessions } : {})
+            ...(sanitizedSessions ? { activeSessions: sanitizedSessions } : {}),
+            securityLogs: Array.isArray(s.security.securityLogs) ? s.security.securityLogs : prev.securityLogs
           }));
         }
         if (s.preferences) {
@@ -491,6 +563,19 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
   // Handlers for Account Updates
   const handleSaveAccount = async (e) => {
     if (e) e.preventDefault();
+    if (!accountData.name?.trim()) {
+      showToast('Please enter an operator/master chef name', 'error');
+      return;
+    }
+    if (!accountData.kitchenBrand?.trim()) {
+      showToast('Please enter your kitchen brand/trade name', 'error');
+      return;
+    }
+    if (!accountData.dispatchAddress?.trim()) {
+      showToast('Please enter your kitchen production & dispatch address', 'error');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -502,89 +587,95 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
 
       // 2. Fallback to /settings/provider if PATCH didn't succeed
       if (!res || !res.success) {
-        try {
-          res = await apiRequest('/settings/provider', {
-            method: 'PUT',
-            body: JSON.stringify({
-              account: accountData,
-              business: {
-                providerName: accountData.kitchenBrand,
-                address: accountData.dispatchAddress
-              }
-            })
-          });
-        } catch (e2) { }
+        res = await apiRequest('/settings/provider', {
+          method: 'PUT',
+          body: JSON.stringify({
+            account: accountData,
+            business: {
+              providerName: accountData.kitchenBrand,
+              address: accountData.dispatchAddress
+            }
+          })
+        });
       }
 
-      // 3. Persist to localStorage and notify parent components immediately
-      try {
-        const currentSaved = JSON.parse(localStorage.getItem('tiffinlink_user') || '{}');
-        const effectivePhoto = accountData.kitchenPhoto || accountData.avatarUrl || '';
+      if (res && res.success) {
+        const savedAccount = res.account || res.data || res.settings?.account || accountData;
+        setAccountData(prev => ({
+          ...prev,
+          ...savedAccount,
+          tags: Array.isArray(savedAccount.tags) ? savedAccount.tags : (prev.tags || [])
+        }));
+
+        // Sync with local session cache & parent components
+        const effectivePhoto = savedAccount.kitchenPhoto || savedAccount.avatarUrl || accountData.kitchenPhoto || '';
         const updatedUser = {
-          ...currentSaved,
-          ...currentUser,
-          name: accountData.name,
-          fullName: accountData.name,
-          businessName: accountData.kitchenBrand,
-          kitchenBrand: accountData.kitchenBrand,
-          email: accountData.email,
-          phone: accountData.phone,
-          mobile: accountData.phone,
-          address: accountData.dispatchAddress,
-          dispatchAddress: accountData.dispatchAddress,
-          tags: accountData.tags,
+          ...(currentUser || {}),
+          name: savedAccount.name || accountData.name,
+          fullName: savedAccount.name || accountData.name,
+          businessName: savedAccount.kitchenBrand || accountData.kitchenBrand,
+          kitchenBrand: savedAccount.kitchenBrand || accountData.kitchenBrand,
+          kitchenName: savedAccount.kitchenBrand || accountData.kitchenBrand,
+          email: savedAccount.email || accountData.email,
+          phone: savedAccount.phone || accountData.phone,
+          mobile: savedAccount.phone || accountData.phone,
+          address: savedAccount.dispatchAddress || accountData.dispatchAddress,
+          dispatchAddress: savedAccount.dispatchAddress || accountData.dispatchAddress,
+          tags: Array.isArray(savedAccount.tags) ? savedAccount.tags : (accountData.tags || []),
           kitchenPhoto: effectivePhoto,
           kitchenPhotos: effectivePhoto,
-          image: effectivePhoto
+          image: effectivePhoto,
+          fssaiNumber: savedAccount.fssaiNo || accountData.fssaiNo,
+          fssaiNo: savedAccount.fssaiNo || accountData.fssaiNo
         };
-        localStorage.setItem('tiffinlink_user', JSON.stringify(updatedUser));
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        localStorage.setItem('tiffinlink_account_data', JSON.stringify(accountData));
+        try {
+          localStorage.setItem('tiffinlink_user', JSON.stringify(updatedUser));
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          localStorage.setItem('tiffinlink_account_data', JSON.stringify(savedAccount));
+        } catch (e) { }
 
         if (onUpdateUser) {
           onUpdateUser(updatedUser);
         }
-      } catch (e) { }
 
-      setIsAccountDirty(false);
-      setAccountSaveStatus('saved');
-      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setAccountLastSaved(nowTime);
-      showToast('✓ Kitchen credentials and culinary disciplines saved successfully!');
+        setIsAccountDirty(false);
+        setAccountSaveStatus('saved');
+        const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setAccountLastSaved(nowTime);
+        showToast('✓ Kitchen credentials and culinary disciplines saved to MongoDB successfully!');
+      } else {
+        throw new Error(res?.message || 'Failed to persist kitchen credentials to database.');
+      }
     } catch (err) {
-      console.error('Error saving account settings:', err);
-      try {
-        localStorage.setItem('tiffinlink_account_data', JSON.stringify(accountData));
-      } catch (e) { }
-      setIsAccountDirty(false);
-      setAccountSaveStatus('saved');
-      setAccountLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      showToast('✓ Kitchen credentials saved to local session!');
+      console.error('Error saving account settings to MongoDB:', err);
+      setAccountSaveStatus('unsaved');
+      showToast(err.message || 'Failed to save settings to database. Please check your connection.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDiscardAccountChanges = () => {
-    try {
-      const raw = localStorage.getItem('tiffinlink_account_data');
-      if (raw) {
-        setAccountData(JSON.parse(raw));
-      } else {
-        setAccountData(prev => ({
-          ...prev,
-          name: currentUser?.name || 'Xoxo Men',
-          email: currentUser?.email || 'menxoxo50@gmail.com',
-          phone: currentUser?.phone || '+91 95586 01570',
-          kitchenBrand: currentUser?.businessName || 'Mansuri Homestyle Tiffins',
-          dispatchAddress: currentUser?.address || 'Shop 4, Ground Floor, Shivalik Highstreet, Keshavbaug, Bodakdev, Ahmedabad, Gujarat 380015',
-          tags: currentUser?.tags?.length ? currentUser.tags : ['Kathiyawadi Special', 'Gujarati Traditional', 'Diet/Wellness Thalis']
-        }));
-      }
-    } catch (e) { }
+    setAccountData({
+      name: currentUser?.name || currentUser?.fullName || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || currentUser?.mobile || '',
+      kitchenBrand: currentUser?.kitchenName || currentUser?.businessName || currentUser?.kitchenBrand || '',
+      dispatchAddress: toAddressString(currentUser?.address || currentUser?.dispatchAddress),
+      kitchenPhoto: currentUser?.kitchenPhoto || currentUser?.kitchenPhotos || currentUser?.image || '',
+      avatarUrl: currentUser?.kitchenPhoto || currentUser?.kitchenPhotos || currentUser?.image || '',
+      accountStatus: 'Active & Verified',
+      fssaiNo: currentUser?.fssaiNumber || currentUser?.fssaiNo || currentUser?.fssaiLicenseNo || '',
+      gstinNo: currentUser?.gstinNo || '',
+      panNo: currentUser?.panNo || '',
+      createdAtDate: currentUser?.createdAt ? new Date(currentUser.createdAt).toLocaleDateString('en-GB') : 'Active',
+      tags: normalizeTagsArray(currentUser?.tags || currentUser?.cuisines)
+    });
+    // Re-fetch authoritative database record
+    fetchAllSettings();
     setIsAccountDirty(false);
     setAccountSaveStatus('idle');
-    showToast('Changes discarded.');
+    showToast('Changes discarded. Restored persisted values from database.');
   };
 
   // Handlers for Notification Preferences
@@ -975,7 +1066,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                       className="w-24 h-24 bg-onyx-black text-on-primary flex flex-col items-center justify-center font-headline-md text-headline-md font-serif rounded cursor-pointer relative group shadow-sm"
                       title="Click to upload kitchen photo"
                     >
-                      <span>{accountData?.name ? accountData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'SP'}</span>
+                      <span>{getInitials(accountData?.name || currentUser?.name)}</span>
                       <div className="absolute inset-0 bg-black/60 rounded flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="material-symbols-outlined text-white text-[20px]">add_a_photo</span>
                         <span className="text-white text-[9px] font-label-caps tracking-wider mt-0.5">Upload</span>
@@ -988,7 +1079,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-headline-md text-headline-md text-onyx-black">{accountData?.name || 'Sahal Patel'}</span>
+                    <span className="font-headline-md text-headline-md text-onyx-black">{accountData?.name || currentUser?.name || 'Kitchen Partner'}</span>
                     <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-surface-container text-clay-earth font-label-caps text-label-caps tracking-wider uppercase">
                       <span className="w-1.5 h-1.5 rounded-full bg-onyx-black"></span>
                       <span>{accountData?.accountStatus || 'Active'}</span>
@@ -996,18 +1087,18 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                     <span className="font-label-caps text-label-caps text-secondary uppercase tracking-widest px-2 py-0.5 bg-secondary-container/40">Tier 1 Verified</span>
                   </div>
                   <p className="font-body-md text-body-md text-secondary font-medium">
-                    {accountData?.kitchenBrand || 'Mansuri Homestyle Tiffins'}
+                    {accountData?.kitchenBrand || currentUser?.businessName || currentUser?.kitchenName || 'Homestyle Kitchen'}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 text-on-surface-variant font-button-text text-button-text">
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[16px] text-clay-earth">mail</span>
-                      <span>{accountData?.email || 'sahal@gmail.com'}</span>
+                      <span>{accountData?.email || currentUser?.email || 'No email registered'}</span>
                       <span className="material-symbols-outlined text-[14px] text-onyx-black" title="Email Verified">check_circle</span>
                     </div>
                     <span className="text-sand-neutral">•</span>
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[16px] text-clay-earth">call</span>
-                      <span>{accountData?.phone || '+91 95586 01570'}</span>
+                      <span>{accountData?.phone || currentUser?.phone || currentUser?.mobile || 'No phone registered'}</span>
                       <span className="material-symbols-outlined text-[14px] text-onyx-black" title="Phone Verified">check_circle</span>
                     </div>
                     <span className="text-sand-neutral">•</span>
@@ -1052,7 +1143,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-clay-earth">health_and_safety</span>
                 <span className="uppercase tracking-widest">FSSAI Registration:</span>
-                <span className="font-mono text-onyx-black tracking-wider font-semibold">#{accountData?.fssaiNo || '10822005001294'}</span>
+                <span className="font-mono text-onyx-black tracking-wider font-semibold">#{accountData?.fssaiNo || currentUser?.fssaiNumber || currentUser?.fssaiNo || 'PENDING'}</span>
               </div>
               <div className="flex items-center gap-4">
                 <span>KITCHEN CLASS: COMMODIOUS URBAN</span>
@@ -1173,7 +1264,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                       setIsAccountDirty(true);
                       setAccountSaveStatus('unsaved');
                     }}
-                    placeholder="e.g. Xoxo Men"
+                    placeholder="e.g. Master Chef / Provider Name"
                     className="w-full bg-bone-white border border-sand-neutral/80 px-4 py-3 text-onyx-black font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-onyx-black focus:border-transparent transition-all rounded shadow-xs"
                   />
                 </div>
@@ -1280,24 +1371,28 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                       Registered Culinary Disciplines & Menu Specializations
                     </label>
                     <span className="font-label-caps text-[11px] text-secondary">
-                      {(accountData.tags || []).length} registered
+                      {normalizeTagsArray(accountData?.tags).length} registered
                     </span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {accountData.tags && accountData.tags.map((tag, idx) => (
+                    {normalizeTagsArray(accountData?.tags).map((tag, idx) => (
                       <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-bone-white border border-sand-neutral/70 text-onyx-black font-label-caps text-label-caps tracking-wider rounded shadow-xs">
-                        <span>{tag}</span>
+                        <span>{typeof tag === 'string' ? tag : (tag?.name || tag?.label || String(tag))}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveTag(idx)}
                           className="hover:text-error text-secondary transition-colors cursor-pointer"
-                          title={`Remove ${tag}`}
+                          title={`Remove ${typeof tag === 'string' ? tag : 'item'}`}
                         >
                           <span className="material-symbols-outlined text-[14px]">close</span>
                         </button>
                       </span>
                     ))}
+
+                    {normalizeTagsArray(accountData?.tags).length === 0 && !showAddTag && (
+                      <span className="text-xs text-secondary italic py-1">No culinary specializations registered yet. Click &quot;ADD DISCIPLINE&quot; below.</span>
+                    )}
 
                     {showAddTag ? (
                       <div className="inline-flex items-center gap-1.5 p-1 bg-surface-container rounded border border-sand-neutral/80">
@@ -1583,7 +1678,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
               </div>
               <div>
                 <div className="font-button-text text-button-text text-onyx-black font-semibold">WhatsApp Dispatch</div>
-                <div className="font-label-caps text-label-caps text-on-surface-variant mt-1">{accountData?.phone || '+91 95586 01570'} • Template V2.8</div>
+                <div className="font-label-caps text-label-caps text-on-surface-variant mt-1">{(accountData?.phone || currentUser?.phone || currentUser?.mobile) ? `${accountData?.phone || currentUser?.phone || currentUser?.mobile} • Template V2.8` : 'Phone unconfigured'}</div>
               </div>
             </div>
 
@@ -1840,7 +1935,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                 <span className="material-symbols-outlined text-onyx-black text-[20px]">phonelink_lock</span>
               </div>
               <div className="mt-4">
-                <div className="font-button-text text-button-text font-semibold text-onyx-black">{accountData?.phone || '+91 95586 01570'}</div>
+                <div className="font-button-text text-button-text font-semibold text-onyx-black">{accountData?.phone || currentUser?.phone || currentUser?.mobile || 'Not configured'}</div>
                 <p className="font-label-caps text-label-caps text-secondary mt-1">2FA SMS & TOTP Bound</p>
               </div>
             </div>
@@ -2006,7 +2101,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                           <span className="text-sand-neutral">•</span>
                           <span>{session?.location || 'Ahmedabad, IN'}</span>
                           <span className="text-sand-neutral">•</span>
-                          <span className="font-mono">IP: {session?.ip || '152.58.18.94'}</span>
+                          <span className="font-mono">IP: {session?.ip || 'Connected IP'}</span>
                         </div>
                         <div className="font-label-caps text-label-caps text-secondary mt-1 font-mono">
                           Last Active: {session?.lastActive || 'Active Now'} • Token: {session?.tokenSig || 'sess_prov_jwt'}
@@ -2045,7 +2140,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
             </div>
 
             <div className="space-y-2">
-              {securityData.securityLogs && securityData.securityLogs.map(log => (
+              {Array.isArray(securityData?.securityLogs) && securityData.securityLogs.map(log => (
                 <div key={log.id} className="p-3.5 bg-surface rounded shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2">
                   <div className="flex items-start md:items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-emerald-600 mt-2 md:mt-0 shrink-0"></div>
@@ -2487,7 +2582,7 @@ export default function SettingsTab({ currentUser, onUpdateUser, initialSubTab =
                     className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-surface hover:bg-surface-container border border-sand-neutral/50 rounded font-button-text text-xs text-onyx-black cursor-pointer transition-colors"
                   >
                     <span className="material-symbols-outlined text-[16px]">navigation</span>
-                    <span>Test External Map Route ({preferenceData.defaultMapProvider.split('/')[0].trim()})</span>
+                    <span>Test External Map Route ({String(preferenceData?.defaultMapProvider || 'Google Maps').split('/')[0].trim()})</span>
                   </button>
                 </div>
               </div>

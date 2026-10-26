@@ -1877,7 +1877,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                       Delivered
                                     </button>
                                   </div>
-                                ) : (
+                                ) : isDriverAcceptedForOrder(ord) ? (
                                   <button
                                     type="button"
                                     disabled={updatingOrderId === ord.orderId}
@@ -1886,13 +1886,19 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                                   >
                                     Mark Delivered
                                   </button>
+                                ) : (
+                                  <span className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-xs font-mono font-bold inline-flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                                    Searching Courier
+                                  </span>
                                 )
-                              ) : isReadyStatus(ord.status) || isReadyTab ? (
+                              ) : isReadyStatus(ord.status) ? (
                                 ord.deliveryMode.toLowerCase().includes('pickup') ? (
                                   <button
                                     type="button"
+                                    disabled={updatingOrderId === ord.orderId}
                                     onClick={() => handleUpdateOrderStatus(ord.orderId, 'Completed')}
-                                    className="px-3 py-1.5 bg-onyx-black text-bone-white rounded-lg text-xs font-button-text hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer font-bold"
+                                    className="px-3 py-1.5 bg-onyx-black text-bone-white rounded-lg text-xs font-button-text hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer font-bold disabled:opacity-60"
                                   >
                                     Handover
                                   </button>
@@ -2313,7 +2319,7 @@ export default function OrdersTab({ currentUser, initialStatus = 'All' }) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedOrder.deliveryStatus === 'Searching' || selectedOrder.status === 'DELIVERY_REQUESTED' ? (
+                    {selectedOrder.deliveryStatus === 'Searching' || selectedOrder.status === 'DELIVERY_REQUESTED' || (selectedOrder.status === 'Delivery' && !isDriverAcceptedForOrder(selectedOrder)) ? (
                       <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>

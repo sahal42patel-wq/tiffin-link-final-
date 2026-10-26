@@ -223,6 +223,13 @@ const transitionOrderStatus = async ({
       io.emit('order:status:updated', payload);
       io.emit('order:updated', payload);
     }
+
+    if (['Cancelled', 'CANCELLED', 'Rejected', 'REJECTED'].includes(updatedOrder.status) && updatedOrder.providerId) {
+      try {
+        const { broadcastProviderCapacity } = require('../controllers/capacityController');
+        broadcastProviderCapacity(updatedOrder.providerId);
+      } catch (bErr) {}
+    }
   } catch (sErr) {
     console.warn('Socket broadcast notice in transitionOrderStatus:', sErr.message);
   }

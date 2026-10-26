@@ -36,6 +36,7 @@ const Withdrawal = require('../models/Withdrawal');
 const DeliveryRequest = require('../models/DeliveryRequest');
 const MealRequest = require('../models/MealRequest');
 const TiffinItem = require('../models/TiffinItem');
+const { calculateProviderCapacityData } = require('./capacityController');
 
 // Haversine formula to compute great-circle distance in kilometers
 const haversineKm = (lat1, lon1, lat2, lon2) => {
@@ -142,10 +143,6 @@ const getProviders = async (req, res) => {
         pObj.etaMinutes = Math.max(20, Math.round(15 + dist * 5));
         pObj.eta = `${pObj.etaMinutes}–${pObj.etaMinutes + 10} MIN`;
 
-        // Available daily slots
-        const maxCap = Number(p.maxCapacity) || 0;
-        pObj.availableSlots = maxCap;
-
         // Provider specific tiffins
         const tiffins = await Tiffin.find({ providerId: pIdStr, status: 'Active' });
         pObj.tiffins = tiffins;
@@ -156,6 +153,35 @@ const getProviders = async (req, res) => {
         } else {
           pObj.price = pObj.price || 0;
         }
+
+        // Real-Time Dynamic Kitchen Capacity Calculation
+        try {
+          const capData = await calculateProviderCapacityData(pIdStr, req.query?.date, p, tiffins);
+          pObj.totalCapacity = capData.totalCapacity;
+          pObj.maxCapacity = capData.totalCapacity;
+          pObj.availableSlots = capData.availableSlots;
+          pObj.remainingSlots = capData.remainingSlots;
+          pObj.consumedSlots = capData.consumedSlots;
+          pObj.consumedPercentage = capData.consumedPercentage;
+          pObj.orderCutoff = capData.orderCutoff;
+          pObj.isCutoffPassed = capData.isCutoffPassed;
+          pObj.availabilityStatus = capData.availabilityStatus;
+          pObj.featuredMealType = capData.mealType;
+          pObj.featuredTiffinName = capData.tiffinName;
+          pObj.availableDays = capData.availableDays;
+        } catch (capErr) {
+          const maxCap = Number(p.maxCapacity || p.maxMeals) || 30;
+          pObj.totalCapacity = maxCap;
+          pObj.maxCapacity = maxCap;
+          pObj.availableSlots = maxCap;
+          pObj.remainingSlots = maxCap;
+          pObj.consumedSlots = 0;
+          pObj.consumedPercentage = 0;
+          pObj.orderCutoff = '11:30 AM';
+          pObj.isCutoffPassed = false;
+          pObj.availabilityStatus = 'AVAILABLE';
+        }
+
         const dynamicKitchenPhoto = p.kitchenPhoto || p.kitchenPhotos || p.image || '';
         pObj.kitchenPhoto = dynamicKitchenPhoto;
         pObj.kitchenPhotos = dynamicKitchenPhoto;
@@ -344,6 +370,34 @@ const getProviderById = async (req, res) => {
       pObj.distanceKm = dist;
       pObj.etaMinutes = Math.max(20, Math.round(15 + dist * 5));
       pObj.eta = `${pObj.etaMinutes}–${pObj.etaMinutes + 10} MIN`;
+
+      // Real-Time Dynamic Kitchen Capacity Calculation
+      try {
+        const capData = await calculateProviderCapacityData(pIdStr, req.query?.date, provider, tiffins);
+        pObj.totalCapacity = capData.totalCapacity;
+        pObj.maxCapacity = capData.totalCapacity;
+        pObj.availableSlots = capData.availableSlots;
+        pObj.remainingSlots = capData.remainingSlots;
+        pObj.consumedSlots = capData.consumedSlots;
+        pObj.consumedPercentage = capData.consumedPercentage;
+        pObj.orderCutoff = capData.orderCutoff;
+        pObj.isCutoffPassed = capData.isCutoffPassed;
+        pObj.availabilityStatus = capData.availabilityStatus;
+        pObj.featuredMealType = capData.mealType;
+        pObj.featuredTiffinName = capData.tiffinName;
+        pObj.availableDays = capData.availableDays;
+      } catch (capErr) {
+        const maxCap = Number(provider.maxCapacity || provider.maxMeals) || 30;
+        pObj.totalCapacity = maxCap;
+        pObj.maxCapacity = maxCap;
+        pObj.availableSlots = maxCap;
+        pObj.remainingSlots = maxCap;
+        pObj.consumedSlots = 0;
+        pObj.consumedPercentage = 0;
+        pObj.orderCutoff = '11:30 AM';
+        pObj.isCutoffPassed = false;
+        pObj.availabilityStatus = 'AVAILABLE';
+      }
 
       return res.json({ success: true, data: pObj, source: 'database' });
     }

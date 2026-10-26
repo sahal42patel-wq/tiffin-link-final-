@@ -11,6 +11,7 @@ const {
 
 router.get('/', protect, requireProvider, getServiceArea);
 router.post('/settings', protect, requireProvider, updateServiceAreaSettings);
+router.put('/settings', protect, requireProvider, updateServiceAreaSettings);
 router.post('/areas', protect, requireProvider, addServiceArea);
 router.put('/areas/:id', protect, requireProvider, updateServiceArea);
 router.delete('/areas/:id', protect, requireProvider, deleteServiceArea);

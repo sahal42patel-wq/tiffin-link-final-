@@ -69,11 +69,12 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSubmitting) return;
 
     setIsSubmitting(true);
+    setLoading(true);
     
     const submissionData = {
       customerName: formData.customerName || 'Customer Diner',
@@ -89,42 +90,22 @@ export default function MealRequestForm({ onSubmitRequestSuccess }) {
     // Responsive confetti feedback
     try {
       confetti({
-        particleCount: 100,
-        spread: 70,
+        particleCount: 80,
+        spread: 60,
         origin: { y: 0.6 },
         colors: ['#1A1A1A', '#4A4238', '#DED9D1']
       });
     } catch (err) {}
 
-    // Immediately trigger navigation and auto-filter providers
+    // Pass filters to navigate and filter providers list
     if (onSubmitRequestSuccess) {
       onSubmitRequestSuccess(submissionData);
     }
 
-    // Persist request in background with single flight
-    try {
-      await fetch('http://localhost:5000/api/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerName: submissionData.customerName,
-          customerPhone: submissionData.customerPhone,
-          mealType: submissionData.mealType,
-          date: submissionData.date,
-          time: submissionData.time,
-          deliveryType: submissionData.deliveryType,
-          location: submissionData.location,
-          budget: Number(submissionData.budget) || 140,
-          category: submissionData.mealType.includes('Jain') ? 'Jain' : (submissionData.mealType.includes('Non-Veg') ? 'Non-Veg' : 'Gujarati')
-        }),
-      });
-    } catch (error) {
-      console.warn('Request submission failed:', error);
-    } finally {
-      setTimeout(() => setIsSubmitting(false), 2000);
-    }
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setLoading(false);
+    }, 400);
   };
 
   return (

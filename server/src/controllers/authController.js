@@ -33,7 +33,9 @@ const formatUserPayload = (user) => {
     isActive: user.isActive !== false,
     isVerified: user.isVerified !== false,
     emailVerified: user.isVerified !== false,
-    lastLogin: user.lastLogin
+    lastLogin: user.lastLogin,
+    savedAddresses: user.savedAddresses || [],
+    currentLocation: user.currentLocation || null
   };
 };
 
@@ -50,7 +52,7 @@ const getRoleDisplayName = (role) => {
 // @route   POST /api/auth/register
 const register = async (req, res) => {
   try {
-    let { name, email, phone, password, role } = req.body;
+    let { name, email, phone, password, role, address, directAuth } = req.body;
 
     if (!email || !email.includes('@')) {
       return res.status(400).json({ success: false, message: 'Please provide a valid email address' });
@@ -58,18 +60,35 @@ const register = async (req, res) => {
 
     email = email.trim().toLowerCase();
     name = name ? name.trim() : email.split('@')[0];
-    phone = phone ? phone.trim() : '';
+    phone = phone ? phone.trim().replace(/^\+91\s*/, '') : '';
 
     const allowedRole = (role === 'provider' || role === 'delivery' || role === 'customer') ? role : 'customer';
 
     if (isDbConnected()) {
-      let user = await User.findOne({ email });
+      let user = await User.findOne({ email }).select('+password');
 
-      if (user && user.isVerified && user.password) {
+      if (user && (user.isVerified || user.password)) {
         return res.status(409).json({
           success: false,
           message: 'An account with this email address already exists. Please log in.'
         });
+      }
+
+      // Check duplicate mobile if phone provided
+      if (phone) {
+        const phoneClean = phone.replace(/[^0-9]/g, '');
+        if (phoneClean.length >= 10) {
+          const existingPhoneUser = await User.findOne({ 
+            phone: { $regex: new RegExp(phoneClean.slice(-10) + '$') },
+            email: { $ne: email }
+          });
+          if (existingPhoneUser) {
+            return res.status(409).json({
+              success: false,
+              message: 'An account with this mobile number already exists. Please log in.'
+            });
+          }
+        }
       }
 
       if (!user) {
@@ -87,6 +106,77 @@ const register = async (req, res) => {
         user.phone = phone;
         if (password) user.password = password;
         user.role = allowedRole;
+      }
+
+      // Persist delivery address in MongoDB
+      if (address) {
+        const addrObj = {
+          label: address.label || 'Home',
+          fullName: name,
+          phone: phone,
+          street: address.houseFlat || address.buildingFlat || address.street || '',
+          area: address.streetArea || address.area || '',
+          city: address.city || 'Ahmedabad',
+          state: address.state || 'Gujarat',
+          pincode: address.pincode || address.pinCode || '',
+          lat: Number(address.lat) || 23.0300,
+          lng: Number(address.lng) || 72.5178,
+          landmark: address.landmark || '',
+          isDefault: true
+        };
+        user.savedAddresses = [addrObj];
+        user.currentLocation = {
+          address: `${addrObj.street ? addrObj.street + ', ' : ''}${addrObj.area ? addrObj.area + ', ' : ''}${addrObj.city} - ${addrObj.pincode}`,
+          city: addrObj.city,
+          state: addrObj.state,
+          country: 'India',
+          timestamp: new Date(),
+          updatedAt: new Date()
+        };
+      }
+
+      // If direct account creation requested with secure password
+      if (directAuth || (password && password.length >= 6)) {
+        user.isVerified = true;
+        user.lastLogin = new Date();
+        await user.save();
+
+        const accessToken = generateAccessToken(user._id, user.role);
+        const refreshToken = generateRefreshToken(user._id);
+
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        res.cookie('tiffinlink_token', accessToken, {
+          httpOnly: true,
+          secure: false,
+          maxAge: 24 * 60 * 60 * 1000
+        });
+
+        // Fire-and-forget optional notification/welcome OTP
+        try {
+          const otpCode = generateSecureOtp();
+          await Otp.deleteMany({ email });
+          await Otp.create({
+            email,
+            otp: otpCode,
+            hashedOtp: hashOtp(otpCode),
+            purpose: 'EMAIL_VERIFICATION',
+            attempts: 0,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+          });
+        } catch (e) {
+          console.warn('Background OTP record init note:', e);
+        }
+
+        return res.status(201).json({
+          success: true,
+          message: 'Patron account created and authenticated successfully.',
+          user: formatUserPayload(user),
+          accessToken,
+          refreshToken,
+          source: 'database'
+        });
       }
 
       await user.save();

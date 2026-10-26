@@ -1533,31 +1533,7 @@ const broadcastDeliveryRequest = async (req, res) => {
           { new: true }
         );
 
-        // Auto-Simulate driver acceptance after 3 seconds if no driver manually accepts
-        setTimeout(async () => {
-          try {
-            const bestDriver = await findBestNearbyDriverFromDb();
-            await DeliveryRequest.findOneAndUpdate(
-              { _id: request._id, status: 'Searching Drivers' },
-              {
-                $set: {
-                  status: 'Driver Assigned',
-                  assignedDriver: bestDriver,
-                  acceptedAt: new Date()
-                }
-              }
-            );
-            if (request.orderId) {
-              await Order.findOneAndUpdate(
-                { $or: [{ orderId: request.orderId }, { _id: request.orderId }] },
-                { $set: { status: 'Delivery', deliveryStatus: 'Assigned', deliveryPartnerName: bestDriver.name, deliveryPartnerPhone: bestDriver.phone } }
-              );
-            }
-          } catch (e) {
-            console.error('Auto-accept simulation error:', e);
-          }
-        }, 3000);
-
+        // Real broadcast mode: Wait for an authentic driver partner to accept manually
         return res.json({
           success: true,
           message: '📡 Broadcast sent to all online drivers nearby! Waiting for driver to accept...',

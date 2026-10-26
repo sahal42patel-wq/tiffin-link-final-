@@ -25,6 +25,7 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignTargetOrder, setAssignTargetOrder] = useState(null);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [dispatchingOrderId, setDispatchingOrderId] = useState(null);
   
   const [isTrackingDrawerOpen, setIsTrackingDrawerOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -186,16 +187,20 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
 
   // Explicit Provider Dispatch Trigger: Broadcasts Delivery Request to Available Drivers
   const handleDispatchCourier = async (order) => {
+    const oId = order.orderId || order._id;
+    if (dispatchingOrderId) return;
+    setDispatchingOrderId(oId);
     try {
-      const cleanDbId = String(order.orderId || order._id).replace(/^#/, '').trim();
-      showToast(`Dispatching Order #${order.orderId || order._id} to courier network...`);
+      const cleanDbId = String(oId).replace(/^#/, '').trim();
+      showToast(`Dispatching Order #${oId} to courier network...`);
       const res = await apiRequest(`/orders/${encodeURIComponent(cleanDbId)}/confirm-pickup`, {
         method: 'POST',
         body: JSON.stringify({})
       });
       const json = typeof res?.json === 'function' ? await res.json() : res;
       if (json && json.success) {
-        showToast(`✓ Order #${order.orderId || order._id} dispatched to courier network! Delivery broadcast active.`);
+        showToast(`✓ Order #${oId} dispatched to courier network! Delivery broadcast active.`);
+        setReadyOrders(prev => prev.filter(o => (o.orderId || o._id) !== oId));
         fetchDeliveryData(false);
       } else {
         showToast(`⚠️ ${json?.message || 'Dispatch could not be completed'}`);
@@ -205,6 +210,8 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
       console.error('Error dispatching courier:', err);
       showToast('⚠️ Failed to communicate with dispatch service');
       fetchDeliveryData(false);
+    } finally {
+      setDispatchingOrderId(null);
     }
   };
 
@@ -512,17 +519,31 @@ export default function DeliveryManagementTab({ currentUser, onNavigateTab }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {readyOrders.slice(0, 3).map(order => (
-              <button
-                key={order._id || order.orderId}
-                type="button"
-                onClick={() => handleDispatchCourier(order)}
-                className="px-3.5 py-2 bg-onyx-black text-on-primary hover:bg-clay-earth font-button-text text-button-text rounded transition-all flex items-center gap-1.5 cursor-pointer font-bold"
-              >
-                <span className="material-symbols-outlined text-[16px] text-amber-400">send</span>
-                <span>Courier for #{order.orderId || order._id}</span>
-              </button>
-            ))}
+            {readyOrders.slice(0, 3).map(order => {
+              const oId = order.orderId || order._id;
+              const isDispatchingThis = dispatchingOrderId === oId;
+              return (
+                <button
+                  key={order._id || order.orderId}
+                  type="button"
+                  disabled={Boolean(dispatchingOrderId)}
+                  onClick={() => handleDispatchCourier(order)}
+                  className="px-3.5 py-2 bg-onyx-black text-on-primary hover:bg-clay-earth font-button-text text-button-text rounded transition-all flex items-center gap-1.5 cursor-pointer font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDispatchingThis ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-bone-white/30 border-t-bone-white rounded-full animate-spin"></span>
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[16px] text-amber-400">send</span>
+                      <span>Courier for #{order.orderId || order._id}</span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

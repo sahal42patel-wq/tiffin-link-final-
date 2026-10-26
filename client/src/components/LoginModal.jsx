@@ -9,7 +9,8 @@ export default function LoginModal({
   onOpenBecomeProviderModal,
   onOpenBecomeDeliveryPartnerModal,
   onLoginSuccess,
-  onOpenLegalModal
+  onOpenLegalModal,
+  onOpenCustomerRegistrationModal
 }) {
   // Active Role Tab: 'customer' | 'provider' | 'delivery'
   const [activeRole, setActiveRole] = useState(initialRole);
@@ -95,6 +96,11 @@ export default function LoginModal({
       if (initialMode === 'signup' && initialRole === 'delivery') {
         onClose();
         if (onOpenBecomeDeliveryPartnerModal) onOpenBecomeDeliveryPartnerModal();
+        return;
+      }
+      if (initialMode === 'signup' && (initialRole === 'customer' || !initialRole)) {
+        onClose();
+        if (onOpenCustomerRegistrationModal) onOpenCustomerRegistrationModal();
         return;
       }
 
@@ -1033,6 +1039,9 @@ export default function LoginModal({
                             } else if (activeRole === 'delivery' && onOpenBecomeDeliveryPartnerModal) {
                               onClose();
                               onOpenBecomeDeliveryPartnerModal();
+                            } else if (onOpenCustomerRegistrationModal) {
+                              onClose();
+                              onOpenCustomerRegistrationModal();
                             } else {
                               setMode('signup');
                               setErrors({});

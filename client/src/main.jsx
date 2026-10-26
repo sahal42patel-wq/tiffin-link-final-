@@ -196,7 +196,11 @@ class RootErrorBoundary extends React.Component {
         <ThemedErrorPage 
           status={500}
           customTitle="Unexpected Application Interruption"
-          customDescription="A runtime application exception was safely contained. The platform has preserved your session state."
+          customDescription={this.state.error?.message ? `Application note: ${this.state.error.message}` : "A runtime application exception was safely contained. The platform has preserved your session state."}
+          onPrimaryClick={() => {
+            this.setState({ hasError: false, error: null });
+            window.location.reload();
+          }}
           onNavigateHome={() => {
             this.setState({ hasError: false, error: null });
             window.location.href = '/';

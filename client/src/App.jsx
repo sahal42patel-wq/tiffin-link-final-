@@ -39,6 +39,7 @@ import ParticleBackground from './components/ParticleBackground';
 import ScrollMarquee from './components/ScrollMarquee';
 import ScrollRopeIndicator from './components/ScrollRopeIndicator';
 import LoginModal from './components/LoginModal';
+import CustomerRegistrationModal from './components/CustomerRegistrationModal';
 import DemoModal from './components/DemoModal';
 import CookieConsentModal from './components/CookieConsentModal';
 import CustomerDeliveryTrackingModal from './components/CustomerDeliveryTrackingModal';
@@ -86,6 +87,7 @@ export default function App() {
   const [loginModalMode, setLoginModalMode] = useState('login');
   const [loginModalRole, setLoginModalRole] = useState('customer');
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isCustomerRegistrationModalOpen, setIsCustomerRegistrationModalOpen] = useState(false);
   const [isBecomeProviderModalOpen, setIsBecomeProviderModalOpen] = useState(false);
   const [isBecomeDeliveryPartnerModalOpen, setIsBecomeDeliveryPartnerModalOpen] = useState(false);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
@@ -116,6 +118,11 @@ export default function App() {
     }
     if (mode === 'signup' && role === 'delivery') {
       setIsBecomeDeliveryPartnerModalOpen(true);
+      return;
+    }
+    if (mode === 'signup' && (role === 'customer' || !role)) {
+      setIsLoginModalOpen(false);
+      setIsCustomerRegistrationModalOpen(true);
       return;
     }
     setLoginModalMode(mode);
@@ -258,6 +265,13 @@ export default function App() {
       }
 
       // Allowed Public Routes
+      if (['#register', '#/register', '#signup', '#/signup', '#patron-registration', '#join'].includes(baseHash)) {
+        setIsCustomerRegistrationModalOpen(true);
+        if (typeof window !== 'undefined' && window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        return 'home';
+      }
       if (baseHash.startsWith('#for-providers') || baseHash.startsWith('#provider-landing')) return 'provider';
       if (baseHash.startsWith('#for-deliverers') || baseHash.startsWith('#delivery-landing')) return 'delivery';
       if (baseHash.startsWith('#find-tiffin') || baseHash.startsWith('#order-tiffin') || baseHash.startsWith('#for-diners')) return 'find-tiffin';
@@ -1208,6 +1222,20 @@ export default function App() {
       )}
 
       {/* Interactive Modals */}
+      <CustomerRegistrationModal 
+        isOpen={isCustomerRegistrationModalOpen}
+        onClose={() => setIsCustomerRegistrationModalOpen(false)}
+        onOpenLogin={(role = 'customer') => {
+          setIsCustomerRegistrationModalOpen(false);
+          openLoginModal('login', role);
+        }}
+        onRegistrationSuccess={(userObj, accessToken, refreshToken) => {
+          setIsCustomerRegistrationModalOpen(false);
+          handleLoginSuccess(userObj, accessToken, refreshToken);
+        }}
+        onOpenLegalModal={openLegalModal}
+      />
+
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)}
@@ -1215,6 +1243,7 @@ export default function App() {
         initialMode={loginModalMode}
         onOpenBecomeProviderModal={() => { setIsLoginModalOpen(false); setIsBecomeProviderModalOpen(true); }}
         onOpenBecomeDeliveryPartnerModal={() => { setIsLoginModalOpen(false); setIsBecomeDeliveryPartnerModalOpen(true); }}
+        onOpenCustomerRegistrationModal={() => { setIsLoginModalOpen(false); setIsCustomerRegistrationModalOpen(true); }}
         onLoginSuccess={handleLoginSuccess}
         onOpenLegalModal={openLegalModal}
       />

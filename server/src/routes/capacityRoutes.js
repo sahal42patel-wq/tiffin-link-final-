@@ -5,9 +5,11 @@ const {
   getCapacity,
   updateCapacitySettings,
   updateDateCapacity,
-  checkCapacityAvailable
+  checkCapacityAvailable,
+  getPublicProviderAvailability
 } = require('../controllers/capacityController');
 
+router.get('/availability/:providerId', getPublicProviderAvailability);
 router.get('/', protect, requireProvider, getCapacity);
 router.post('/settings', protect, requireProvider, updateCapacitySettings);
 router.put('/date', protect, requireProvider, updateDateCapacity);
